@@ -21,6 +21,13 @@ public class DPLLResult {
         return satisfiable;
     }
     
+    public Assignment getAssignment() {
+        if(!satisfiable) {
+            throw new IllegalStateException("No assignment exists because the result is unsatisfiable");
+        }
+        return assignment;
+    }
+    
     @Override
     public String toString() {
         if ( satisfiable ) {
