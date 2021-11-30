@@ -10,7 +10,7 @@ Navigate into the created directory:
 Let Maven build the project:  
 `mvn package`  
 Run the project:  
-`java -jar target/satchecking-1.0-SNAPSHOT.jar`
+`java -jar target/satchecking-1.0-SNAPSHOT.jar`  
 Now you should see the command prompt indicated by a `>` symbol.
 
 # Propositional logic
