@@ -17,6 +17,10 @@ public class DPLLResult {
         return new DPLLResult( true, assignment );
     }
     
+    public boolean isSatisfiable() {
+        return satisfiable;
+    }
+    
     @Override
     public String toString() {
         if ( satisfiable ) {
