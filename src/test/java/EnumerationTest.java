@@ -1,17 +1,15 @@
-import me.paultristanwagner.satchecking.Assignment;
-import me.paultristanwagner.satchecking.CNF;
-import me.paultristanwagner.satchecking.DPLL;
-import me.paultristanwagner.satchecking.DPLLResult;
+import me.paultristanwagner.satchecking.*;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class EnumerationTest {
     
     @Test
     public void testSat() {
         CNF cnf = CNF.parse( "(a) & (~a | b) & (~b | c) & (~c | d)" );
-        DPLLResult result = DPLL.enumeration( cnf );
+        Result result = Enumeration.check( cnf );
         assertTrue( result.isSatisfiable() );
         Assignment assignment = result.getAssignment();
         assertTrue( assignment.getValue( "a" ) );
@@ -23,7 +21,7 @@ public class EnumerationTest {
     @Test
     public void testUnsat() {
         CNF cnf = CNF.parse( "(a) & (b) & (c) & (d) & (e) & (~a | ~b | ~c | ~d | ~e)" );
-        DPLLResult result = DPLL.enumeration( cnf );
+        Result result = Enumeration.check( cnf );
         assertFalse( result.isSatisfiable() );
     }
 }

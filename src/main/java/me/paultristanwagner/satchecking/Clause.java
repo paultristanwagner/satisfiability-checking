@@ -13,7 +13,7 @@ public class Clause {
     
     public boolean isUnit( Assignment assignment ) {
         // todo
-        return Boolean.parseBoolean( "TODO" );
+        throw new UnsupportedOperationException();
     }
     
     public List<Literal> getLiterals() {

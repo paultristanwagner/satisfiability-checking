@@ -1,20 +1,20 @@
 package me.paultristanwagner.satchecking;
 
-public class DPLLResult {
+public class Result {
     
     private final boolean satisfiable;
     
     private final Assignment assignment;
     
-    private DPLLResult( boolean satisfiable, Assignment assignment ) {
+    private Result( boolean satisfiable, Assignment assignment ) {
         this.satisfiable = satisfiable;
         this.assignment = assignment;
     }
     
-    public static final DPLLResult UNSAT = new DPLLResult( false, null );
+    public static final Result UNSAT = new Result( false, null );
     
-    public static DPLLResult SAT( Assignment assignment ) {
-        return new DPLLResult( true, assignment );
+    public static Result SAT( Assignment assignment ) {
+        return new Result( true, assignment );
     }
     
     public boolean isSatisfiable() {

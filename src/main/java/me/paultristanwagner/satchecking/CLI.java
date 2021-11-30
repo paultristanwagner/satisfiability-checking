@@ -24,7 +24,7 @@ public class CLI {
                 continue;
             }
             
-            DPLLResult result = DPLL.enumeration( cnf );
+            Result result = Enumeration.check( cnf );
             if ( result.isSatisfiable() ) {
                 System.out.println( "" + AnsiColor.GREEN + result + AnsiColor.RESET );
             } else {
