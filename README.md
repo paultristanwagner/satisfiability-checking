@@ -16,3 +16,12 @@ Now you should see the command prompt indicated by a `>` symbol.
 # Propositional logic
 ## Enumeration
 A simple sat solver using enumeration is implemented and can be used.
+
+### Example:
+Input can be given in conjunctive normal form in the following way.
+![cnf-input-sat]
+![cnf-input-unsat]
+
+[cnf-input-sat]: cnf-input-sat.png
+[cnf-input-unsat]: cnf-input-unsat.png
+
