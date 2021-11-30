@@ -39,26 +39,19 @@ public class Assignment {
         map.put( c, value );
     }
     
-    public boolean assignNext( char c ) {
-        if ( decisions.contains( c ) ) {
-            throw new IllegalStateException( "Cannot assign variable if already in the trail" );
-        }
-        
-        decisions.add( c );
-        if ( assigns( c ) ) {
-            if ( get( c ) ) {
-                return false;
+    public boolean backtrack() {
+        while ( !decisions.isEmpty() ) {
+            Character c = decisions.peek();
+            boolean lastDecision = get( c );
+            decisions.pop();
+            if ( lastDecision ) { // todo: change this that it also works the other way around if wanted
+                map.remove( c );
+            } else {
+                assign( c, true );
+                return true;
             }
-            map.put( c, true );
-        } else {
-            map.put( c, false );
         }
-        return true;
-    }
-    
-    public void undo() {
-        // todo: we also need to forget past decisions somehow
-        decisions.pop();
+        return false;
     }
     
     public boolean evaluate( Literal literal ) {
@@ -105,5 +98,9 @@ public class Assignment {
             throw new IllegalStateException( "Not last assigned literal" );
         }
         return decisions.peek();
+    }
+    
+    public Set<Character> getAssignedCharacters() {
+        return new HashSet<>( decisions );
     }
 }

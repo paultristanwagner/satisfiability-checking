@@ -1,8 +1,9 @@
 package me.paultristanwagner.satchecking;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Set;
+
+import static me.paultristanwagner.satchecking.DPLLResult.SAT;
+import static me.paultristanwagner.satchecking.DPLLResult.UNSAT;
 
 public class DPLL {
     
@@ -12,36 +13,34 @@ public class DPLL {
                 new Clause( Literal.not( 'a' ), Literal.not( 'b' ) )
         );
         
-        List<Character> characters = new ArrayList<>( cnf.getCharacters() );
-        Collections.sort( characters );
-        
+        DPLLResult result = enumeration( cnf );
+        System.out.println( result );
+    }
+    
+    private static DPLLResult enumeration( CNF cnf ) {
         Assignment assignment = new Assignment();
-        
-        Character recent = characters.get( 0 );
-        boolean eval;
-        do {
-            while ( !assignment.fits( cnf ) ) {
-                do {
-                    boolean assignSuccess = assignment.assignNext( recent );
-                    if ( !assignSuccess ) {
-                        System.out.println( "no success on assign" );
-                        assignment.undo();
-                        recent = assignment.getLastAssigned();
-                        System.out.println( assignment );
-                    }
-                    recent = characters.get( ( characters.indexOf( recent ) + 1 ) % characters.size() );
-                    System.out.println( recent );
-                } while ( recent != characters.get( 0 ) );
+        while ( true ) {
+            if ( assignment.fits( cnf ) ) {
+                boolean evaluation = assignment.evaluate( cnf );
+                if ( evaluation ) {
+                    return SAT( assignment );
+                } else if ( !assignment.backtrack() ) {
+                    return UNSAT;
+                }
+            } else {
+                decide( cnf, assignment );
             }
-            eval = assignment.evaluate( cnf );
-            
-            System.out.println( eval + " " + assignment );
-            
-            if ( !eval ) {
-                assignment.undo();
-                recent = characters.get( ( characters.indexOf( recent ) + 1 ) % characters.size() );
-            }
-        } while ( !eval );
+        }
+    }
+    
+    private static void decide( CNF cnf, Assignment assignment ) {
+        Set<Character> characters = cnf.getCharacters();
+        characters.removeAll( assignment.getAssignedCharacters() );
+        if ( characters.isEmpty() ) {
+            throw new IllegalStateException( "Cannot decide because all characters are assigned" );
+        }
+        Character c = characters.stream().findAny().get();
+        assignment.assign( c, false );
     }
     
     public DPLLResult check( CNF cnf ) {
