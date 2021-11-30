@@ -25,4 +25,13 @@ public class Literal {
     public static Literal not( char c ) {
         return new Literal( c, true );
     }
+    
+    @Override
+    public String toString() {
+        if ( negated ) {
+            return "~" + c;
+        } else {
+            return String.valueOf( c );
+        }
+    }
 }

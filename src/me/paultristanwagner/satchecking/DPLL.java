@@ -8,12 +8,10 @@ import static me.paultristanwagner.satchecking.DPLLResult.UNSAT;
 public class DPLL {
     
     public static void main( String[] args ) {
-        CNF cnf = new CNF(
-                new Clause( Literal.of( 'a' ) ),
-                new Clause( Literal.not( 'a' ), Literal.not( 'b' ) )
-        );
-        
+        CNF cnf = CNF.parse( "(~a) & (a | ~b | c) & (c | b) & (a | ~c)" );
         DPLLResult result = enumeration( cnf );
+        
+        System.out.println( "CNF: " + cnf );
         System.out.println( result );
     }
     

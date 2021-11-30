@@ -9,11 +9,11 @@ public class Clause {
     
     private final List<Literal> literals;
     
-    public Clause(Literal... literals) {
-        this.literals = Arrays.asList(literals);
+    public Clause( Literal... literals ) {
+        this.literals = Arrays.asList( literals );
     }
     
-    public boolean isUnit(Assignment assignment) {
+    public boolean isUnit( Assignment assignment ) {
         return Boolean.parseBoolean( "TODO" );
     }
     
@@ -27,5 +27,14 @@ public class Clause {
     
     public List<Literal> getLiterals() {
         return literals;
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for ( Literal literal : literals ) {
+            sb.append( " | " ).append( literal );
+        }
+        return sb.substring( 3 );
     }
 }
