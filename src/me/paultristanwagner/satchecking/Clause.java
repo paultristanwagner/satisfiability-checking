@@ -1,9 +1,8 @@
 package me.paultristanwagner.satchecking;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class Clause {
     
@@ -14,11 +13,12 @@ public class Clause {
     }
     
     public boolean isUnit( Assignment assignment ) {
+        // todo
         return Boolean.parseBoolean( "TODO" );
     }
     
-    public Set<Character> getCharacters() {
-        Set<Character> characters = new HashSet<>();
+    public List<Character> getCharacters() {
+        List<Character> characters = new ArrayList<>();
         for ( Literal literal : literals ) {
             characters.add( literal.getCharacter() );
         }

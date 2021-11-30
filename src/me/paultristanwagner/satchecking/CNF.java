@@ -1,9 +1,8 @@
 package me.paultristanwagner.satchecking;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CNF {
@@ -18,8 +17,8 @@ public class CNF {
         return clauses;
     }
     
-    public Set<Character> getCharacters() {
-        Set<Character> characters = new HashSet<>();
+    public List<Character> getCharacters() {
+        List<Character> characters = new ArrayList<>();
         for ( Clause clause : clauses ) {
             characters.addAll( clause.getCharacters() );
         }
@@ -36,24 +35,19 @@ public class CNF {
         L -> <char>
      */
     
-    public static void main( String[] args ) {
-        CNF cnf = CNF.parse( "(a | ~c | c) & (c)" );
-        System.out.println( cnf );
-    }
-    
     public static CNF parse( String string ) {
         AtomicInteger index = new AtomicInteger( 0 );
-        Set<Clause> clauses = S( string, index );
+        List<Clause> clauses = S( string, index );
         return new CNF( clauses.toArray( new Clause[]{} ) );
     }
     
-    private static Set<Clause> S( String string, AtomicInteger index ) {
+    private static List<Clause> S( String string, AtomicInteger index ) {
         if ( nextChar( string, index ) != '(' ) {
             throw new RuntimeException( "Cannot parse CNF. Expected '(' at index " + index );
         }
         index.incrementAndGet();
         
-        Set<Literal> literals = D( string, index );
+        List<Literal> literals = D( string, index );
         Clause clause = new Clause( literals.toArray( new Literal[]{} ) );
         
         if ( nextChar( string, index ) != ')' ) {
@@ -61,23 +55,24 @@ public class CNF {
         }
         index.incrementAndGet();
         
+        List<Clause> clauses = new ArrayList<>();
+        clauses.add( clause );
         if ( string.length() == index.get() ) { // todo: code is funky
-            Set<Clause> clauses = new HashSet<>();
-            clauses.add( clause );
             return clauses;
         }
+        
         if ( nextChar( string, index ) != '&' ) {
             throw new RuntimeException( "Expected '&' at index " + index );
         }
         index.incrementAndGet();
-        Set<Clause> clauses = S( string, index );
-        clauses.add( clause );
+        
+        clauses.addAll( S( string, index ) );
         return clauses;
     }
     
-    private static Set<Literal> D( String string, AtomicInteger index ) {
+    private static List<Literal> D( String string, AtomicInteger index ) {
         Literal literal = L( string, index );
-        Set<Literal> literals = new HashSet<>();
+        List<Literal> literals = new ArrayList<>();
         if ( nextChar( string, index ) == '|' ) {
             index.incrementAndGet();
             literals.addAll( D( string, index ) );

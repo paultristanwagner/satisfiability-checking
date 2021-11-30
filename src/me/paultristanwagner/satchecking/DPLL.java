@@ -1,6 +1,6 @@
 package me.paultristanwagner.satchecking;
 
-import java.util.Set;
+import java.util.List;
 
 import static me.paultristanwagner.satchecking.DPLLResult.SAT;
 import static me.paultristanwagner.satchecking.DPLLResult.UNSAT;
@@ -32,7 +32,7 @@ public class DPLL {
     }
     
     private static void decide( CNF cnf, Assignment assignment ) {
-        Set<Character> characters = cnf.getCharacters();
+        List<Character> characters = cnf.getCharacters();
         characters.removeAll( assignment.getAssignedCharacters() );
         if ( characters.isEmpty() ) {
             throw new IllegalStateException( "Cannot decide because all characters are assigned" );
@@ -41,7 +41,8 @@ public class DPLL {
         assignment.assign( c, false );
     }
     
-    public DPLLResult check( CNF cnf ) {
+    public DPLLResult dpll( CNF cnf ) {
+        // todo
         return null;
     }
 }

@@ -13,7 +13,7 @@ public class Assignment {
     }
     
     public boolean fits( CNF cnf ) {
-        Set<Character> characters = cnf.getCharacters();
+        List<Character> characters = cnf.getCharacters();
         for ( Character character : characters ) {
             if ( !assigns( character ) ) {
                 return false;
@@ -79,7 +79,7 @@ public class Assignment {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        List<Character> characters = new ArrayList<>( map.keySet() );
+        List<Character> characters = new ArrayList<>( decisions );
         Collections.sort( characters );
         
         for ( Character character : characters ) {
@@ -100,7 +100,7 @@ public class Assignment {
         return decisions.peek();
     }
     
-    public Set<Character> getAssignedCharacters() {
-        return new HashSet<>( decisions );
+    public List<Character> getAssignedCharacters() {
+        return new ArrayList<>( decisions );
     }
 }
