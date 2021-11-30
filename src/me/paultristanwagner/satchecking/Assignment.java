@@ -95,7 +95,7 @@ public class Assignment {
     
     public Character getLastAssigned() {
         if ( decisions.isEmpty() ) {
-            throw new IllegalStateException( "Not last assigned literal" );
+            throw new IllegalStateException( "No last assigned literal" );
         }
         return decisions.peek();
     }
