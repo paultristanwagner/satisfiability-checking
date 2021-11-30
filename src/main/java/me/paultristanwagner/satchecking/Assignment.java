@@ -4,50 +4,51 @@ import java.util.*;
 
 public class Assignment {
     
-    private final Stack<Character> decisions;
-    private final Map<Character, Boolean> map;
+    private final Stack<LiteralAssignment> decisions;
+    private final List<LiteralAssignment> literalAssignments;
     
     public Assignment() {
         decisions = new Stack<>();
-        map = new HashMap<>();
+        literalAssignments = new ArrayList<>();
     }
     
     public boolean fits( CNF cnf ) {
-        List<Character> characters = cnf.getCharacters();
-        for ( Character character : characters ) {
-            if ( !assigns( character ) ) {
+        List<Literal> literals = cnf.getLiterals();
+        for ( Literal literal : literals ) {
+            if ( !assigns( literal ) ) {
                 return false;
             }
         }
         return true;
     }
     
-    public boolean assigns( char c ) {
-        return decisions.contains( c ) && map.containsKey( c );
+    public boolean assigns( Literal literal ) {
+        return literalAssignments.stream().anyMatch( la -> la.getLiteralName().equals( literal.getName() ) );
     }
     
-    public boolean get( char c ) {
-        if ( !assigns( c ) ) {
-            throw new IllegalStateException( "Assignment does not assign any value to '" + c + "'" );
+    public boolean getValue( String literalName ) {
+        Optional<LiteralAssignment> assignedLiteral = literalAssignments.stream().filter( la -> la.getLiteralName().equals( literalName ) ).findFirst();
+        if ( assignedLiteral.isEmpty() ) {
+            throw new IllegalStateException( "Assignment does not assign any value to '" + literalName + "'" );
         }
-        
-        return map.get( c );
+        return assignedLiteral.get().getValue();
     }
     
-    public void assign( char c, boolean value ) {
-        decisions.add( c );
-        map.put( c, value );
+    public void assign( Literal literal, boolean value ) {
+        LiteralAssignment la = new LiteralAssignment( literal.getName(), value, false );
+        decisions.add( la );
+        literalAssignments.add( la );
     }
     
     public boolean backtrack() {
         while ( !decisions.isEmpty() ) {
-            Character c = decisions.peek();
-            boolean lastDecision = get( c );
-            decisions.pop();
-            if ( lastDecision ) { // todo: change this that it also works the other way around if wanted
-                map.remove( c );
+            LiteralAssignment la = decisions.peek();
+            if ( la.wasPreviouslyAssigned() ) {
+                decisions.pop();
+                literalAssignments.remove( la );
             } else {
-                assign( c, true );
+                la.toggleValue();
+                la.setPreviouslyAssigned();
                 return true;
             }
         }
@@ -55,7 +56,7 @@ public class Assignment {
     }
     
     public boolean evaluate( Literal literal ) {
-        return get( literal.getCharacter() ) ^ literal.isNegated();
+        return getValue( literal.getName() ) ^ literal.isNegated();
     }
     
     public boolean evaluate( Clause clause ) {
@@ -79,28 +80,19 @@ public class Assignment {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        List<Character> characters = new ArrayList<>( decisions );
-        Collections.sort( characters );
+        List<LiteralAssignment> las = new ArrayList<>( decisions );
+        las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         
-        for ( Character character : characters ) {
-            if ( assigns( character ) ) {
-                sb.append( ", " )
-                        .append( character )
-                        .append( "=" )
-                        .append( get( character ) );
-            }
+        for ( LiteralAssignment la : las ) {
+            sb.append( ", " )
+                    .append( la.getLiteralName() )
+                    .append( "=" )
+                    .append( la.getValue() );
         }
         return sb.substring( 2 );
     }
     
-    public Character getLastAssigned() {
-        if ( decisions.isEmpty() ) {
-            throw new IllegalStateException( "No last assigned literal" );
-        }
-        return decisions.peek();
-    }
-    
-    public List<Character> getAssignedCharacters() {
-        return new ArrayList<>( decisions );
+    public List<LiteralAssignment> getLiteralAssignments() {
+        return literalAssignments;
     }
 }

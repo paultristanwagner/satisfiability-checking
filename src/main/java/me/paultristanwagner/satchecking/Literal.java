@@ -2,36 +2,28 @@ package me.paultristanwagner.satchecking;
 
 public class Literal {
     
-    private final char c;
+    private final String name;
     private final boolean negated;
     
-    public Literal( char c, boolean negated ) {
-        this.c = c;
+    public Literal( String name, boolean negated ) {
+        this.name = name;
         this.negated = negated;
     }
     
-    public char getCharacter() {
-        return c;
+    public String getName() {
+        return name;
     }
     
     public boolean isNegated() {
         return negated;
     }
     
-    public static Literal of( char c ) {
-        return new Literal( c, false );
-    }
-    
-    public static Literal not( char c ) {
-        return new Literal( c, true );
-    }
-    
     @Override
     public String toString() {
         if ( negated ) {
-            return "~" + c;
+            return "~" + name;
         } else {
-            return String.valueOf( c );
+            return name;
         }
     }
 }

@@ -1,6 +1,5 @@
 package me.paultristanwagner.satchecking;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -15,14 +14,6 @@ public class Clause {
     public boolean isUnit( Assignment assignment ) {
         // todo
         return Boolean.parseBoolean( "TODO" );
-    }
-    
-    public List<Character> getCharacters() {
-        List<Character> characters = new ArrayList<>();
-        for ( Literal literal : literals ) {
-            characters.add( literal.getCharacter() );
-        }
-        return characters;
     }
     
     public List<Literal> getLiterals() {

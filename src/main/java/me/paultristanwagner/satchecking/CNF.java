@@ -17,12 +17,12 @@ public class CNF {
         return clauses;
     }
     
-    public List<Character> getCharacters() {
-        List<Character> characters = new ArrayList<>();
+    public List<Literal> getLiterals() {
+        List<Literal> literals = new ArrayList<>();
         for ( Clause clause : clauses ) {
-            characters.addAll( clause.getCharacters() );
+            literals.addAll( clause.getLiterals() );
         }
-        return characters;
+        return literals;
     }
     
     /*
@@ -57,7 +57,7 @@ public class CNF {
         
         List<Clause> clauses = new ArrayList<>();
         clauses.add( clause );
-        if ( string.length() == index.get() ) { // todo: code is funky
+        if ( string.length() == index.get() ) {
             return clauses;
         }
         
@@ -73,11 +73,11 @@ public class CNF {
     private static List<Literal> D( String string, AtomicInteger index ) {
         Literal literal = L( string, index );
         List<Literal> literals = new ArrayList<>();
+        literals.add( literal );
         if ( nextChar( string, index ) == '|' ) {
             index.incrementAndGet();
             literals.addAll( D( string, index ) );
         }
-        literals.add( literal );
         return literals;
     }
     
@@ -87,12 +87,20 @@ public class CNF {
             index.incrementAndGet();
             negated = true;
         }
-        char c = nextChar( string, index );
-        index.incrementAndGet();
-        if ( ( c < 65 || c > 90 ) && ( c < 97 || c > 122 ) ) {
-            throw new IllegalStateException( "Literal expected instead of '" + c + "' at index " + index );
+        StringBuilder sb = new StringBuilder();
+        while ( true ) {
+            char c = string.charAt( index.get() );
+            if ( ( c < 65 || c > 90 ) && ( c < 97 || c > 122 ) && ( c < 48 || c > 57 ) ) {
+                if ( sb.length() == 0 ) {
+                    throw new RuntimeException( "Literal expected got '" + c + "' instead" );
+                }
+                break;
+            }
+            index.incrementAndGet();
+            sb.append( c );
         }
-        return new Literal( c, negated );
+        
+        return new Literal( sb.toString(), negated );
     }
     
     private static char nextChar( String string, AtomicInteger index ) {
