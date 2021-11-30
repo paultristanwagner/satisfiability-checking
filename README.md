@@ -19,9 +19,6 @@ A simple sat solver using enumeration is implemented and can be used.
 
 ### Example:
 Input can be given in conjunctive normal form in the following way.
-![cnf-input-sat]
-![cnf-input-unsat]
 
-[cnf-input-sat]: cnf-input-sat.png
-[cnf-input-unsat]: cnf-input-unsat.png
-
+<img src="cnf-input-sat.png" alt="How to input in CNF" width="300" /> <br>
+<img src="cnf-input-unsat.png" alt="How to input in CNF" width="300" /> <br>
