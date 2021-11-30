@@ -7,15 +7,7 @@ import static me.paultristanwagner.satchecking.DPLLResult.UNSAT;
 
 public class DPLL {
     
-    public static void main( String[] args ) {
-        CNF cnf = CNF.parse( "(~a) & (a | ~b | c) & (c | b) & (a | ~c)" );
-        DPLLResult result = enumeration( cnf );
-        
-        System.out.println( "CNF: " + cnf );
-        System.out.println( result );
-    }
-    
-    private static DPLLResult enumeration( CNF cnf ) {
+    public static DPLLResult enumeration( CNF cnf ) {
         Assignment assignment = new Assignment();
         while ( true ) {
             if ( assignment.fits( cnf ) ) {
