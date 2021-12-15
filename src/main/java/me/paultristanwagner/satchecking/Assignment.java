@@ -40,6 +40,22 @@ public class Assignment {
         literalAssignments.add( la );
     }
     
+    public void propagate( Literal literal ) {
+        LiteralAssignment la = new LiteralAssignment( literal.getName(), !literal.isNegated(), true );
+        decisions.add( la );
+        literalAssignments.add( la );
+    }
+    
+    public void decide( CNF cnf ) {
+        List<Literal> literals = cnf.getLiterals();
+        Optional<Literal> unassignedOptional = literals.stream().filter( lit -> !assigns( lit ) ).findAny();
+        if ( unassignedOptional.isEmpty() ) {
+            throw new IllegalStateException( "Cannot decide because all literals are assigned" );
+        }
+        Literal literal = unassignedOptional.get();
+        this.assign( literal, false );
+    }
+    
     public boolean backtrack() {
         while ( !decisions.isEmpty() ) {
             LiteralAssignment la = decisions.peek();
@@ -71,6 +87,24 @@ public class Assignment {
     public boolean evaluate( CNF cnf ) {
         for ( Clause clause : cnf.getClauses() ) {
             if ( !evaluate( clause ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    public boolean couldSatisfy( Clause clause ) {
+        for ( Literal literal : clause.getLiterals() ) {
+            if ( !assigns( literal ) || evaluate( literal ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public boolean couldSatisfy( CNF cnf ) {
+        for ( Clause clause : cnf.getClauses() ) {
+            if ( !couldSatisfy( clause ) ) {
                 return false;
             }
         }

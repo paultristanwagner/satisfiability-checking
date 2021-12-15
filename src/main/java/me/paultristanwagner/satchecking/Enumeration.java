@@ -19,18 +19,8 @@ public class Enumeration {
                     return UNSAT;
                 }
             } else {
-                decide( cnf, assignment );
+                assignment.decide( cnf );
             }
         }
-    }
-    
-    private static void decide( CNF cnf, Assignment assignment ) {
-        List<Literal> literals = cnf.getLiterals();
-        Optional<Literal> unassignedOptional = literals.stream().filter( lit -> !assignment.assigns( lit ) ).findAny();
-        if ( unassignedOptional.isEmpty() ) {
-            throw new IllegalStateException( "Cannot decide because all literals are assigned" );
-        }
-        Literal literal = unassignedOptional.get();
-        assignment.assign( literal, false );
     }
 }
