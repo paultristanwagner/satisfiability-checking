@@ -24,11 +24,18 @@ public class CLI {
                 continue;
             }
             
-            Result result = DPLL.check( cnf );
-            if ( result.isSatisfiable() ) {
-                System.out.println( "" + AnsiColor.GREEN + result + AnsiColor.RESET );
-            } else {
-                System.out.println( "" + AnsiColor.RED + result + AnsiColor.RESET );
+            DPLLSolver solver = new DPLLSolver();
+            solver.load( cnf );
+            Assignment model = solver.nextModel();
+            if ( model == null ) {
+                System.out.println( AnsiColor.RED + "UNSAT" + AnsiColor.RESET );
+                continue;
+            }
+    
+            System.out.println(AnsiColor.GREEN + "SAT:");
+            while ( model != null ) {
+                System.out.println( "" + AnsiColor.GREEN + model + AnsiColor.RESET );
+                model = solver.nextModel();
             }
         }
     }

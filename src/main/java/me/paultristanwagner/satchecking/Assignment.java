@@ -129,4 +129,15 @@ public class Assignment {
     public List<LiteralAssignment> getLiteralAssignments() {
         return literalAssignments;
     }
+    
+    public Clause not() {
+        List<LiteralAssignment> assignments = new ArrayList<>( decisions );
+        assignments.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
+        Literal[] literals = new Literal[ assignments.size() ];
+        for ( int i = 0; i < assignments.size(); i++ ) {
+            LiteralAssignment la = assignments.get( i );
+            literals[ i ] = new Literal( la.getLiteralName(), la.getValue() );
+        }
+        return new Clause( literals );
+    }
 }
