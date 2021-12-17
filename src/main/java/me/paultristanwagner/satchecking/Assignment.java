@@ -121,7 +121,7 @@ public class Assignment {
             sb.append( ", " )
                     .append( la.getLiteralName() )
                     .append( "=" )
-                    .append( la.getValue() );
+                    .append( la.getValue() ? "1" : "0" );
         }
         return sb.substring( 2 );
     }
