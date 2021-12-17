@@ -1,8 +1,7 @@
-import me.paultristanwagner.satchecking.Assignment;
-import me.paultristanwagner.satchecking.CNF;
-import me.paultristanwagner.satchecking.Enumeration;
-import me.paultristanwagner.satchecking.Result;
+import me.paultristanwagner.satchecking.*;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,7 +11,7 @@ public class EnumerationTest {
     @Test
     public void testSat() {
         CNF cnf = CNF.parse( "(a) & (~a | b) & (~b | c) & (~c | d)" );
-        Result result = Enumeration.check( cnf );
+        Result result = EnumerationSolver.check( cnf );
         assertTrue( result.isSatisfiable() );
         Assignment assignment = result.getAssignment();
         assertTrue(assignment.evaluate( cnf ));
@@ -20,9 +19,16 @@ public class EnumerationTest {
     
     @Test
     public void testUnsat() {
-        CNF cnf = CNF.parse( "(a) & (b) & (c) & (d) & (e) & (~a | ~b | ~c | ~d | ~e)" );
-        Result result = Enumeration.check( cnf );
-        assertFalse( result.isSatisfiable() );
+        List<String> cnfStrings = List.of(
+                "(a) & (b) & (c) & (d) & (e) & (~a | ~b | ~c | ~d | ~e)",
+                "(a | b) & (~a | b) & (a | ~b) & (~a | ~b)"
+        );
+        
+        for ( String cnfString : cnfStrings ) {
+            CNF cnf = CNF.parse( cnfString );
+            Result result = DPLLSolver.check( cnf );
+            assertFalse( result.isSatisfiable() );
+        }
     }
     
     @Test
@@ -31,7 +37,7 @@ public class EnumerationTest {
         
         CNF cnf = CNF.parse( "(a) & (b) & (c) & (d) & (e) & (f) & (g) & (h) & (i) & (j) & (k) & (l) & (m) & (n) & " +
                 " (~a | ~b | ~c | ~d | ~e | ~f | ~g | ~h | ~i | ~j | ~k | ~l | ~m | ~n)" );
-        Enumeration.check( cnf );
+        EnumerationSolver.check( cnf );
         
         long timeNeeded = System.currentTimeMillis() - beforeMs;
         System.out.printf( "Time needed for Enumeration algorithm: %d ms\n", timeNeeded );

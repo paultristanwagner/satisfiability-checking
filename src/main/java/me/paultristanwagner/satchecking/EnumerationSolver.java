@@ -1,12 +1,9 @@
 package me.paultristanwagner.satchecking;
 
-import java.util.List;
-import java.util.Optional;
-
 import static me.paultristanwagner.satchecking.Result.SAT;
 import static me.paultristanwagner.satchecking.Result.UNSAT;
 
-public class Enumeration {
+public class EnumerationSolver {
     
     public static Result check( CNF cnf ) {
         Assignment assignment = new Assignment();
