@@ -23,5 +23,5 @@ The [DPLL Algorithm](https://en.wikipedia.org/wiki/DPLL_algorithm) is implemente
 ### Example:
 Input can be given in conjunctive normal form in the following way.
 
-<img src="cnf-input-sat.png" alt="How to input in CNF" width="300" /> <br>
-<img src="cnf-input-unsat.png" alt="How to input in CNF" width="300" /> <br>
+<img src="cnf-input-sat.png" alt="How to input in CNF" width="350" /> <br>
+<img src="cnf-input-unsat.png" alt="How to input in CNF" width="350" /> <br>
