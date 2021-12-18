@@ -1,6 +1,5 @@
 package me.paultristanwagner.satchecking;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static me.paultristanwagner.satchecking.Result.SAT;
@@ -10,6 +9,10 @@ public class DPLLSolver {
     
     public static Result check( CNF cnf ) {
         Assignment assignment = new Assignment();
+        return check( cnf, assignment );
+    }
+    
+    public static Result check( CNF cnf, Assignment assignment ) {
         if ( !bcp( cnf, assignment ) ) {
             return UNSAT;
         }
@@ -20,7 +23,7 @@ public class DPLLSolver {
             }
             assignment.decide( cnf );
             while ( !bcp( cnf, assignment ) ) {
-                if(!assignment.backtrack()) {
+                if ( !assignment.backtrack() ) {
                     return UNSAT;
                 }
             }
@@ -28,20 +31,25 @@ public class DPLLSolver {
     }
     
     private CNF cnf;
+    private Assignment lastAssignment;
     
     public void load( CNF cnf ) {
         this.cnf = cnf;
+        this.lastAssignment = new Assignment();
     }
     
     public Assignment nextModel() {
-        Result result = check( cnf );
+        boolean done = !lastAssignment.backtrack();
+        if ( done ) {
+            return null;
+        }
+        
+        Result result = check( cnf, lastAssignment );
         if ( !result.isSatisfiable() ) {
             return null;
         }
         
-        List<Clause> clauses = new ArrayList<>( cnf.getClauses() );
-        clauses.add( result.getAssignment().not() );
-        this.cnf = new CNF( clauses.toArray( new Clause[ 0 ] ) );
+        cnf.learnClause( result.getAssignment().not() );
         
         return result.getAssignment();
     }

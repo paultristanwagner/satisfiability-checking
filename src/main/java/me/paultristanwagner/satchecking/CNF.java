@@ -7,10 +7,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class CNF {
     
+    private final List<Clause> initialClauses;
     private final List<Clause> clauses;
     
     public CNF( Clause... clauses ) {
-        this.clauses = Arrays.asList( clauses );
+        this.initialClauses = new ArrayList<>( Arrays.asList( clauses ) );
+        this.clauses = new ArrayList<>( Arrays.asList( clauses ) );
+    }
+    
+    public void learnClause( Clause clause ) {
+        this.clauses.add( clause );
     }
     
     public List<Clause> getClauses() {
@@ -70,7 +76,7 @@ public class CNF {
         return clauses;
     }
     
-    private static List<Literal> D( String string, AtomicInteger index ) {
+    public static List<Literal> D( String string, AtomicInteger index ) {
         Literal literal = L( string, index );
         List<Literal> literals = new ArrayList<>();
         literals.add( literal );
@@ -114,7 +120,7 @@ public class CNF {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        for ( Clause clause : clauses ) {
+        for ( Clause clause : initialClauses ) {
             sb.append( " & (" ).append( clause ).append( ")" );
         }
         return sb.substring( 3 );

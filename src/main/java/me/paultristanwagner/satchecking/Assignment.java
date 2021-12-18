@@ -57,6 +57,10 @@ public class Assignment {
     }
     
     public boolean backtrack() {
+        if ( decisions.isEmpty() ) {
+            return true;
+        }
+        
         while ( !decisions.isEmpty() ) {
             LiteralAssignment la = decisions.peek();
             if ( la.wasPreviouslyAssigned() ) {
@@ -114,14 +118,16 @@ public class Assignment {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        List<LiteralAssignment> las = new ArrayList<>( decisions );
+        List<LiteralAssignment> las = new ArrayList<>( literalAssignments );
         las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         
         for ( LiteralAssignment la : las ) {
-            sb.append( ", " )
-                    .append( la.getLiteralName() )
-                    .append( "=" )
-                    .append( la.getValue() ? "1" : "0" );
+            if ( la.getValue() ) {
+                sb.append( ", " )
+                        .append( la.getLiteralName() )
+                        .append( "=" )
+                        .append( la.getValue() ? "1" : "0" );
+            }
         }
         return sb.substring( 2 );
     }
@@ -131,7 +137,7 @@ public class Assignment {
     }
     
     public Clause not() {
-        List<LiteralAssignment> assignments = new ArrayList<>( decisions );
+        List<LiteralAssignment> assignments = new ArrayList<>( literalAssignments );
         assignments.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         Literal[] literals = new Literal[ assignments.size() ];
         for ( int i = 0; i < assignments.size(); i++ ) {

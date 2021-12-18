@@ -28,13 +28,18 @@ public class Clause {
         int assignedLiterals = 0;
         for ( Literal literal : literals ) {
             if ( assignment.assigns( literal ) ) {
-                if(assignment.evaluate( literal )) {
+                if ( assignment.evaluate( literal ) ) {
                     return false;
                 }
                 assignedLiterals++;
             }
         }
         return getLiterals().size() - assignedLiterals == 1;
+    }
+    
+    public static Clause parse( String string ) {
+        CNF cnf = CNF.parse( "(" + string + ")" );
+        return cnf.getClauses().get( 0 );
     }
     
     public List<Literal> getLiterals() {
