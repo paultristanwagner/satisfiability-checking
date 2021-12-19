@@ -26,7 +26,7 @@ public class EnumerationTest {
         
         for ( String cnfString : cnfStrings ) {
             CNF cnf = CNF.parse( cnfString );
-            Result result = DPLLSolver.check( cnf );
+            Result result = EnumerationSolver.check( cnf );
             assertFalse( result.isSatisfiable() );
         }
     }

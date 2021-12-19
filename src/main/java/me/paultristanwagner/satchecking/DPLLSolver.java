@@ -1,40 +1,18 @@
 package me.paultristanwagner.satchecking;
 
 import java.util.List;
+import java.util.Map;
 
 import static me.paultristanwagner.satchecking.Result.SAT;
 import static me.paultristanwagner.satchecking.Result.UNSAT;
 
 public class DPLLSolver {
     
-    public static Result check( CNF cnf ) {
-        Assignment assignment = new Assignment( cnf );
-        return check( cnf, assignment );
-    }
-    
-    public static Result check( CNF cnf, Assignment assignment ) {
-        if ( !bcp( cnf, assignment ) ) {
-            return UNSAT;
-        }
-        
-        while ( true ) {
-            if ( assignment.fits( cnf ) ) {
-                return SAT( assignment );
-            }
-            assignment.decide( cnf );
-            while ( !bcp( cnf, assignment ) ) {
-                if ( !backtrack( assignment ) ) {
-                    return UNSAT;
-                }
-            }
-        }
-    }
-    
     private CNF cnf;
     private Assignment lastAssignment;
     
-    // todo: for every literal we store the clauses in witch it is watched
-    private List<List<Literal>> literalWatcher; // todo: for every clause we store the two watched literals
+    private Map<Literal, List<Clause>> watchedInMap;
+    private Map<Clause, List<Literal>> watchedLiteralsMap;
     
     public void load( CNF cnf ) {
         this.cnf = cnf;
@@ -57,7 +35,31 @@ public class DPLLSolver {
         return result.getAssignment();
     }
     
-    private static boolean bcp( CNF cnf, Assignment assignment ) {
+    public static Result check( CNF cnf ) {
+        DPLLSolver solver = new DPLLSolver();
+        Assignment assignment = new Assignment( cnf );
+        return solver.check( cnf, assignment );
+    }
+    
+    public Result check( CNF cnf, Assignment assignment ) {
+        if ( !bcp( cnf, assignment ) ) {
+            return UNSAT;
+        }
+        
+        while ( true ) {
+            if ( assignment.fits( cnf ) ) {
+                return SAT( assignment );
+            }
+            assignment.decide( cnf );
+            while ( !bcp( cnf, assignment ) ) {
+                if ( !backtrack( assignment ) ) {
+                    return UNSAT;
+                }
+            }
+        }
+    }
+    
+    private boolean bcp( CNF cnf, Assignment assignment ) {
         List<Clause> clauseList = cnf.getClauses();
         
         // While we can find unit clauses
@@ -80,7 +82,7 @@ public class DPLLSolver {
         return assignment.couldSatisfy( cnf );
     }
     
-    private static boolean backtrack( Assignment assignment ) {
+    private boolean backtrack( Assignment assignment ) {
         if ( assignment.isEmpty() ) {
             return true;
         }
@@ -100,5 +102,23 @@ public class DPLLSolver {
             }
         }
         return false;
+    }
+    
+    private void updateWatchedLiterals( Literal literal ) {
+        List<Clause> watchedIn = watchedInMap.get( literal ); //todo: what if this is empty?
+        for ( Clause clause : watchedIn ) {
+            List<Literal> watchedLiterals = watchedLiteralsMap.get( clause );
+            Literal other = getOtherWatchedLiteral( watchedLiterals, literal );
+            // todo: WIP
+        }
+    }
+    
+    private Literal getOtherWatchedLiteral( List<Literal> watched, Literal one ) {
+        for ( Literal literal : watched ) {
+            if ( !literal.equals( one ) ) {
+                return literal;
+            }
+        }
+        return null;
     }
 }
