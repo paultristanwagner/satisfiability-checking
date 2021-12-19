@@ -24,8 +24,9 @@ public class LiteralAssignment {
         return previouslyAssigned;
     }
     
-    public void toggleValue() {
+    public boolean toggleValue() {
         this.value = !value;
+        return value;
     }
     
     public void setPreviouslyAssigned() {

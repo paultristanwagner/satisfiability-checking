@@ -62,7 +62,7 @@ public class CLI {
             System.out.println( AnsiColor.GREEN + "SAT:" );
             while ( model != null ) {
                 modelcount++;
-                System.out.println( "" + AnsiColor.GREEN + model + AnsiColor.RESET );
+                System.out.println( "" + AnsiColor.GREEN + model + ";" + AnsiColor.RESET );
                 model = solver.nextModel();
             }
             System.out.println( "" + AnsiColor.GREEN + modelcount + " models found" + AnsiColor.RESET );

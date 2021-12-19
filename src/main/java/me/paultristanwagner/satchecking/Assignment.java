@@ -4,10 +4,26 @@ import java.util.*;
 
 public class Assignment {
     
+    private final CNF cnf;
     private final Stack<LiteralAssignment> decisions;
+    // todo: switch to map
     private final List<LiteralAssignment> literalAssignments;
     
-    public Assignment() {
+    public Assignment( CNF cnf ) {
+        this.cnf = cnf;
+        
+        // todo: use literal watcher
+        /* literalWatcher = new ArrayList<>();
+        for ( Clause clause : cnf.getClauses() ) {
+            List<Literal> literals = clause.getLiterals();
+            List<Literal> watched = new ArrayList<>();
+            watched.add( literals.get( 0 ) );
+            if ( literals.size() >= 2 ) {
+                watched.add( literals.get( 1 ) );
+            }
+            literalWatcher.add( watched );
+        } */
+        
         decisions = new Stack<>();
         literalAssignments = new ArrayList<>();
     }
@@ -56,23 +72,17 @@ public class Assignment {
         this.assign( literal, false );
     }
     
-    public boolean backtrack() {
-        if ( decisions.isEmpty() ) {
-            return true;
-        }
-        
-        while ( !decisions.isEmpty() ) {
-            LiteralAssignment la = decisions.peek();
-            if ( la.wasPreviouslyAssigned() ) {
-                decisions.pop();
-                literalAssignments.remove( la );
-            } else {
-                la.toggleValue();
-                la.setPreviouslyAssigned();
-                return true;
-            }
-        }
-        return false;
+    public boolean isEmpty() {
+        return decisions.isEmpty();
+    }
+    
+    public LiteralAssignment getLastDecision() {
+        return decisions.peek();
+    }
+    
+    public void undoLastDecision() {
+        LiteralAssignment la = decisions.pop();
+        literalAssignments.remove( la );
     }
     
     public boolean evaluate( Literal literal ) {
@@ -121,15 +131,22 @@ public class Assignment {
         List<LiteralAssignment> las = new ArrayList<>( literalAssignments );
         las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         
+        boolean anyTrue = false;
         for ( LiteralAssignment la : las ) {
             if ( la.getValue() ) {
+                anyTrue = true;
                 sb.append( ", " )
                         .append( la.getLiteralName() )
                         .append( "=" )
                         .append( la.getValue() ? "1" : "0" );
             }
         }
-        return sb.substring( 2 );
+        
+        if ( anyTrue ) {
+            return sb.substring( 2 );
+        } else {
+            return "-";
+        }
     }
     
     public List<LiteralAssignment> getLiteralAssignments() {

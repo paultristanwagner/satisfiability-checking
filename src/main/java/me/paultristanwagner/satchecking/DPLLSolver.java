@@ -8,7 +8,7 @@ import static me.paultristanwagner.satchecking.Result.UNSAT;
 public class DPLLSolver {
     
     public static Result check( CNF cnf ) {
-        Assignment assignment = new Assignment();
+        Assignment assignment = new Assignment( cnf );
         return check( cnf, assignment );
     }
     
@@ -23,7 +23,7 @@ public class DPLLSolver {
             }
             assignment.decide( cnf );
             while ( !bcp( cnf, assignment ) ) {
-                if ( !assignment.backtrack() ) {
+                if ( !backtrack( assignment ) ) {
                     return UNSAT;
                 }
             }
@@ -33,13 +33,16 @@ public class DPLLSolver {
     private CNF cnf;
     private Assignment lastAssignment;
     
+    // todo: for every literal we store the clauses in witch it is watched
+    private List<List<Literal>> literalWatcher; // todo: for every clause we store the two watched literals
+    
     public void load( CNF cnf ) {
         this.cnf = cnf;
-        this.lastAssignment = new Assignment();
+        this.lastAssignment = new Assignment( cnf );
     }
     
     public Assignment nextModel() {
-        boolean done = !lastAssignment.backtrack();
+        boolean done = !backtrack( lastAssignment );
         if ( done ) {
             return null;
         }
@@ -75,5 +78,27 @@ public class DPLLSolver {
             }
         }
         return assignment.couldSatisfy( cnf );
+    }
+    
+    private static boolean backtrack( Assignment assignment ) {
+        if ( assignment.isEmpty() ) {
+            return true;
+        }
+        
+        while ( !assignment.isEmpty() ) {
+            LiteralAssignment la = assignment.getLastDecision();
+            if ( la.wasPreviouslyAssigned() ) {
+                assignment.undoLastDecision();
+            } else {
+                boolean newValue = la.toggleValue();
+                la.setPreviouslyAssigned();
+                if ( !newValue ) {
+                    // updateWatchedLiterals( la.getLiteralName() );
+                    // todo: update watched literals
+                }
+                return true;
+            }
+        }
+        return false;
     }
 }
