@@ -7,7 +7,7 @@ public class Assignment {
     private final CNF cnf;
     private final Stack<LiteralAssignment> decisions;
     // todo: switch to map
-    private final List<LiteralAssignment> literalAssignments;
+    private final Map<String, LiteralAssignment> literalAssignments;
     
     public Assignment( CNF cnf ) {
         this.cnf = cnf;
@@ -25,7 +25,7 @@ public class Assignment {
         } */
         
         decisions = new Stack<>();
-        literalAssignments = new ArrayList<>();
+        literalAssignments = new HashMap<>();
     }
     
     public boolean fits( CNF cnf ) {
@@ -39,27 +39,23 @@ public class Assignment {
     }
     
     public boolean assigns( Literal literal ) {
-        return literalAssignments.stream().anyMatch( la -> la.getLiteralName().equals( literal.getName() ) );
+        return literalAssignments.containsKey( literal.getName() );
     }
     
     public boolean getValue( String literalName ) {
-        Optional<LiteralAssignment> assignedLiteral = literalAssignments.stream().filter( la -> la.getLiteralName().equals( literalName ) ).findFirst();
-        if ( assignedLiteral.isEmpty() ) {
-            throw new IllegalStateException( "Assignment does not assign any value to '" + literalName + "'" );
-        }
-        return assignedLiteral.get().getValue();
+        return literalAssignments.get( literalName ).getValue();
     }
     
     public void assign( Literal literal, boolean value ) {
         LiteralAssignment la = new LiteralAssignment( literal.getName(), value, false );
         decisions.add( la );
-        literalAssignments.add( la );
+        literalAssignments.put( literal.getName(), la );
     }
     
     public void propagate( Literal literal ) {
         LiteralAssignment la = new LiteralAssignment( literal.getName(), !literal.isNegated(), true );
         decisions.add( la );
-        literalAssignments.add( la );
+        literalAssignments.put( literal.getName(), la );
     }
     
     public void decide( CNF cnf ) {
@@ -82,7 +78,7 @@ public class Assignment {
     
     public void undoLastDecision() {
         LiteralAssignment la = decisions.pop();
-        literalAssignments.remove( la );
+        literalAssignments.remove( la.getLiteralName() );
     }
     
     public boolean evaluate( Literal literal ) {
@@ -128,7 +124,7 @@ public class Assignment {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        List<LiteralAssignment> las = new ArrayList<>( literalAssignments );
+        List<LiteralAssignment> las = new ArrayList<>( decisions );
         las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         
         boolean anyTrue = false;
@@ -149,12 +145,8 @@ public class Assignment {
         }
     }
     
-    public List<LiteralAssignment> getLiteralAssignments() {
-        return literalAssignments;
-    }
-    
     public Clause not() {
-        List<LiteralAssignment> assignments = new ArrayList<>( literalAssignments );
+        List<LiteralAssignment> assignments = new ArrayList<>( decisions );
         assignments.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         Literal[] literals = new Literal[ assignments.size() ];
         for ( int i = 0; i < assignments.size(); i++ ) {
