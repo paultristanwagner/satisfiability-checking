@@ -83,14 +83,24 @@ public class Assignment {
 
     @Override
     public String toString() {
+        if ( isEmpty() ) {
+            return "";
+        }
+
         StringBuilder sb = new StringBuilder();
         List<LiteralAssignment> las = new ArrayList<>( decisions );
         las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
 
         boolean anyTrue = false;
         for ( LiteralAssignment la : las ) {
-            if ( la.getValue() ) {
-                anyTrue = true;
+            if ( Config.load().reducedAssignments() ) {
+                if ( la.getValue() ) {
+                    anyTrue = true;
+                    sb.append( ", " )
+                            .append( la.getLiteralName() )
+                            .append( "=1" );
+                }
+            } else {
                 sb.append( ", " )
                         .append( la.getLiteralName() )
                         .append( "=" )
@@ -98,7 +108,7 @@ public class Assignment {
             }
         }
 
-        if ( anyTrue ) {
+        if ( !Config.load().reducedAssignments() || anyTrue ) {
             return sb.substring( 2 );
         } else {
             return "-";

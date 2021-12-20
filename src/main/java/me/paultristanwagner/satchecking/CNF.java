@@ -112,7 +112,7 @@ public class CNF {
             char c = string.charAt( index.get() );
             if ( ( c < 65 || c > 90 ) && ( c < 97 || c > 122 ) && ( c < 48 || c > 57 ) ) {
                 if ( sb.length() == 0 ) {
-                    throw new RuntimeException( "Literal expected got '" + c + "' instead" );
+                    throw new RuntimeException( "Literal expected, got '" + c + "' instead" );
                 }
                 break;
             }

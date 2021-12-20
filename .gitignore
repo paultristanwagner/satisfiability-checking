@@ -6,6 +6,9 @@ out/
 # Maven
 target/
 
+# Config
+config.properties
+
 # Todo List
 TODO
 
