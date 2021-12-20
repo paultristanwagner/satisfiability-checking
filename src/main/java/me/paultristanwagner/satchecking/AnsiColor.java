@@ -1,5 +1,9 @@
 package me.paultristanwagner.satchecking;
 
+/**
+ * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
+ * @version 1.0
+ */
 public enum AnsiColor {
     
     RESET("\u001b[0m"),

@@ -1,33 +1,47 @@
 package me.paultristanwagner.satchecking;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
+ * @version 1.0
+ */
 public class CNF {
-    
+
     private final List<Clause> initialClauses;
     private final List<Clause> clauses;
-    
-    public CNF( Clause... clauses ) {
-        this.initialClauses = new ArrayList<>( Arrays.asList( clauses ) );
-        this.clauses = new ArrayList<>( Arrays.asList( clauses ) );
+    private final List<Literal> literals;
+
+    public CNF( List<Clause> clauses ) {
+        this.initialClauses = new ArrayList<>( clauses );
+        this.clauses = clauses;
+        this.literals = new ArrayList<>();
+
+        for ( Clause clause : clauses ) {
+            for ( Literal literal : clause.getLiterals() ) {
+                if ( !literals.contains( literal ) ) {
+                    literals.add( literal );
+                }
+            }
+        }
     }
-    
+
     public void learnClause( Clause clause ) {
-        this.clauses.add( clause );
+        clauses.add( clause );
+        for ( Literal literal : clause.getLiterals() ) {
+            if ( !literals.contains( literal ) ) {
+                literals.add( literal );
+            }
+        }
     }
-    
+
     public List<Clause> getClauses() {
         return clauses;
     }
-    
+
     public List<Literal> getLiterals() {
-        List<Literal> literals = new ArrayList<>();
-        for ( Clause clause : clauses ) {
-            literals.addAll( clause.getLiterals() );
-        }
         return literals;
     }
     
@@ -40,42 +54,42 @@ public class CNF {
         L -> ~<char>
         L -> <char>
      */
-    
+
     public static CNF parse( String string ) {
         AtomicInteger index = new AtomicInteger( 0 );
         List<Clause> clauses = S( string, index );
-        return new CNF( clauses.toArray( new Clause[]{} ) );
+        return new CNF( clauses );
     }
-    
+
     private static List<Clause> S( String string, AtomicInteger index ) {
         if ( nextChar( string, index ) != '(' ) {
             throw new RuntimeException( "Cannot parse CNF. Expected '(' at index " + index );
         }
         index.incrementAndGet();
-        
+
         List<Literal> literals = D( string, index );
-        Clause clause = new Clause( literals.toArray( new Literal[]{} ) );
-        
+        Clause clause = new Clause( literals );
+
         if ( nextChar( string, index ) != ')' ) {
             throw new RuntimeException( "Cannot parse CNF. Expected ')' at index " + index );
         }
         index.incrementAndGet();
-        
+
         List<Clause> clauses = new ArrayList<>();
         clauses.add( clause );
         if ( string.length() == index.get() ) {
             return clauses;
         }
-        
+
         if ( nextChar( string, index ) != '&' ) {
             throw new RuntimeException( "Expected '&' at index " + index );
         }
         index.incrementAndGet();
-        
+
         clauses.addAll( S( string, index ) );
         return clauses;
     }
-    
+
     public static List<Literal> D( String string, AtomicInteger index ) {
         Literal literal = L( string, index );
         List<Literal> literals = new ArrayList<>();
@@ -86,7 +100,7 @@ public class CNF {
         }
         return literals;
     }
-    
+
     private static Literal L( String string, AtomicInteger index ) {
         boolean negated = false;
         if ( nextChar( string, index ) == '~' ) {
@@ -105,10 +119,10 @@ public class CNF {
             index.incrementAndGet();
             sb.append( c );
         }
-        
+
         return new Literal( sb.toString(), negated );
     }
-    
+
     private static char nextChar( String string, AtomicInteger index ) {
         char c;
         while ( ( c = string.charAt( index.get() ) ) == ' ' ) {
@@ -116,7 +130,7 @@ public class CNF {
         }
         return c;
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

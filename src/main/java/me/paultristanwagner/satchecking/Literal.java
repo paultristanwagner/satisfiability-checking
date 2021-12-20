@@ -1,5 +1,11 @@
 package me.paultristanwagner.satchecking;
 
+import java.util.Objects;
+
+/**
+ * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
+ * @version 1.0
+ */
 public class Literal {
     
     private final String name;
@@ -25,5 +31,18 @@ public class Literal {
         } else {
             return name;
         }
+    }
+
+    @Override
+    public boolean equals( Object o ) {
+        if ( this == o ) return true;
+        if ( o == null || getClass() != o.getClass() ) return false;
+        Literal literal = (Literal) o;
+        return negated == literal.negated && Objects.equals( name, literal.name );
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash( name, negated );
     }
 }
