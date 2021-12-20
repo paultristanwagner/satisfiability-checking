@@ -54,7 +54,7 @@ public class CLI {
                 continue;
             }
 
-            DPLLSolver solver = new DPLLSolver();
+            Solver solver = new DPLLSolver();
             long beforeMs = System.currentTimeMillis();
             solver.load( cnf );
             Assignment model = solver.nextModel();

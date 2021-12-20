@@ -10,10 +10,38 @@ import static me.paultristanwagner.satchecking.Result.UNSAT;
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
  * @version 1.0
  */
-public class EnumerationSolver {
-    
+public class EnumerationSolver implements Solver {
+
+    private CNF cnf;
+    private Assignment assignment;
+
+    @Override
+    public void load( CNF cnf ) {
+        this.cnf = cnf;
+        this.assignment = new Assignment();
+    }
+
+    @Override
+    public Assignment nextModel() {
+        boolean done = !backtrack( assignment );
+        if ( done ) {
+            return null;
+        }
+
+        Result result = check( cnf, assignment );
+        if ( !result.isSatisfiable() ) {
+            return null;
+        }
+
+        return result.getAssignment();
+    }
+
     public static Result check( CNF cnf ) {
         Assignment assignment = new Assignment();
+        return check( cnf, assignment );
+    }
+
+    private static Result check(CNF cnf, Assignment assignment) {
         while ( true ) {
             if ( assignment.fits( cnf ) ) {
                 boolean evaluation = assignment.evaluate( cnf );

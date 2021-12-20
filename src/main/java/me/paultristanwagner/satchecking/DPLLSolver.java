@@ -9,7 +9,7 @@ import static me.paultristanwagner.satchecking.Result.UNSAT;
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
  * @version 1.0
  */
-public class DPLLSolver {
+public class DPLLSolver implements Solver {
 
     private CNF cnf;
     private Assignment assignment;
@@ -17,6 +17,7 @@ public class DPLLSolver {
     private Map<Literal, List<Clause>> watchedInMap;
     private Map<Clause, WatchedLiteralPair> watchedLiteralsMap;
 
+    @Override
     public void load( CNF cnf ) {
         this.cnf = cnf;
         this.assignment = new Assignment();
@@ -35,6 +36,7 @@ public class DPLLSolver {
         }
     }
 
+    @Override
     public Assignment nextModel() {
         boolean done = !backtrack( assignment );
         if ( done ) {
@@ -56,7 +58,7 @@ public class DPLLSolver {
         return solver.check( cnf, assignment );
     }
 
-    public Result check( CNF cnf, Assignment assignment ) {
+    private Result check( CNF cnf, Assignment assignment ) {
         if ( !bcp( cnf, assignment ) ) {
             return UNSAT;
         }
