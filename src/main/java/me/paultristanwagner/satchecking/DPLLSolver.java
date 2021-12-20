@@ -82,8 +82,7 @@ public class DPLLSolver {
         }
         Literal literal = unassignedOptional.get();
         assignment.assign( literal, true );
-        Literal literal2 = new Literal( literal.getName(), true );
-        updateWatchedLiterals( literal2, assignment );
+        updateWatchedLiterals( literal.not(), assignment );
     }
 
     private boolean bcp( CNF cnf, Assignment assignment ) {
@@ -103,8 +102,7 @@ public class DPLLSolver {
                 if ( unitLiteral != null ) {
                     foundUnitClause = true;
                     assignment.force( unitLiteral );
-                    Literal literal2 = new Literal( unitLiteral.getName(), !unitLiteral.isNegated() );
-                    updateWatchedLiterals( literal2, assignment );
+                    updateWatchedLiterals( unitLiteral.not(), assignment );
                     break;
                 }
             }
@@ -128,12 +126,7 @@ public class DPLLSolver {
                 boolean newValue = la.toggleValue();
                 la.setPreviouslyAssigned();
 
-                Literal literal;
-                if ( !newValue ) {
-                    literal = new Literal( la.getLiteralName(), false );
-                } else {
-                    literal = new Literal( la.getLiteralName(), true );
-                }
+                Literal literal = new Literal( la.getLiteralName(), newValue );
                 updateWatchedLiterals( literal, assignment );
 
                 return true;

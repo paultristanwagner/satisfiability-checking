@@ -23,7 +23,11 @@ public class Literal {
     public boolean isNegated() {
         return negated;
     }
-    
+
+    public Literal not() {
+        return new Literal( name, !negated );
+    }
+
     @Override
     public String toString() {
         if ( negated ) {
