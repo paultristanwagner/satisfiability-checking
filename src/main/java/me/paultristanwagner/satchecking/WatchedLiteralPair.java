@@ -57,7 +57,7 @@ public class WatchedLiteralPair {
 
     public Literal attemptReplace( Literal literal, Assignment assignment ) {
         Literal other = getOther( literal );
-        if ( assignment.assigns( other ) && assignment.evaluate( other ) ) {
+        if ( other != null && assignment.assigns( other ) && assignment.evaluate( other ) ) {
             return null;
         }
 
