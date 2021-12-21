@@ -23,11 +23,11 @@ public class Literal {
     public boolean isNegated() {
         return negated;
     }
-
+    
     public Literal not() {
         return new Literal( name, !negated );
     }
-
+    
     @Override
     public String toString() {
         if ( negated ) {
@@ -36,7 +36,7 @@ public class Literal {
             return name;
         }
     }
-
+    
     @Override
     public boolean equals( Object o ) {
         if ( this == o ) return true;
@@ -44,7 +44,7 @@ public class Literal {
         Literal literal = (Literal) o;
         return negated == literal.negated && Objects.equals( name, literal.name );
     }
-
+    
     @Override
     public int hashCode() {
         return Objects.hash( name, negated );

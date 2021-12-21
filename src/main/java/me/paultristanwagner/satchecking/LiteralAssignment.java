@@ -9,11 +9,13 @@ public class LiteralAssignment {
     private final String literalName;
     private boolean value;
     private boolean previouslyAssigned;
+    private Clause antecedent;
     
-    public LiteralAssignment( String literalName, boolean value, boolean previouslyAssigned ) {
+    public LiteralAssignment( String literalName, boolean value, boolean previouslyAssigned, Clause antecedent ) {
         this.literalName = literalName;
         this.value = value;
         this.previouslyAssigned = previouslyAssigned;
+        this.antecedent = antecedent;
     }
     
     public String getLiteralName() {
@@ -35,5 +37,13 @@ public class LiteralAssignment {
     
     public void setPreviouslyAssigned() {
         this.previouslyAssigned = true;
+    }
+    
+    public void setAntecedent( Clause antecedent ) {
+        this.antecedent = antecedent;
+    }
+    
+    public Clause getAntecedent() {
+        return antecedent;
     }
 }

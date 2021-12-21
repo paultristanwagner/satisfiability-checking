@@ -10,8 +10,8 @@ import java.util.List;
 public class CNFBuilder<X, Y> {
 
     public static void main( String[] args ) {
-        List<Character> domain = List.of( 'a', 'b', 'c', 'd' );
-        List<Character> codomain = List.of( '1', '2', '3', '4', '5', '6' );
+        List<Character> domain = List.of( 'a', 'b', 'c', 'd', 'e', 'f', 'g' );
+        List<Character> codomain = List.of( '1', '2', '3', '4', '5', '6', '7', '8', '9' );
         CNF cnf = CNFBuilder.function( domain, codomain )
                 .injective()
                 .build();

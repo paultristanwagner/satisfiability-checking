@@ -11,12 +11,12 @@ import java.util.Properties;
  * @version 1.0
  */
 public class Config {
-
+    
     private static final String FILE_NAME = "config.properties";
     private static final String MAXIMUM = "maximum";
-
+    
     private static Config config;
-
+    
     public static Config load() {
         if ( config == null ) {
             File file = new File( FILE_NAME );
@@ -38,15 +38,15 @@ public class Config {
                 }
             }
         }
-
+        
         return config;
     }
-
+    
     public static Config reload() {
         config = null;
         return Config.load();
     }
-
+    
     private static Config defaultConfig() {
         Properties defaultProperties = new Properties();
         defaultProperties.setProperty( "solver", "DPLL" );
@@ -55,17 +55,17 @@ public class Config {
         defaultProperties.setProperty( "reducedAssignments", "false" );
         return new Config( defaultProperties );
     }
-
+    
     private Properties properties;
-
+    
     private Config( Properties properties ) {
         this.properties = properties;
     }
-
+    
     public Properties getProperties() {
         return properties;
     }
-
+    
     public void save() {
         File file = new File( FILE_NAME );
         try {
@@ -76,7 +76,7 @@ public class Config {
             e.printStackTrace();
         }
     }
-
+    
     public Solver getSolver() {
         String solverName = properties.getProperty( "solver" );
         if ( solverName.equalsIgnoreCase( "Enumeration" ) ) {
@@ -86,15 +86,15 @@ public class Config {
         }
         throw new IllegalStateException( "Could not load solver from config" );
     }
-
+    
     public boolean printModels() {
         return Boolean.parseBoolean( properties.getProperty( "printModels", "true" ) );
     }
-
+    
     public boolean reducedAssignments() {
         return Boolean.parseBoolean( properties.getProperty( "reducedAssignments", "false" ) );
     }
-
+    
     public Long getMaxModelCount() {
         String maxModelCountString = properties.getProperty( "maxModelCount", MAXIMUM );
         if ( maxModelCountString.equalsIgnoreCase( MAXIMUM ) ) {

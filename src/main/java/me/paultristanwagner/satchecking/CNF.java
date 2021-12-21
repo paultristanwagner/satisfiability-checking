@@ -30,6 +30,7 @@ public class CNF {
 
     public void learnClause( Clause clause ) {
         clauses.add( clause );
+        
         for ( Literal literal : clause.getLiterals() ) {
             if ( !literals.contains( literal ) ) {
                 literals.add( literal );
