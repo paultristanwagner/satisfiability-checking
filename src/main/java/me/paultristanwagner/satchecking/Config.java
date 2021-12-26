@@ -56,7 +56,7 @@ public class Config {
         return new Config( defaultProperties );
     }
     
-    private Properties properties;
+    private final Properties properties;
     
     private Config( Properties properties ) {
         this.properties = properties;
@@ -83,6 +83,8 @@ public class Config {
             return new EnumerationSolver();
         } else if ( solverName.equalsIgnoreCase( "DPLL" ) ) {
             return new DPLLSolver();
+        } else if ( solverName.equalsIgnoreCase( "DPLL+CDCL" ) ) {
+            return new DPLLCDCLSolver();
         }
         throw new IllegalStateException( "Could not load solver from config" );
     }

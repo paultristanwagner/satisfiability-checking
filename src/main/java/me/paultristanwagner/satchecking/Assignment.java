@@ -11,12 +11,14 @@ public class Assignment {
     private int decisionLevel;
     private final Stack<List<LiteralAssignment>> decisionLevels;
     private final Map<String, LiteralAssignment> literalAssignments;
+    private final Map<String, Integer> literalAssignmentLevel;
     
     public Assignment() {
         decisionLevel = 0;
         decisionLevels = new Stack<>();
         decisionLevels.add( new ArrayList<>() );
         literalAssignments = new HashMap<>();
+        literalAssignmentLevel = new HashMap<>();
     }
     
     public boolean fits( CNF cnf ) {
@@ -44,13 +46,15 @@ public class Assignment {
         decisionLevels.push( dl );
         decisionLevel++;
         literalAssignments.put( literal.getName(), la );
+        literalAssignmentLevel.put( literal.getName(), decisionLevel );
     }
     
-    public void force( Literal literal, Clause antecedent ) {
+    public void propagate( Literal literal, Clause antecedent ) {
         List<LiteralAssignment> dl = decisionLevels.peek();
         LiteralAssignment la = new LiteralAssignment( literal.getName(), !literal.isNegated(), true, antecedent );
         dl.add( la );
         literalAssignments.put( literal.getName(), la );
+        literalAssignmentLevel.put( literal.getName(), decisionLevel );
     }
     
     public boolean isEmpty() {
@@ -65,18 +69,27 @@ public class Assignment {
         List<LiteralAssignment> assignmentsOnCurrentLevel = getAssignmentsOnCurrentLevel();
         for ( int i = assignmentsOnCurrentLevel.size() - 1; i >= 0; i-- ) {
             LiteralAssignment literalAssignment = assignmentsOnCurrentLevel.get( i );
-            for ( Literal literal : clause.getLiterals() ) {
-                if ( literal.getName().equals( literalAssignment.getLiteralName() ) ) {
-                    return literalAssignment;
-                }
+            if ( clause.contains( literalAssignment.getLiteralName() ) ) {
+                return literalAssignment;
             }
         }
-        throw new RuntimeException( "This should not happen :)" );
+        
+        throw new IllegalStateException( "Clause has no literal assigned on the current level" );
     }
     
-    public LiteralAssignment getLastAssigned() {
-        List<LiteralAssignment> dl = decisionLevels.peek();
-        return dl.get( dl.size() - 1 );
+    public int getAssignmentLevelOf( Literal literal ) {
+        return literalAssignmentLevel.getOrDefault( literal.getName(), -1 );
+    }
+    
+    public Clause not() {
+        List<Literal> literals = new ArrayList<>();
+        for ( int i = 1; i < decisionLevels.size(); i++ ) {
+            List<LiteralAssignment> level = decisionLevels.get( i );
+            LiteralAssignment la = level.get( 0 );
+            literals.add( new Literal( la.getLiteralName(), la.getValue() ) );
+        }
+        
+        return new Clause( literals );
     }
     
     public void undoLastDecision() {
@@ -85,6 +98,7 @@ public class Assignment {
             LiteralAssignment la = dl.get( dl.size() - 1 );
             dl.remove( dl.size() - 1 );
             literalAssignments.remove( la.getLiteralName() );
+            literalAssignmentLevel.remove( la.getLiteralName() );
         }
         decisionLevels.pop();
         decisionLevel--;
@@ -96,6 +110,7 @@ public class Assignment {
             LiteralAssignment la = dl.get( dl.size() - 1 );
             dl.remove( dl.size() - 1 );
             literalAssignments.remove( la.getLiteralName() );
+            literalAssignmentLevel.remove( la.getLiteralName() );
         }
     }
     
@@ -132,10 +147,10 @@ public class Assignment {
         }
         
         StringBuilder sb = new StringBuilder();
-        List<LiteralAssignment> las = new ArrayList<>( literalAssignments.values() );
-        las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         
         boolean anyTrue = false;
+        List<LiteralAssignment> las = new ArrayList<>( literalAssignments.values() );
+        las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
         for ( LiteralAssignment la : las ) {
             if ( Config.load().reducedAssignments() ) {
                 if ( la.getValue() ) {
@@ -161,5 +176,13 @@ public class Assignment {
     
     public int getDecisionLevel() {
         return decisionLevel;
+    }
+    
+    public long getHash() {
+        long hash = 0;
+        for ( LiteralAssignment la : literalAssignments.values() ) {
+            hash += (long) Objects.hash( la.getLiteralName() ) * Objects.hash( la.getValue() );
+        }
+        return hash;
     }
 }

@@ -11,13 +11,13 @@ import java.util.Scanner;
  * @version 1.0
  */
 public class CLI {
-
+    
     public static void main( String[] args ) throws IOException {
         System.out.println( "SAT-Solver version 1.0-SNAPSHOT \u24B8 2021 Paul T. Wagner" );
         System.out.println( "Type '?' for help." );
-
+        
         Config config = Config.load();
-
+        
         Scanner scanner = new Scanner( System.in );
         while ( true ) {
             System.out.print( "> " );
@@ -28,10 +28,10 @@ public class CLI {
                 // Program was terminated
                 return;
             }
-
+            
             String cnfString;
             String[] split = input.split( " " );
-            String command = split[0];
+            String command = split[ 0 ];
             if ( command.equalsIgnoreCase( "?" ) || command.equalsIgnoreCase( "help" ) ) {
                 System.out.println( "? - View this help page" );
                 System.out.println( "reloadConfig - Reloads the configuration file" );
@@ -45,25 +45,31 @@ public class CLI {
                 System.out.println();
                 continue;
             } else if ( command.equals( "read" ) ) {
-                File file = new File( split[1] );
-                if ( !file.exists() ) {
-                    System.out.printf( "%sFile '%s' does not exists%s%n", AnsiColor.RED, split[1], AnsiColor.RESET );
+                if ( split.length != 2 ) {
+                    System.out.println( AnsiColor.RED + "Syntax: read <file>" + AnsiColor.RESET );
                     System.out.println();
                     continue;
                 }
-
+                
+                File file = new File( split[ 1 ] );
+                if ( !file.exists() ) {
+                    System.out.printf( "%sFile '%s' does not exists%s%n", AnsiColor.RED, split[ 1 ], AnsiColor.RESET );
+                    System.out.println();
+                    continue;
+                }
+                
                 BufferedReader bufferedReader = new BufferedReader( new FileReader( file ) );
                 StringBuilder builder = new StringBuilder();
                 String line;
                 while ( ( line = bufferedReader.readLine() ) != null ) {
                     builder.append( line );
                 }
-
+                
                 cnfString = builder.toString();
             } else {
                 cnfString = input;
             }
-
+            
             CNF cnf;
             try {
                 cnf = CNF.parse( cnfString );
@@ -72,7 +78,7 @@ public class CLI {
                 System.out.println();
                 continue;
             }
-
+            
             Solver solver = config.getSolver();
             long beforeMs = System.currentTimeMillis();
             solver.load( cnf );
@@ -82,20 +88,24 @@ public class CLI {
                 System.out.println();
                 continue;
             }
-
+            
             long modelCount = 0;
             System.out.println( AnsiColor.GREEN + "SAT:" );
             while ( model != null && modelCount < config.getMaxModelCount() ) {
                 modelCount++;
-
+                
                 if ( config.printModels() ) {
                     System.out.println( "" + AnsiColor.GREEN + model + ";" + AnsiColor.RESET );
                 }
-
+                
                 model = solver.nextModel();
+                if ( modelCount % 1000 == 0 ) {
+                    System.out.println( modelCount );
+                    System.out.println( modelCount / 181440.0 * 100.0 );
+                }
             }
             long timeMs = System.currentTimeMillis() - beforeMs;
-
+            
             System.out.println( "" + AnsiColor.GREEN + modelCount + " model/s found in " + timeMs + " ms" + AnsiColor.RESET );
             if ( modelCount == config.getMaxModelCount() ) {
                 System.out.println( AnsiColor.GRAY + "(List of models could be incomplete since maximum number of models is restricted)" + AnsiColor.RESET );

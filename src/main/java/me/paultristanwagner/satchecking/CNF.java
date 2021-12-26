@@ -140,4 +140,8 @@ public class CNF {
         }
         return sb.substring( 3 );
     }
+    
+    public List<Clause> getInitialClauses() {
+        return initialClauses;
+    }
 }

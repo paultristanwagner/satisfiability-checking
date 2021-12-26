@@ -106,7 +106,7 @@ public class DPLLSolver implements Solver {
                 Literal unitLiteral = wlp.getUnitLiteral( assignment );
                 if ( unitLiteral != null ) {
                     foundUnitClause = true;
-                    assignment.force( unitLiteral, clause );
+                    assignment.propagate( unitLiteral, clause );
                     updateWatchedLiterals( unitLiteral.not(), assignment );
                     break;
                 }

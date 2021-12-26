@@ -20,12 +20,12 @@ public class WatchedLiteralPair {
             if ( !assignment.assigns( literal ) || assignment.evaluate( literal ) ) {
                 watched[ correct ] = literal;
                 correct++;
-                if ( correct == 2 ) {
+                if ( correct == watched.length ) {
                     return;
                 }
             } else {
                 if ( correct == 0 ) {
-                    watched[ incorrect % 2 ] = literal;
+                    watched[ ( 1 - incorrect % 2 ) % watched.length ] = literal;
                 } else if ( correct == 1 ) {
                     watched[ 1 ] = literal;
                 }
@@ -41,6 +41,17 @@ public class WatchedLiteralPair {
             }
         }
         return true;
+    }
+    
+    // todo: Remove this, just for testing
+    private void checkActuallyConflicting( Assignment assignment ) {
+        System.out.println( "Debug code: checkActuallyConflicting" );
+        for ( Literal literal : clause.getLiterals() ) {
+            if ( !assignment.assigns( literal ) || assignment.evaluate( literal ) ) {
+                System.out.println( "not actually conflicting!" );
+                return;
+            }
+        }
     }
     
     public Literal getUnitLiteral( Assignment assignment ) {
@@ -59,6 +70,24 @@ public class WatchedLiteralPair {
             return unassignedLiteral;
         }
         return null;
+    }
+    
+    // todo: Remove this, just for testing
+    private void checkActuallyUnit( Assignment assignment ) {
+        System.out.println( "Debug code: checkActuallyUnit" );
+        int unassignedCount = 0;
+        for ( Literal literal : clause.getLiterals() ) {
+            if ( !assignment.assigns( literal ) ) {
+                unassignedCount++;
+            } else if ( assignment.evaluate( literal ) ) {
+                System.out.println( clause + " not actually unit. reason: clause is true" );
+                return;
+            }
+        }
+        
+        if ( unassignedCount != 1 ) {
+            System.out.println( clause + " not actually unit. reason: " + unassignedCount + " unassigned" );
+        }
     }
     
     public Literal attemptReplace( Literal literal, Assignment assignment ) {

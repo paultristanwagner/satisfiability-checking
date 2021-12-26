@@ -23,22 +23,41 @@ public class Clause {
         return literals;
     }
     
-    public boolean isAsserting( Assignment assignment ) {
-        int intersectionSize = 0;
-        List<LiteralAssignment> assignmentsOnCurrentLevel = assignment.getAssignmentsOnCurrentLevel();
+    public boolean contains( String literalName ) {
         for ( Literal literal : literals ) {
-            if ( assignmentsOnCurrentLevel.stream().anyMatch( la -> la.getLiteralName().equals( literal.getName() ) ) ) {
+            if ( literal.getName().equals( literalName ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public Literal isAsserting( Assignment assignment ) {
+        int intersectionSize = 0;
+        Literal assertingLiteral = null;
+        for ( Literal literal : literals ) {
+            if ( assignment.getAssignmentLevelOf( literal ) == assignment.getDecisionLevel() ) {
                 intersectionSize++;
+                assertingLiteral = literal;
+                
                 if ( intersectionSize == 2 ) {
-                    return false;
+                    return null;
                 }
             }
         }
-        return true;
+        
+        if ( intersectionSize == 1 ) {
+            return assertingLiteral;
+        }
+        return null;
     }
     
     @Override
     public String toString() {
+        if ( literals.isEmpty() ) {
+            return "()";
+        }
+        
         StringBuilder sb = new StringBuilder();
         for ( Literal literal : literals ) {
             sb.append( " | " ).append( literal );

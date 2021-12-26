@@ -11,6 +11,10 @@ public class Literal {
     private final String name;
     private final boolean negated;
     
+    public Literal(String name) {
+        this(name, false);
+    }
+    
     public Literal( String name, boolean negated ) {
         this.name = name;
         this.negated = negated;
