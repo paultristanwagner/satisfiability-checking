@@ -49,7 +49,7 @@ public class Config {
     
     private static Config defaultConfig() {
         Properties defaultProperties = new Properties();
-        defaultProperties.setProperty( "solver", "DPLL" );
+        defaultProperties.setProperty( "solver", "DPLL+CDCL" );
         defaultProperties.setProperty( "maxModelCount", MAXIMUM );
         defaultProperties.setProperty( "printModels", "true" );
         defaultProperties.setProperty( "reducedAssignments", "false" );

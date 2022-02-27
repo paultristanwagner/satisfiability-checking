@@ -15,10 +15,13 @@ Now you should see the command prompt indicated by a `>` symbol.
 
 # Propositional logic
 ## Enumeration
-A simple sat solver using enumeration is implemented.
+A simple SAT solver using enumeration is implemented.
 
 ## DPLL
-The [DPLL Algorithm](https://en.wikipedia.org/wiki/DPLL_algorithm) is implemented and used by the command line interface.
+The [DPLL Algorithm](https://en.wikipedia.org/wiki/DPLL_algorithm) is implemented.
+
+## DPLL+CDCL
+A [DPLL+CDCL](https://en.wikipedia.org/wiki/Conflict-driven_clause_learning) solver that applies conflict resolution is used by the command line interface.
 
 ### Example:
 Input can be given in conjunctive normal form in the following way.
