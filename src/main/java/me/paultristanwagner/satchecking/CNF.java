@@ -52,8 +52,8 @@ public class CNF {
         S -> ( D )
         D -> L | D
         D -> L
-        L -> ~<char>
-        L -> <char>
+        L -> ~<literal name>
+        L -> <literal name>
      */
 
     public static CNF parse( String string ) {
@@ -111,7 +111,7 @@ public class CNF {
         StringBuilder sb = new StringBuilder();
         while ( true ) {
             char c = string.charAt( index.get() );
-            if ( ( c < 65 || c > 90 ) && ( c < 97 || c > 122 ) && ( c < 48 || c > 57 ) ) {
+            if ( ( c < 'A' || c > 'Z' ) && ( c < 'a' || c > 'z' ) && ( c < '0' || c > '9' ) && c != '_' ) {
                 if ( sb.length() == 0 ) {
                     throw new RuntimeException( "Literal expected, got '" + c + "' instead" );
                 }

@@ -1,13 +1,11 @@
-import me.paultristanwagner.satchecking.Assignment;
-import me.paultristanwagner.satchecking.CNF;
-import me.paultristanwagner.satchecking.DPLLCDCLSolver;
-import me.paultristanwagner.satchecking.Result;
+import me.paultristanwagner.satchecking.*;
+import me.paultristanwagner.satchecking.builder.CNFBuilder;
+import me.paultristanwagner.satchecking.builder.FunctionCNFBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DPLLCDCLTest {
     
@@ -44,5 +42,25 @@ public class DPLLCDCLTest {
         
         long timeNeeded = System.currentTimeMillis() - beforeMs;
         System.out.printf( "Time needed for DPLL+CDCL algorithm: %d ms\n", timeNeeded );
+    }
+    
+    @Test
+    public void testModelCount() {
+        List<String> domain = List.of( "a", "b", "c", "d", "e" );
+        List<Integer> codomain = List.of( 1, 2, 3, 4, 5 );
+        FunctionCNFBuilder<String, Integer> builder = CNFBuilder.function( domain, codomain );
+        builder.bijective();
+        
+        CNF cnf = builder.build();
+        
+        Solver solver = new DPLLCDCLSolver();
+        solver.load( cnf );
+        
+        int models = 0;
+        while ( solver.nextModel() != null ) {
+            models++;
+        }
+        
+        assertEquals( 120, models );
     }
 }
