@@ -52,14 +52,10 @@ public class DPLLCDCLSolver implements Solver {
     
     @Override
     public Assignment nextModel() {
-        if ( !assignment.isEmpty() && assignment.getDecisionLevel() > 0 ) {
-            conflictingClause = null;
+        if ( !assignment.isEmpty() ) {
             unitClauses.clear();
-            
-            Clause blockingClause = assignment.not();
-            learnClause( blockingClause );
-            
-            conflictingClause = blockingClause;
+
+            conflictingClause = assignment.not(); // blocking last assignment
             resolveConflict();
         }
         
