@@ -1,8 +1,12 @@
 # Satisfiability checking
+
 This project is supposed to be a practice environment to implement algorithms related to satisfiability checking.
-The techniques used here are introduced in the RWTH University lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)' by Prof. Dr. Erika Ábrahám.
+The techniques used here are introduced in the RWTH University
+lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
+by Prof. Dr. Erika Ábrahám.
 
 # How to build and run the project
+
 Clone the git repository:  
 `git clone https://github.com/paultristanwagner/satisfiability-checking.git`  
 Navigate into the created directory:  
@@ -50,3 +54,9 @@ Currently, the program supports decimal coefficients which will be handled via f
 <img src="images/simplex-sat.png" alt="Satisfiable Simplex example" width="350" /> <br>
 <img src="images/simplex-unsat.png" alt="Unsatisfiable Simplex example" width="350" /> <br>
 
+# SMT solver
+
+A proof of concept for an SMT solver is implemented for linear real arithmetic.
+
+<img src="images/smt-sat.png" alt="Satisfiable SMT example" width="350" /> <br>
+<img src="images/smt-unsat.png" alt="Unsatisfiable SMT example" width="350" /> <br>
