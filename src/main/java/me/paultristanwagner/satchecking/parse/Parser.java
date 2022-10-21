@@ -4,7 +4,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public interface Parser<T> {
     
-    T parse( String string );
+    default T parse( String string ) {
+        return parse( string, new AtomicInteger() );
+    }
+    
+    T parse( String string, AtomicInteger index );
     
     static char nextProperChar( String string, AtomicInteger index ) {
         while ( index.get() < string.length() ) {

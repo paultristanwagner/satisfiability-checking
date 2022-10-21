@@ -3,8 +3,14 @@ package me.paultristanwagner.satchecking;
 import me.paultristanwagner.satchecking.parse.LinearConstraintParser;
 import me.paultristanwagner.satchecking.parse.Parser;
 import me.paultristanwagner.satchecking.parse.SyntaxError;
+import me.paultristanwagner.satchecking.parse.TheoryCNFParser;
+import me.paultristanwagner.satchecking.smt.LinearRealArithmeticSolver;
+import me.paultristanwagner.satchecking.smt.SMTSolver;
+import me.paultristanwagner.satchecking.smt.TheoryCNF;
+import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.Simplex;
+import me.paultristanwagner.satchecking.theory.Simplex.SimplexResult;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -45,6 +51,7 @@ public class CLI {
                 System.out.println( "   reloadConfig - Reloads the configuration file" );
                 System.out.println( "   read <file> - Reads a CNF from the specified file" );
                 System.out.println( "   simplex <constraints> ... - Applies the simplex algorithm to the specified constraints" );
+                System.out.println( "   smt <cnf of theory constraints> - Solves an SMT problem" );
                 System.out.println();
                 continue;
             } else if ( command.equals( "reloadConfig" ) ) {
@@ -93,7 +100,7 @@ public class CLI {
                         System.out.println( split[ i ] );
                         Parser.printPointer( e.getIndex() );
                         System.out.print( RESET );
-            
+    
                         syntaxError = true;
                         break;
                     }
@@ -103,7 +110,38 @@ public class CLI {
                     continue;
                 }
     
-                simplex.solve();
+                SimplexResult simplexResult = simplex.solve();
+                if ( simplexResult.isFeasible() ) {
+                    System.out.println();
+                    System.out.println( GREEN + "SAT!" );
+                    System.out.print( GREEN + "Solution: " );
+                    System.out.print( simplexResult );
+                } else {
+                    System.out.println();
+                    System.out.println( RED + "UNSAT!" );
+                    System.out.print( "Explanation: " );
+                    System.out.print( simplexResult );
+                }
+    
+                System.out.println( RESET );
+                continue;
+            } else if ( command.equals( "smt" ) ) {
+                cnfString = input.substring( 4 );
+    
+                TheoryCNFParser parser = new TheoryCNFParser();
+                TheoryCNF<LinearConstraint> theoryCNF = parser.parse( cnfString );
+    
+                SMTSolver<LinearConstraint> smtSolver = new LinearRealArithmeticSolver();
+                VariableAssignment variableAssignment = smtSolver.solve( theoryCNF );
+    
+                if ( variableAssignment != null ) {
+                    System.out.println( GREEN + "SAT:" );
+                    System.out.println( "" + variableAssignment );
+                } else {
+                    System.out.println( RED + "UNSAT" );
+                }
+                System.out.println( RESET );
+    
                 continue;
             } else {
                 cnfString = input;
@@ -132,11 +170,11 @@ public class CLI {
             System.out.println( GREEN + "SAT:" );
             while ( model != null && modelCount < config.getMaxModelCount() ) {
                 modelCount++;
-        
+    
                 if ( config.printModels() ) {
                     System.out.println( "" + GREEN + model + ";" + RESET );
                 }
-        
+    
                 model = solver.nextModel();
             }
             long timeMs = System.currentTimeMillis() - beforeMs;

@@ -1,11 +1,13 @@
 package me.paultristanwagner.satchecking.theory;
 
+import me.paultristanwagner.satchecking.smt.Constraint;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class LinearConstraint {
+public class LinearConstraint implements Constraint {
     
     private String label;
     private final Set<String> variables = new HashSet<>();

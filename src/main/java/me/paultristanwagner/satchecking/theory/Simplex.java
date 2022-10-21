@@ -1,5 +1,7 @@
 package me.paultristanwagner.satchecking.theory;
 
+import me.paultristanwagner.satchecking.smt.VariableAssignment;
+
 import java.util.*;
 
 public class Simplex {
@@ -17,7 +19,8 @@ public class Simplex {
     
     private final List<LinearConstraint> constraints = new ArrayList<>();
     
-    public void solve() {
+    // todo: return something meaningful here, maybe a variableassignment or a simplex solution class
+    public SimplexResult solve() {
         this.lowerBounds = new HashMap<>();
         this.upperBounds = new HashMap<>();
         
@@ -69,24 +72,19 @@ public class Simplex {
             
             Violation violation = getViolation();
             if ( violation == null ) {
-                System.out.println();
-                System.out.println( "SAT!" );
                 break;
             }
-            
+    
             String pivotVariable = getPivotVariable( violation.variable(), violation.increase() );
             if ( pivotVariable == null ) {
-                System.out.println();
-                System.out.println( "UNSAT!" );
-                printExplanation( violation );
-                return;
-            } else {
-                // todo: System.out.println( "Pivot " + violation.variable() + " with " + pivotVariable );
+                Set<LinearConstraint> explanation = calculateExplanation( violation );
+                return SimplexResult.infeasible( explanation );
             }
             pivot( violation.variable(), pivotVariable, violation.increase() );
         }
         
-        System.out.print( "Solution: " );
+        VariableAssignment variableAssignment = new VariableAssignment();
+        
         for ( String variable : variables ) {
             double value;
             if ( basicVariables.contains( variable ) ) {
@@ -94,25 +92,22 @@ public class Simplex {
             } else {
                 value = values.get( nonBasicVariables.indexOf( variable ) );
             }
-            System.out.printf( "%s = %.2f; ", variable, value );
+            variableAssignment.assign( variable, value );
         }
-        System.out.println();
+        return SimplexResult.feasible( variableAssignment );
     }
     
     public void addConstraint( LinearConstraint constraint ) {
         constraints.add( constraint );
     }
     
-    public List<LinearConstraint> getConstraints() {
-        return constraints;
-    }
-    
-    private void printExplanation( Violation violation ) {
-        System.out.print( "Explanation: " );
+    private Set<LinearConstraint> calculateExplanation( Violation violation ) {
+        Set<LinearConstraint> explanation = new HashSet<>();
         
         int constraintIndex = Integer.parseInt( violation.variable().split( "s" )[ 1 ] );
         LinearConstraint constraint = constraints.get( constraintIndex );
-        System.out.printf( "%s; ", constraint );
+        
+        explanation.add( constraint );
         
         int basicIndex = basicVariables.indexOf( violation.variable() );
         for ( int j = 0; j < columns; j++ ) {
@@ -122,10 +117,11 @@ public class Simplex {
                 constraintIndex = Integer.parseInt( variable.split( "s" )[ 1 ] );
                 constraint = constraints.get( constraintIndex );
                 
-                System.out.printf( "%s; ", constraint );
+                explanation.add( constraint );
             }
         }
-        System.out.println();
+        
+        return explanation;
     }
     
     private Violation getViolation() {
@@ -267,15 +263,70 @@ public class Simplex {
             }
             System.out.println();
         }
-        
+    
         System.out.println();
         upperBounds.forEach( ( v, u ) -> System.out.printf( "%s <= %.2f%n", v, u ) );
         lowerBounds.forEach( ( v, l ) -> System.out.printf( "%s >= %.2f%n", v, l ) );
-        
+    
         System.out.println( "---------------------" );
     }
     
     record Violation(String variable, boolean increase) {
     
+    }
+    
+    public static class SimplexResult {
+        
+        boolean feasible;
+        VariableAssignment solution;
+        Set<LinearConstraint> explanation;
+        
+        private SimplexResult( boolean feasible, VariableAssignment solution, Set<LinearConstraint> explanation ) {
+            this.feasible = feasible;
+            this.solution = solution;
+            this.explanation = explanation;
+        }
+        
+        public static SimplexResult infeasible( Set<LinearConstraint> explanation ) {
+            return new SimplexResult(
+                    false,
+                    null,
+                    explanation
+            );
+        }
+        
+        public static SimplexResult feasible( VariableAssignment solution ) {
+            return new SimplexResult(
+                    true,
+                    solution,
+                    null
+            );
+        }
+        
+        public boolean isFeasible() {
+            return feasible;
+        }
+        
+        public Set<LinearConstraint> getExplanation() {
+            return explanation;
+        }
+        
+        public VariableAssignment getSolution() {
+            return solution;
+        }
+        
+        @Override
+        public String toString() {
+            StringBuilder builder = new StringBuilder();
+            if ( feasible ) {
+                builder.append( solution );
+            } else {
+                for ( LinearConstraint linearConstraint : this.explanation ) {
+                    builder.append( linearConstraint ).append( "; " );
+                }
+            }
+            
+            return builder.toString();
+        }
     }
 }

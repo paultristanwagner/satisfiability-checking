@@ -178,11 +178,15 @@ public class Assignment {
         return decisionLevel;
     }
     
-    public long getHash() {
-        long hash = 0;
-        for ( LiteralAssignment la : literalAssignments.values() ) {
-            hash += (long) Objects.hash( la.getLiteralName() ) * Objects.hash( la.getValue() );
-        }
-        return hash;
+    public List<Literal> getTrueLiterals() {
+        // todo: proof of concept
+        List<Literal> trueLiterals = new ArrayList<>();
+        this.literalAssignments.forEach( ( name, la ) -> {
+            if ( la.getValue() ) {
+                trueLiterals.add( new Literal( name, false ) );
+            }
+        } );
+        
+        return trueLiterals;
     }
 }

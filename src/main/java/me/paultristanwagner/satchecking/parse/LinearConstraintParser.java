@@ -36,16 +36,15 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
      *              -> "0" | ... | "9" NUMBER
      */
     @Override
-    public LinearConstraint parse( String string ) {
+    public LinearConstraint parse( String string, AtomicInteger index ) {
         LinearConstraint lc = new LinearConstraint();
-        AtomicInteger index = new AtomicInteger();
-        
+    
         lc.setLabel( string );
         TERM( string, index, lc );
         COMPARISON( string, index, lc );
         int sign = OPT_SIGN( string, index );
         lc.setValue( sign * VAL( string, index ) );
-        
+    
         if ( index.get() != string.length() ) {
             throw new SyntaxError( "Unexpected character at index " + index.get(), string, index.get() );
         }
