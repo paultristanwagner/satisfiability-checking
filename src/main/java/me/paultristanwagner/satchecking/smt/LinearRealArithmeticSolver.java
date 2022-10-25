@@ -2,8 +2,10 @@ package me.paultristanwagner.satchecking.smt;
 
 import me.paultristanwagner.satchecking.*;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
-import me.paultristanwagner.satchecking.theory.Simplex;
-import me.paultristanwagner.satchecking.theory.Simplex.SimplexResult;
+import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
+import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
+import me.paultristanwagner.satchecking.theory.Simplex2;
+import me.paultristanwagner.satchecking.theory.Simplex2.SimplexResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,11 +21,18 @@ public class LinearRealArithmeticSolver implements SMTSolver<LinearConstraint> {
         Assignment assignment;
         while ( ( assignment = satSolver.nextModel() ) != null ) {
             List<Literal> trueLiterals = assignment.getTrueLiterals();
-            
-            Simplex simplex = new Simplex();
+    
+            Simplex2 simplex = new Simplex2();
             for ( Literal trueLiteral : trueLiterals ) {
                 LinearConstraint constraint = cnf.getConstraintLiteralMap().inverse().get( trueLiteral.getName() );
-                simplex.addConstraint( constraint );
+        
+                if ( constraint instanceof MaximizingConstraint ) {
+                    simplex.maximize( constraint );
+                } else if ( constraint instanceof MinimizingConstraint ) {
+                    simplex.minimize( constraint );
+                } else {
+                    simplex.addConstraint( constraint );
+                }
             }
             
             SimplexResult simplexResult = simplex.solve();

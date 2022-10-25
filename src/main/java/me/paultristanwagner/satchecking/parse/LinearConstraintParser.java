@@ -1,6 +1,8 @@
 package me.paultristanwagner.satchecking.parse;
 
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
+import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
+import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -11,6 +13,8 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
      *  S 			-> TERM "=" OPT_SIGN VAL
      *              -> TERM ">=" OPT_SIGN VAL
      *              -> TERM "<=" OPT_SIGN VAL
+     *              -> max(TERM)
+     *              -> min(TERM)
      *
      *  TERM 		-> OPT_SIGN OPT_VAL VAR
      *              -> OPT_SIGN OPT_VAL VAR SGN_TERM
@@ -37,18 +41,35 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
      */
     @Override
     public LinearConstraint parse( String string, AtomicInteger index ) {
-        LinearConstraint lc = new LinearConstraint();
-    
-        lc.setLabel( string );
-        TERM( string, index, lc );
-        COMPARISON( string, index, lc );
-        int sign = OPT_SIGN( string, index );
-        lc.setValue( sign * VAL( string, index ) );
+        LinearConstraint lc;
+        if ( string.startsWith( "max(" ) ) {
+            lc = new MaximizingConstraint();
+            index.addAndGet( 4 );
+            TERM( string, index, lc );
+        
+            if ( Parser.nextProperChar( string, index ) != ')' ) {
+                throw new IllegalArgumentException( "Expected ')' at index " + index.get() );
+            }
+        } else if ( string.startsWith( "min(" ) ) {
+            lc = new MinimizingConstraint();
+            index.addAndGet( 4 );
+            TERM( string, index, lc );
+        
+            if ( Parser.nextProperChar( string, index ) != ')' ) {
+                throw new IllegalArgumentException( "Expected ')' at index " + index.get() );
+            }
+        } else {
+            lc = new LinearConstraint();
+            TERM( string, index, lc );
+            COMPARISON( string, index, lc );
+            int sign = OPT_SIGN( string, index );
+            lc.setValue( sign * VAL( string, index ) );
+        }
     
         if ( index.get() != string.length() ) {
             throw new SyntaxError( "Unexpected character at index " + index.get(), string, index.get() );
         }
-        
+    
         return lc;
     }
     
@@ -172,7 +193,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         StringBuilder builder = new StringBuilder();
         while ( index.get() < string.length() ) {
             char character = Parser.nextProperChar( string, index );
-            if ( ( character < 'a' || character > 'z' ) && ( character < 'A' || character > 'Z' ) ) {
+            if ( ( character < 'a' || character > 'z' ) && ( character < 'A' || character > 'Z' ) && character != '_' ) {
                 index.decrementAndGet();
                 break;
             }

@@ -11,6 +11,10 @@ public class VariableAssignment {
         assignments.put( variable, value );
     }
     
+    public double getAssignment( String variable ) {
+        return assignments.get( variable );
+    }
+    
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();

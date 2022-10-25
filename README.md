@@ -54,6 +54,11 @@ Currently, the program supports decimal coefficients which will be handled via f
 <img src="images/simplex-sat.png" alt="Satisfiable Simplex example" width="350" /> <br>
 <img src="images/simplex-unsat.png" alt="Unsatisfiable Simplex example" width="350" /> <br>
 
+An optional objective function can be given to maximize or minimize the value of a linear expression.
+
+<img src="images/simplex-optimal.png" alt="Optimal Simplex example" width="450" /> <br>
+<img src="images/simplex-unbounded.png" alt="Unbounded Simplex example" width="350" /> <br>
+
 # SMT solver
 
 A proof of concept for an SMT solver is implemented for linear real arithmetic.
