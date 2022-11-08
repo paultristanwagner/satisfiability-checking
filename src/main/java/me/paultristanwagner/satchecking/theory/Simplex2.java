@@ -12,11 +12,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
 
 public class Simplex2 {
-    
+
     private final List<String> allVariables;
     private final List<String> basicVariables;
-    
-    private final Set<String> allVariablesSet;
+
     private final Set<String> originalVariables;
     private final Set<String> slackVariables;
     private final Set<String> nonBasicVariables;
@@ -59,7 +58,6 @@ public class Simplex2 {
     }
     
     public Simplex2() {
-        this.allVariablesSet = new HashSet<>();
         this.allVariables = new ArrayList<>();
         
         this.originalVariables = new HashSet<>();
@@ -111,13 +109,15 @@ public class Simplex2 {
         this.originalConstraints.addAll( constraints );
     
         // Collect variables
+        Set<String> tempSet = new HashSet<>();
         for ( LinearConstraint constraint : constraints ) {
             originalVariables.addAll( constraint.getVariables() );
-        
-            allVariablesSet.addAll( constraint.getVariables() );
+
+            tempSet.addAll( constraint.getVariables() );
             nonBasicVariables.addAll( constraint.getVariables() );
         }
-    
+        allVariables.addAll( tempSet );
+
         // Infer bounds
         Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferedBounds = inferBounds();
     
@@ -125,8 +125,8 @@ public class Simplex2 {
         if ( result != null && !result.isFeasible() ) {
             return result;
         }
-    
-        List<String> withoutLowerBounds = new ArrayList<>( allVariablesSet );
+
+        List<String> withoutLowerBounds = new ArrayList<>( allVariables );
         withoutLowerBounds.removeAll( inferedBounds.getLeft().keySet() );
     
         // Transform constraints, where a single variable has a bound other than zero
@@ -139,12 +139,11 @@ public class Simplex2 {
         for ( LinearConstraint constraint : constraints ) {
             String slackVariable = freshVariable( "slack" );
             slackVariables.add( slackVariable );
-            allVariablesSet.add( slackVariable );
+            allVariables.add( slackVariable );
             basicVariables.add( slackVariable );
         }
     
         // Sort variables
-        allVariables.addAll( allVariablesSet );
         allVariables.sort( ( o1, o2 ) -> {
             if ( slackVariables.contains( o1 ) && slackVariables.contains( o2 ) ) {
                 return o1.compareTo( o2 );
@@ -277,7 +276,7 @@ public class Simplex2 {
         Map<String, LinearConstraint> upperBounds = new HashMap<>();
         
         List<LinearConstraint> keptConstraints = new ArrayList<>();
-        for ( String variable : allVariablesSet ) {
+        for ( String variable : allVariables ) {
             Iterator<LinearConstraint> iterator = constraints.iterator();
             while ( iterator.hasNext() ) {
                 LinearConstraint constraint = iterator.next();
@@ -315,7 +314,7 @@ public class Simplex2 {
     private SimplexResult checkBoundsConsistency( Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferedBounds ) {
         Map<String, LinearConstraint> lowerBounds = inferedBounds.getLeft();
         Map<String, LinearConstraint> upperBounds = inferedBounds.getRight();
-        for ( String variable : allVariablesSet ) {
+        for ( String variable : allVariables ) {
             LinearConstraint lowerBound = lowerBounds.get( variable );
             LinearConstraint upperBound = upperBounds.get( variable );
             double lowerBoundValue = lowerBound != null ? lowerBounds.get( variable ).getBoundOn( variable ) : Double.NEGATIVE_INFINITY;
@@ -333,8 +332,7 @@ public class Simplex2 {
     
     private void transformOffsetVariables( Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferedBounds ) {
         Map<String, LinearConstraint> lowerBounds = inferedBounds.getLeft();
-        Set<String> addedSubstitutes = new HashSet<>();
-        for ( Iterator<String> iterator = allVariablesSet.iterator(); iterator.hasNext(); ) {
+        for ( ListIterator<String> iterator = allVariables.listIterator(); iterator.hasNext(); ) {
             String variable = iterator.next();
             if ( !lowerBounds.containsKey( variable ) )
                 continue;
@@ -350,9 +348,11 @@ public class Simplex2 {
             substitutions.put( variable, substitute );
             
             iterator.remove();
+            iterator.add( substitute );
+
             nonBasicVariables.remove( variable );
-            addedSubstitutes.add( substitute );
-            
+            nonBasicVariables.add( substitute );
+
             for ( int i = 0; i < constraints.size(); i++ ) {
                 LinearConstraint linearConstraint = constraints.get( i );
                 if ( linearConstraint.getCoefficients().containsKey( variable ) ) {
@@ -366,9 +366,6 @@ public class Simplex2 {
                 objective = objective.offset( variable, substitute, bound );
             }
         }
-        
-        nonBasicVariables.addAll( addedSubstitutes );
-        allVariablesSet.addAll( addedSubstitutes );
     }
     
     private void replaceUnboundedVariables( List<String> withoutLowerBounds ) {
@@ -376,15 +373,15 @@ public class Simplex2 {
             String positive = freshVariable( "p_" + unboundedVariable );
             String negative = freshVariable( "n_" + unboundedVariable );
             unbounded.put( unboundedVariable, Pair.of( positive, negative ) );
-            
-            allVariablesSet.add( positive );
-            allVariablesSet.add( negative );
-            allVariablesSet.remove( unboundedVariable );
-            
+
+            allVariables.add( positive );
+            allVariables.add( negative );
+            allVariables.remove( unboundedVariable );
+
             nonBasicVariables.add( positive );
             nonBasicVariables.add( negative );
             nonBasicVariables.remove( unboundedVariable );
-            
+
             for ( int i = 0; i < constraints.size(); i++ ) {
                 LinearConstraint linearConstraint = constraints.get( i );
                 if ( linearConstraint.getCoefficients().containsKey( unboundedVariable ) ) {
@@ -571,7 +568,7 @@ public class Simplex2 {
         do {
             fresh = prefix + i;
             i += 1;
-        } while ( allVariablesSet.contains( fresh ) );
+        } while ( allVariables.contains( fresh ) );
         
         return fresh;
     }
