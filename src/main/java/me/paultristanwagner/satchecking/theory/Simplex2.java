@@ -569,8 +569,12 @@ public class Simplex2 {
             fresh = prefix + i;
             i += 1;
         } while ( allVariables.contains( fresh ) );
-        
+    
         return fresh;
+    }
+    
+    public boolean hasObjectiveFunction() {
+        return objective != null;
     }
     
     public static class SimplexResult {
