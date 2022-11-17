@@ -21,6 +21,16 @@ public class Assignment {
         literalAssignmentLevel = new HashMap<>();
     }
 
+    public Assignment( Assignment other ) {
+        decisionLevel = other.decisionLevel;
+        decisionLevels = new Stack<>();
+        for ( List<LiteralAssignment> level : other.decisionLevels ) {
+            decisionLevels.add( new ArrayList<>( level ) );
+        }
+        literalAssignments = new HashMap<>( other.literalAssignments );
+        literalAssignmentLevel = new HashMap<>( other.literalAssignmentLevel );
+    }
+
     public boolean fits( CNF cnf ) {
         List<Literal> literals = cnf.getLiterals();
         for ( Literal literal : literals ) {

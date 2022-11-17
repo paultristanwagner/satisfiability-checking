@@ -6,11 +6,6 @@ public class SudokuEqualityBuilder {
     private final int N;
     private final StringBuilder builder;
     
-    public static void main( String[] args ) {
-        SudokuEqualityBuilder builder = new SudokuEqualityBuilder( 2 );
-        System.out.println( builder.build() );
-    }
-    
     public SudokuEqualityBuilder( int blockSize ) {
         this.blockSize = blockSize;
         this.builder = new StringBuilder();

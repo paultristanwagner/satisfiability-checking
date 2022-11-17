@@ -1,6 +1,8 @@
 package me.paultristanwagner.satchecking.smt;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class VariableAssignment {
@@ -18,9 +20,13 @@ public class VariableAssignment {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder();
-        this.assignments.forEach( ( variable, value ) ->
-                builder.append( variable ).append( "=" ).append( value ).append( "; " )
-        );
+        List<String> variables = new ArrayList<>( assignments.keySet() );
+        variables.sort( String::compareTo );
+
+        for ( String variable : variables ) {
+            Double value = assignments.get( variable );
+            builder.append( variable ).append( "=" ).append( value ).append( "; " );
+        }
 
         return builder.toString();
     }

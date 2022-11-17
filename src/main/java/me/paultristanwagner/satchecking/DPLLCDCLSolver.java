@@ -68,6 +68,35 @@ public class DPLLCDCLSolver implements Solver {
         return result.getAssignment();
     }
 
+    public PartialAssignment nextPartialAssignment() {
+        if ( assignment.isEmpty() ) {
+            while ( !bcp() ) {
+                if ( !resolveConflict() ) {
+                    return null;
+                }
+            }
+
+            if ( assignment.fits( cnf ) ) {
+                return PartialAssignment.complete( assignment );
+            } else {
+                return PartialAssignment.incomplete( assignment );
+            }
+        }
+
+        decide( assignment );
+        while ( !bcp() ) {
+            if ( !resolveConflict() ) {
+                return null;
+            }
+        }
+
+        if ( assignment.fits( cnf ) ) {
+            return PartialAssignment.complete( assignment );
+        } else {
+            return PartialAssignment.incomplete( assignment );
+        }
+    }
+
     public static Result check( CNF cnf ) {
         DPLLCDCLSolver solver = new DPLLCDCLSolver();
         solver.load( cnf );
@@ -172,6 +201,14 @@ public class DPLLCDCLSolver implements Solver {
         learnClause( currentClause );
 
         return true;
+    }
+
+    // todo: Experimental
+    public void excludeClause( Clause clause ) {
+        learnClause( clause );
+
+        conflictingClause = clause;
+        resolveConflict();
     }
 
     private void learnClause( Clause clause ) {
