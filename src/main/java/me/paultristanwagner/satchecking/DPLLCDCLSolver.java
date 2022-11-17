@@ -204,11 +204,11 @@ public class DPLLCDCLSolver implements Solver {
     }
 
     // todo: Experimental
-    public void excludeClause( Clause clause ) {
+    public boolean excludeClause( Clause clause ) {
         learnClause( clause );
 
         conflictingClause = clause;
-        resolveConflict();
+        return resolveConflict();
     }
 
     private void learnClause( Clause clause ) {

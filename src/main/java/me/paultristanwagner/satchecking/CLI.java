@@ -45,7 +45,7 @@ public class CLI {
 
             String cnfString;
             String[] split = input.split( " " );
-            String command = split[ 0 ];
+            String command = split[0];
 
             if ( command.equals( "read" ) ) {
                 if ( split.length != 2 ) {
@@ -54,9 +54,9 @@ public class CLI {
                     continue;
                 }
 
-                File file = new File( split[ 1 ] );
+                File file = new File( split[1] );
                 if ( !file.exists() ) {
-                    System.out.printf( "%sFile '%s' does not exists%s%n", RED, split[ 1 ], RESET );
+                    System.out.printf( "%sFile '%s' does not exists%s%n", RED, split[1], RESET );
                     System.out.println();
                     continue;
                 }
@@ -70,7 +70,7 @@ public class CLI {
 
                 input = builder.toString();
                 split = input.split( " " );
-                command = split[ 0 ];
+                command = split[0];
             }
 
             if ( command.equalsIgnoreCase( "?" ) || command.equalsIgnoreCase( "help" ) ) {
@@ -98,7 +98,7 @@ public class CLI {
                 boolean syntaxError = false;
                 for ( int i = 1; i < split.length; i++ ) {
                     try {
-                        LinearConstraint lc = parser.parse( split[ i ] );
+                        LinearConstraint lc = parser.parse( split[i] );
 
                         if ( lc instanceof MaximizingConstraint ) {
                             simplex.maximize( lc );
@@ -109,7 +109,7 @@ public class CLI {
                         }
                     } catch ( SyntaxError e ) {
                         System.out.println( RED + "Syntax error: " + e.getMessage() );
-                        System.out.println( split[ i ] );
+                        System.out.println( split[i] );
                         Parser.printPointer( e.getIndex() );
                         System.out.print( RESET );
 
@@ -122,7 +122,10 @@ public class CLI {
                     continue;
                 }
 
+                long beforeMs = System.currentTimeMillis();
                 SimplexResult result = simplex.solve();
+                long afterMs = System.currentTimeMillis();
+
                 if ( result.isUnbounded() ) {
                     System.out.println( RED + "UNSAT! " + GRAY + "(" + RED + "feasible, but unbounded" + GRAY + ")" );
                     System.out.print( GREEN + "Solution: " );
@@ -144,7 +147,7 @@ public class CLI {
                     System.out.print( "Explanation: " );
                     System.out.print( result );
                 }
-
+                System.out.println( GRAY + "Time: " + ( afterMs - beforeMs ) + "ms" + RESET );
                 System.out.println( RESET );
                 continue;
             } else if ( command.equals( "smt" ) ) {
@@ -154,7 +157,10 @@ public class CLI {
                 TheoryCNF<LinearConstraint> theoryCNF = parser.parse( cnfString );
 
                 SMTSolver<LinearConstraint> smtSolver = new LinearRealArithmeticSolver();
+
+                long beforeMs = System.currentTimeMillis();
                 VariableAssignment variableAssignment = smtSolver.solve( theoryCNF );
+                long afterMs = System.currentTimeMillis();
 
                 if ( variableAssignment != null ) {
                     System.out.println( GREEN + "SAT:" );
@@ -162,6 +168,7 @@ public class CLI {
                 } else {
                     System.out.println( RED + "UNSAT" );
                 }
+                System.out.println( GRAY + "Time: " + ( afterMs - beforeMs ) + "ms" );
                 System.out.println( RESET );
 
                 continue;
@@ -172,7 +179,10 @@ public class CLI {
                 TheoryCNF<EqualityConstraint> theoryCNF = parser.parse( cnfString );
 
                 SMTSolver<EqualityConstraint> smtSolver = new EqualityLogicSolver();
+
+                long beforeMs = System.currentTimeMillis();
                 VariableAssignment variableAssignment = smtSolver.solve( theoryCNF );
+                long afterMs = System.currentTimeMillis();
 
                 if ( variableAssignment != null ) {
                     System.out.println( GREEN + "SAT:" );
@@ -180,6 +190,7 @@ public class CLI {
                 } else {
                     System.out.println( RED + "UNSAT" );
                 }
+                System.out.println( GRAY + "Time: " + ( afterMs - beforeMs ) + "ms" );
                 System.out.println( RESET );
 
                 continue;

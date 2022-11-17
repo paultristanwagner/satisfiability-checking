@@ -94,11 +94,10 @@ public class EqualityLogicSolver implements SMTSolver<EqualityConstraint> {
                 }
 
                 Clause clause = new Clause( literals );
-                ( (DPLLCDCLSolver) satSolver ).excludeClause( clause );
-
-                // todo: We need to exclude the clause from the SAT solver
-                // How can we do this? Conflict resolution?
-                // We need to be careful to not exclude the remaining assignment from the SAT solver!
+                boolean resolvable = ( (DPLLCDCLSolver) satSolver ).excludeClause( clause );
+                if ( !resolvable ) {
+                    break;
+                }
             }
         }
 
