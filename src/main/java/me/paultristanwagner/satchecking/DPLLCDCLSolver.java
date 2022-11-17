@@ -1,5 +1,7 @@
 package me.paultristanwagner.satchecking;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.*;
 
 import static me.paultristanwagner.satchecking.Result.SAT;
@@ -16,7 +18,7 @@ public class DPLLCDCLSolver implements Solver {
     private Map<Clause, WatchedLiteralPair> watchedLiteralsMap;
 
     private Clause conflictingClause;
-    private final Queue<Map.Entry<Clause, Literal>> unitClauses = new ArrayDeque<>();
+    private final Queue<Pair<Clause, Literal>> unitClauses = new ArrayDeque<>();
 
     @Override
     public void load( CNF cnf ) {
@@ -46,7 +48,7 @@ public class DPLLCDCLSolver implements Solver {
 
         Literal unitLiteral = wlp.getUnitLiteral( assignment );
         if ( unitLiteral != null ) {
-            unitClauses.add( new AbstractMap.SimpleEntry<>( clause, unitLiteral ) );
+            unitClauses.add( Pair.of( clause, unitLiteral ) );
         }
     }
 
@@ -115,9 +117,9 @@ public class DPLLCDCLSolver implements Solver {
             } else {
                 if ( !unitClauses.isEmpty() ) {
                     foundUnitClause = true;
-                    Map.Entry<Clause, Literal> pair = unitClauses.poll();
-                    Clause unitClause = pair.getKey();
-                    Literal literal = pair.getValue();
+                    Pair<Clause, Literal> pair = unitClauses.poll();
+                    Clause unitClause = pair.getLeft();
+                    Literal literal = pair.getRight();
                     if ( assignment.assigns( literal ) ) {
                         continue;
                     }
@@ -149,7 +151,7 @@ public class DPLLCDCLSolver implements Solver {
 
         int targetLevel = 0;
         if ( currentClause.getLiterals().size() > 1 ) {
-            // search for second highest assignment level
+            // search for second-highest assignment level
             for ( Literal literal : currentClause.getLiterals() ) {
                 int level = assignment.getAssignmentLevelOf( literal );
                 if ( level != assignment.getDecisionLevel() && level > targetLevel ) {
@@ -164,7 +166,7 @@ public class DPLLCDCLSolver implements Solver {
         }
 
         unitClauses.clear();
-        unitClauses.add( new AbstractMap.SimpleEntry<>( currentClause, assertingLiteral ) );
+        unitClauses.add( Pair.of( currentClause, assertingLiteral ) );
         conflictingClause = null;
 
         learnClause( currentClause );
@@ -229,7 +231,7 @@ public class DPLLCDCLSolver implements Solver {
         } else {
             Literal unitLiteral = wlp.getUnitLiteral( assignment );
             if ( unitLiteral != null ) {
-                unitClauses.add( new AbstractMap.SimpleEntry<>( clause, unitLiteral ) );
+                unitClauses.add( Pair.of( clause, unitLiteral ) );
             }
         }
     }
