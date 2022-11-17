@@ -29,4 +29,13 @@ public class EqualityConstraint implements Constraint {
     public boolean areEqual() {
         return equal;
     }
+
+    @Override
+    public String toString() {
+        if ( equal ) {
+            return left + "=" + right;
+        } else {
+            return left + "!=" + right;
+        }
+    }
 }
