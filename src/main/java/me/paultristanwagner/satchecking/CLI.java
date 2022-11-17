@@ -152,7 +152,7 @@ public class CLI {
             } else if ( command.equals( "smt" ) ) {
                 cnfString = input.substring( 4 );
 
-                TheoryCNFParser parser = new TheoryCNFParser();
+                TheoryCNFParser<LinearConstraint> parser = new TheoryCNFParser<>();
                 TheoryCNF<LinearConstraint> theoryCNF = parser.parse( cnfString );
 
                 SMTSolver<LinearConstraint> smtSolver = new LinearRealArithmeticSolver();
