@@ -27,13 +27,13 @@ import static me.paultristanwagner.satchecking.AnsiColor.*;
  * @version 1.0
  */
 public class CLI {
-    
+
     public static void main( String[] args ) throws IOException {
         System.out.println( "SAT-Solver version 1.0-SNAPSHOT © 2021 Paul T. Wagner" );
         System.out.println( "Type '?' for help." );
-        
+
         Config config = Config.load();
-        
+
         Scanner scanner = new Scanner( System.in );
         while ( true ) {
             System.out.print( "> " );
@@ -44,37 +44,37 @@ public class CLI {
                 // Program was terminated
                 return;
             }
-    
+
             String cnfString;
             String[] split = input.split( " " );
-            String command = split[ 0 ];
-    
+            String command = split[0];
+
             if ( command.equals( "read" ) ) {
                 if ( split.length != 2 ) {
                     System.out.println( RED + "Syntax: read <file>" + RESET );
                     System.out.println();
                     continue;
                 }
-        
-                File file = new File( split[ 1 ] );
+
+                File file = new File( split[1] );
                 if ( !file.exists() ) {
-                    System.out.printf( "%sFile '%s' does not exists%s%n", RED, split[ 1 ], RESET );
+                    System.out.printf( "%sFile '%s' does not exists%s%n", RED, split[1], RESET );
                     System.out.println();
                     continue;
                 }
-        
+
                 BufferedReader bufferedReader = new BufferedReader( new FileReader( file ) );
                 StringBuilder builder = new StringBuilder();
                 String line;
                 while ( ( line = bufferedReader.readLine() ) != null ) {
                     builder.append( line );
                 }
-        
+
                 input = builder.toString();
                 split = input.split( " " );
-                command = split[ 0 ];
+                command = split[0];
             }
-    
+
             if ( command.equalsIgnoreCase( "?" ) || command.equalsIgnoreCase( "help" ) ) {
                 System.out.println( "   ? - View this help page" );
                 System.out.println( "   reloadConfig - Reloads the configuration file" );
@@ -94,14 +94,14 @@ public class CLI {
                     System.out.println( RED + "Syntax: simplex <constraints> ..." + RESET );
                     continue;
                 }
-        
+
                 Simplex2 simplex = new Simplex2();
                 LinearConstraintParser parser = new LinearConstraintParser();
                 boolean syntaxError = false;
                 for ( int i = 1; i < split.length; i++ ) {
                     try {
-                        LinearConstraint lc = parser.parse( split[ i ] );
-                
+                        LinearConstraint lc = parser.parse( split[i] );
+
                         if ( lc instanceof MaximizingConstraint ) {
                             simplex.maximize( lc );
                         } else if ( lc instanceof MinimizingConstraint ) {
@@ -111,19 +111,19 @@ public class CLI {
                         }
                     } catch ( SyntaxError e ) {
                         System.out.println( RED + "Syntax error: " + e.getMessage() );
-                        System.out.println( split[ i ] );
+                        System.out.println( split[i] );
                         Parser.printPointer( e.getIndex() );
                         System.out.print( RESET );
-                
+
                         syntaxError = true;
                         break;
                     }
                 }
-        
+
                 if ( syntaxError ) {
                     continue;
                 }
-        
+
                 SimplexResult result = simplex.solve();
                 if ( result.isUnbounded() ) {
                     System.out.println( RED + "UNSAT! " + GRAY + "(" + RED + "feasible, but unbounded" + GRAY + ")" );
@@ -146,18 +146,18 @@ public class CLI {
                     System.out.print( "Explanation: " );
                     System.out.print( result );
                 }
-        
+
                 System.out.println( RESET );
                 continue;
             } else if ( command.equals( "smt" ) ) {
                 cnfString = input.substring( 4 );
-        
+
                 TheoryCNFParser parser = new TheoryCNFParser();
                 TheoryCNF<LinearConstraint> theoryCNF = parser.parse( cnfString );
-        
+
                 SMTSolver<LinearConstraint> smtSolver = new LinearRealArithmeticSolver();
                 VariableAssignment variableAssignment = smtSolver.solve( theoryCNF );
-        
+
                 if ( variableAssignment != null ) {
                     System.out.println( GREEN + "SAT:" );
                     System.out.println( "" + variableAssignment );
@@ -165,12 +165,12 @@ public class CLI {
                     System.out.println( RED + "UNSAT" );
                 }
                 System.out.println( RESET );
-        
+
                 continue;
             } else {
                 cnfString = input;
             }
-            
+
             CNF cnf;
             try {
                 cnf = CNF.parse( cnfString );
@@ -179,7 +179,7 @@ public class CLI {
                 System.out.println();
                 continue;
             }
-            
+
             Solver solver = config.getSolver();
             long beforeMs = System.currentTimeMillis();
             solver.load( cnf );
@@ -189,20 +189,20 @@ public class CLI {
                 System.out.println();
                 continue;
             }
-            
+
             long modelCount = 0;
             System.out.println( GREEN + "SAT:" );
             while ( model != null && modelCount < config.getMaxModelCount() ) {
                 modelCount++;
-    
+
                 if ( config.printModels() ) {
                     System.out.println( "" + GREEN + model + ";" + RESET );
                 }
-    
+
                 model = solver.nextModel();
             }
             long timeMs = System.currentTimeMillis() - beforeMs;
-    
+
             System.out.println( "" + GREEN + modelCount + " model/s found in " + timeMs + " ms" + RESET );
             if ( modelCount == config.getMaxModelCount() ) {
                 System.out.println( GRAY + "(List of models could be incomplete since maximum number of models is restricted)" + RESET );

@@ -6,50 +6,50 @@ import static me.paultristanwagner.satchecking.Result.SAT;
 import static me.paultristanwagner.satchecking.Result.UNSAT;
 
 public class DPLLCDCLSolver implements Solver {
-    
+
     private static final boolean DEFAULT_DECISION_VALUE = false;
-    
+
     private CNF cnf;
     private Assignment assignment;
-    
+
     private Map<Literal, List<Clause>> watchedInMap;
     private Map<Clause, WatchedLiteralPair> watchedLiteralsMap;
-    
+
     private Clause conflictingClause;
     private final Queue<Map.Entry<Clause, Literal>> unitClauses = new ArrayDeque<>();
-    
+
     @Override
     public void load( CNF cnf ) {
         this.cnf = cnf;
         this.assignment = new Assignment();
         this.watchedInMap = new HashMap<>();
         this.watchedLiteralsMap = new HashMap<>();
-        
+
         initializeWatchedLiterals();
     }
-    
+
     private void initializeWatchedLiterals() {
         for ( Clause clause : cnf.getClauses() ) {
             initializeWatchedLiterals( clause );
         }
     }
-    
+
     private void initializeWatchedLiterals( Clause clause ) {
         WatchedLiteralPair wlp = new WatchedLiteralPair( clause, assignment );
         watchedLiteralsMap.put( clause, wlp );
-        
+
         for ( Literal literal : wlp.getWatched() ) {
             List<Clause> watchedIn = watchedInMap.getOrDefault( literal, new ArrayList<>() );
             watchedIn.add( clause );
             watchedInMap.put( literal, watchedIn );
         }
-        
+
         Literal unitLiteral = wlp.getUnitLiteral( assignment );
         if ( unitLiteral != null ) {
             unitClauses.add( new AbstractMap.SimpleEntry<>( clause, unitLiteral ) );
         }
     }
-    
+
     @Override
     public Assignment nextModel() {
         if ( !assignment.isEmpty() ) {
@@ -58,27 +58,27 @@ public class DPLLCDCLSolver implements Solver {
             conflictingClause = assignment.not(); // blocking last assignment
             resolveConflict();
         }
-        
+
         Result result = check();
         if ( !result.isSatisfiable() ) {
             return null;
         }
         return result.getAssignment();
     }
-    
+
     public static Result check( CNF cnf ) {
         DPLLCDCLSolver solver = new DPLLCDCLSolver();
         solver.load( cnf );
         return solver.check();
     }
-    
+
     private Result check() {
         while ( !bcp() ) {
             if ( !resolveConflict() ) {
                 return UNSAT;
             }
         }
-        
+
         while ( true ) {
             if ( assignment.fits( cnf ) ) {
                 return SAT( assignment );
@@ -91,25 +91,25 @@ public class DPLLCDCLSolver implements Solver {
             }
         }
     }
-    
+
     private void decide( Assignment assignment ) {
         Optional<Literal> unassignedOptional = cnf.getLiterals().stream().filter( lit -> !assignment.assigns( lit ) ).findFirst();
         if ( unassignedOptional.isEmpty() ) {
             throw new IllegalStateException( "Cannot decide because all literals are assigned" );
         }
-        
+
         Literal literal = unassignedOptional.get();
-        
+
         // Assign the literal with the default decision value and update the watched literals
         assignment.assign( literal, DEFAULT_DECISION_VALUE );
         updateWatchedLiterals( new Literal( literal.getName(), DEFAULT_DECISION_VALUE ) );
     }
-    
+
     private boolean bcp() {
         // While we can find unit clauses
         while ( true ) {
             boolean foundUnitClause = false;
-            
+
             if ( conflictingClause != null ) {
                 return false;
             } else {
@@ -121,23 +121,23 @@ public class DPLLCDCLSolver implements Solver {
                     if ( assignment.assigns( literal ) ) {
                         continue;
                     }
-                    
+
                     assignment.propagate( literal, unitClause );
                     updateWatchedLiterals( literal.not() );
                 }
             }
-            
+
             if ( !foundUnitClause ) {
                 return true;
             }
         }
     }
-    
+
     private boolean resolveConflict() {
         if ( assignment.getDecisionLevel() == 0 ) {
             return false;
         }
-        
+
         Clause currentClause = conflictingClause;
         conflictingClause = null;
         Literal assertingLiteral;
@@ -146,7 +146,7 @@ public class DPLLCDCLSolver implements Solver {
             Clause antcedent = literalAssignment.getAntecedent();
             currentClause = resolution( currentClause, antcedent, literalAssignment );
         }
-        
+
         int targetLevel = 0;
         if ( currentClause.getLiterals().size() > 1 ) {
             // search for second highest assignment level
@@ -157,35 +157,35 @@ public class DPLLCDCLSolver implements Solver {
                 }
             }
         }
-        
+
         // Backjumping
         while ( assignment.getDecisionLevel() > targetLevel ) {
             assignment.undoLastDecision();
         }
-        
+
         unitClauses.clear();
         unitClauses.add( new AbstractMap.SimpleEntry<>( currentClause, assertingLiteral ) );
         conflictingClause = null;
-        
+
         learnClause( currentClause );
-        
+
         return true;
     }
-    
+
     private void learnClause( Clause clause ) {
         cnf.learnClause( clause );
-        
+
         // Initialize watched literals for new clause
         WatchedLiteralPair wlp = new WatchedLiteralPair( clause, assignment );
         watchedLiteralsMap.put( clause, wlp );
-        
+
         for ( Literal literal : wlp.getWatched() ) {
             List<Clause> watchedIn = watchedInMap.getOrDefault( literal, new ArrayList<>() );
             watchedIn.add( clause );
             watchedInMap.put( literal, watchedIn );
         }
     }
-    
+
     private Clause resolution( Clause clause1, Clause clause2, LiteralAssignment la ) {
         List<Literal> literals = new ArrayList<>();
         for ( Literal literal : clause1.getLiterals() ) {
@@ -204,26 +204,26 @@ public class DPLLCDCLSolver implements Solver {
         }
         return new Clause( literals );
     }
-    
+
     private void updateWatchedLiterals( Literal literal ) {
         List<Clause> watchedInCopy = new ArrayList<>( watchedInMap.getOrDefault( literal, new ArrayList<>() ) );
         for ( Clause clause : watchedInCopy ) {
             updateWatchedLiterals( literal, clause );
         }
     }
-    
+
     private void updateWatchedLiterals( Literal literal, Clause clause ) {
         WatchedLiteralPair wlp = watchedLiteralsMap.get( clause );
         Literal replacement = wlp.attemptReplace( literal, assignment );
         if ( replacement != null ) {
             watchedInMap.get( literal ).remove( clause );
-            
+
             List<Clause> watchedIn = watchedInMap.getOrDefault( replacement, new ArrayList<>() );
             watchedIn.add( clause );
             watchedInMap.put( replacement, watchedIn );
             return;
         }
-        
+
         if ( wlp.isConflicting( assignment ) ) {
             conflictingClause = clause;
         } else {

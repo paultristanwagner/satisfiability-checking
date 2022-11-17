@@ -6,7 +6,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CNFParserTest {
-    
+
     @Test
     public void testParser() {
         List<String> cnfStrings = List.of(
@@ -17,7 +17,7 @@ public class CNFParserTest {
                 "(a) & (b)",
                 "(a) & (a | b) & (~b | c)"
         );
-        
+
         for ( String cnfString : cnfStrings ) {
             CNF cnf = CNF.parse( cnfString );
             assertEquals( cnfString, cnf.toString() );

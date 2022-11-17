@@ -7,7 +7,7 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstr
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class LinearConstraintParser implements Parser<LinearConstraint> {
-    
+
     /*
      *  Grammar for Linear constraints:
      *  S 			-> TERM "=" OPT_SIGN VAL
@@ -46,7 +46,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
             lc = new MaximizingConstraint();
             index.addAndGet( 4 );
             TERM( string, index, lc );
-        
+
             if ( Parser.nextProperChar( string, index ) != ')' ) {
                 throw new IllegalArgumentException( "Expected ')' at index " + index.get() );
             }
@@ -54,7 +54,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
             lc = new MinimizingConstraint();
             index.addAndGet( 4 );
             TERM( string, index, lc );
-        
+
             if ( Parser.nextProperChar( string, index ) != ')' ) {
                 throw new IllegalArgumentException( "Expected ')' at index " + index.get() );
             }
@@ -65,30 +65,30 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
             int sign = OPT_SIGN( string, index );
             lc.setValue( sign * VAL( string, index ) );
         }
-    
+
         if ( index.get() != string.length() ) {
             throw new SyntaxError( "Unexpected character at index " + index.get(), string, index.get() );
         }
-    
+
         return lc;
     }
-    
+
     private static void TERM( String string, AtomicInteger index, LinearConstraint lc ) {
         double firstSign = OPT_SIGN( string, index );
         double firstCoefficient = firstSign * OPT_VAL( string, index );
         String firstVar = VAR( string, index );
         lc.setCoefficient( firstVar, firstCoefficient );
-        
+
         int fallback = index.get();
         while ( index.get() < string.length() ) {
             try {
                 int sign = SIGN( string, index );
                 double coefficient = sign * OPT_VAL( string, index );
                 String var = VAR( string, index );
-                
+
                 coefficient += lc.getCoefficients().getOrDefault( var, 0.0 );
                 lc.setCoefficient( var, coefficient );
-                
+
                 fallback = index.get();
             } catch ( SyntaxError e ) {
                 index.set( fallback );
@@ -96,7 +96,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
             }
         }
     }
-    
+
     private static void COMPARISON( String string, AtomicInteger index, LinearConstraint lc ) {
         char character0 = Parser.nextProperChar( string, index );
         if ( character0 == '=' ) {
@@ -122,7 +122,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
             throw new SyntaxError( "Comparison (=, >=, <=) expected at index " + index.get(), string, index.get() );
         }
     }
-    
+
     private static double OPT_VAL( String string, AtomicInteger index ) {
         int fallback = index.get();
         try {
@@ -132,7 +132,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
             return 1;
         }
     }
-    
+
     private static double VAL( String string, AtomicInteger index ) {
         String valString = NUMBER( string, index );
         char character = Parser.nextProperChar( string, index );
@@ -143,7 +143,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         }
         return Double.parseDouble( valString );
     }
-    
+
     private static int OPT_SIGN( String string, AtomicInteger index ) {
         int fallback = index.get();
         int result = 1;
@@ -154,11 +154,11 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         }
         return result;
     }
-    
+
     private static int SIGN( String string, AtomicInteger index ) {
         boolean read = false;
         int result = 1;
-        
+
         while ( index.get() < string.length() ) {
             char character = Parser.nextProperChar( string, index );
             if ( character == '+' ) {
@@ -171,13 +171,13 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
                 break;
             }
         }
-        
+
         if ( !read ) {
             throw new SyntaxError( "Sign expected at index " + index.get(), string, index.get() );
         }
         return result;
     }
-    
+
     private static String VAR( String string, AtomicInteger index ) {
         String result = VAR_NAME( string, index );
         int fallback = index.get();
@@ -188,7 +188,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         }
         return result;
     }
-    
+
     private static String VAR_NAME( String string, AtomicInteger index ) {
         StringBuilder builder = new StringBuilder();
         while ( index.get() < string.length() ) {
@@ -197,17 +197,17 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
                 index.decrementAndGet();
                 break;
             }
-            
+
             builder.append( character );
         }
-        
+
         if ( builder.isEmpty() ) {
             throw new SyntaxError( "Variable expected at index " + index.get(), string, index.get() );
         }
-        
+
         return builder.toString();
     }
-    
+
     private static String NUMBER( String string, AtomicInteger index ) {
         StringBuilder builder = new StringBuilder();
         while ( index.get() < string.length() ) {
@@ -216,10 +216,10 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
                 index.decrementAndGet();
                 break;
             }
-            
+
             builder.append( character );
         }
-        
+
         if ( builder.isEmpty() ) {
             throw new SyntaxError( "Number expected at index " + index.get(), string, index.get() );
         }

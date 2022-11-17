@@ -6,7 +6,7 @@ package me.paultristanwagner.satchecking;
  */
 public interface Solver {
 
-    void load(CNF cnf);
+    void load( CNF cnf );
 
     Assignment nextModel();
 

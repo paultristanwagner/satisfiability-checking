@@ -7,12 +7,12 @@ import java.util.*;
  * @version 1.0
  */
 public class Assignment {
-    
+
     private int decisionLevel;
     private final Stack<List<LiteralAssignment>> decisionLevels;
     private final Map<String, LiteralAssignment> literalAssignments;
     private final Map<String, Integer> literalAssignmentLevel;
-    
+
     public Assignment() {
         decisionLevel = 0;
         decisionLevels = new Stack<>();
@@ -20,7 +20,7 @@ public class Assignment {
         literalAssignments = new HashMap<>();
         literalAssignmentLevel = new HashMap<>();
     }
-    
+
     public boolean fits( CNF cnf ) {
         List<Literal> literals = cnf.getLiterals();
         for ( Literal literal : literals ) {
@@ -30,15 +30,15 @@ public class Assignment {
         }
         return true;
     }
-    
+
     public boolean assigns( Literal literal ) {
         return literalAssignments.containsKey( literal.getName() );
     }
-    
+
     public boolean getValue( String literalName ) {
         return literalAssignments.get( literalName ).getValue();
     }
-    
+
     public void assign( Literal literal, boolean value ) {
         List<LiteralAssignment> dl = new ArrayList<>();
         LiteralAssignment la = new LiteralAssignment( literal.getName(), value, false, null );
@@ -48,7 +48,7 @@ public class Assignment {
         literalAssignments.put( literal.getName(), la );
         literalAssignmentLevel.put( literal.getName(), decisionLevel );
     }
-    
+
     public void propagate( Literal literal, Clause antecedent ) {
         List<LiteralAssignment> dl = decisionLevels.peek();
         LiteralAssignment la = new LiteralAssignment( literal.getName(), !literal.isNegated(), true, antecedent );
@@ -56,15 +56,15 @@ public class Assignment {
         literalAssignments.put( literal.getName(), la );
         literalAssignmentLevel.put( literal.getName(), decisionLevel );
     }
-    
+
     public boolean isEmpty() {
         return literalAssignments.isEmpty();
     }
-    
+
     public LiteralAssignment getLastDecision() {
         return decisionLevels.peek().get( 0 );
     }
-    
+
     public LiteralAssignment getLastAssignmentOnCurrentLevel( Clause clause ) {
         List<LiteralAssignment> assignmentsOnCurrentLevel = getAssignmentsOnCurrentLevel();
         for ( int i = assignmentsOnCurrentLevel.size() - 1; i >= 0; i-- ) {
@@ -73,14 +73,14 @@ public class Assignment {
                 return literalAssignment;
             }
         }
-        
+
         throw new IllegalStateException( "Clause has no literal assigned on the current level" );
     }
-    
+
     public int getAssignmentLevelOf( Literal literal ) {
         return literalAssignmentLevel.getOrDefault( literal.getName(), -1 );
     }
-    
+
     public Clause not() {
         List<Literal> literals = new ArrayList<>();
         for ( int i = 1; i < decisionLevels.size(); i++ ) {
@@ -88,10 +88,10 @@ public class Assignment {
             LiteralAssignment la = level.get( 0 );
             literals.add( new Literal( la.getLiteralName(), la.getValue() ) );
         }
-        
+
         return new Clause( literals );
     }
-    
+
     public void undoLastDecision() {
         List<LiteralAssignment> dl = decisionLevels.peek();
         while ( !dl.isEmpty() ) {
@@ -103,7 +103,7 @@ public class Assignment {
         decisionLevels.pop();
         decisionLevel--;
     }
-    
+
     public void undoPropagations() {
         List<LiteralAssignment> dl = decisionLevels.peek();
         while ( dl.size() > 1 ) {
@@ -113,11 +113,11 @@ public class Assignment {
             literalAssignmentLevel.remove( la.getLiteralName() );
         }
     }
-    
+
     public boolean evaluate( Literal literal ) {
         return getValue( literal.getName() ) ^ literal.isNegated();
     }
-    
+
     public boolean evaluate( Clause clause ) {
         for ( Literal literal : clause.getLiterals() ) {
             if ( evaluate( literal ) ) {
@@ -126,7 +126,7 @@ public class Assignment {
         }
         return false;
     }
-    
+
     public boolean evaluate( CNF cnf ) {
         for ( Clause clause : cnf.getClauses() ) {
             if ( !evaluate( clause ) ) {
@@ -135,19 +135,19 @@ public class Assignment {
         }
         return true;
     }
-    
+
     public List<LiteralAssignment> getAssignmentsOnCurrentLevel() {
         return decisionLevels.peek();
     }
-    
+
     @Override
     public String toString() {
         if ( isEmpty() ) {
             return "";
         }
-        
+
         StringBuilder sb = new StringBuilder();
-        
+
         boolean anyTrue = false;
         List<LiteralAssignment> las = new ArrayList<>( literalAssignments.values() );
         las.sort( Comparator.comparing( LiteralAssignment::getLiteralName ) );
@@ -166,18 +166,18 @@ public class Assignment {
                         .append( la.getValue() ? "1" : "0" );
             }
         }
-        
+
         if ( !Config.load().reducedAssignments() || anyTrue ) {
             return sb.substring( 2 );
         } else {
             return "-";
         }
     }
-    
+
     public int getDecisionLevel() {
         return decisionLevel;
     }
-    
+
     public List<Literal> getTrueLiterals() {
         // todo: proof of concept
         List<Literal> trueLiterals = new ArrayList<>();
@@ -186,7 +186,7 @@ public class Assignment {
                 trueLiterals.add( new Literal( name, false ) );
             }
         } );
-        
+
         return trueLiterals;
     }
 }

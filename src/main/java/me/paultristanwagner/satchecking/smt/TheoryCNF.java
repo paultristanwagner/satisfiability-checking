@@ -14,29 +14,29 @@ import java.util.List;
  * @version 1.0
  */
 public class TheoryCNF<T extends Constraint> {
-    
+
     private final List<TheoryClause<T>> initialClauses;
     private final List<TheoryClause<T>> clauses;
     private final List<T> constraints;
-    
+
     private final BiMap<T, String> constraintNameMap;
     private final BiMap<T, Literal> constraintLiteralMap;
-    
+
     private final CNF booleanStructure;
-    
+
     public TheoryCNF( List<TheoryClause<T>> clauses ) {
         this.initialClauses = new ArrayList<>( clauses );
         this.clauses = clauses;
         this.constraints = new ArrayList<>();
-        
+
         this.constraintNameMap = HashBiMap.create();
         this.constraintLiteralMap = HashBiMap.create();
-        
+
         for ( TheoryClause<T> clause : clauses ) {
             for ( T constraint : clause.getConstraints() ) {
                 if ( !constraints.contains( constraint ) ) {
                     constraints.add( constraint );
-                    
+
                     // todo: proof of concept
                     String name = constraintNameMap.getOrDefault( constraint, "c" + constraintNameMap.size() );
                     constraintNameMap.put( constraint, name );
@@ -44,7 +44,7 @@ public class TheoryCNF<T extends Constraint> {
                 }
             }
         }
-        
+
         // todo: proof of concept
         List<Clause> booleanClauses = new ArrayList<>();
         for ( TheoryClause<T> theoryClause : this.clauses ) {
@@ -56,11 +56,11 @@ public class TheoryCNF<T extends Constraint> {
         }
         this.booleanStructure = new CNF( booleanClauses );
     }
-    
+
     public static <T extends Constraint> TheoryCNF<T> parse( String string ) {
         throw new UnsupportedOperationException();
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -69,11 +69,11 @@ public class TheoryCNF<T extends Constraint> {
         }
         return sb.substring( 3 );
     }
-    
+
     public BiMap<T, String> getConstraintLiteralMap() {
         return constraintNameMap;
     }
-    
+
     public CNF getBooleanStructure() {
         return this.booleanStructure;
     }

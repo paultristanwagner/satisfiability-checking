@@ -41,7 +41,7 @@ public class EnumerationSolver implements Solver {
         return check( cnf, assignment );
     }
 
-    private static Result check(CNF cnf, Assignment assignment) {
+    private static Result check( CNF cnf, Assignment assignment ) {
         while ( true ) {
             if ( assignment.fits( cnf ) ) {
                 boolean evaluation = assignment.evaluate( cnf );
@@ -70,7 +70,7 @@ public class EnumerationSolver implements Solver {
         if ( assignment.isEmpty() ) {
             return true;
         }
-        
+
         while ( !assignment.isEmpty() ) {
             LiteralAssignment la = assignment.getLastDecision();
             if ( la.wasPreviouslyAssigned() ) {
