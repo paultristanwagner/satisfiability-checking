@@ -193,7 +193,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         StringBuilder builder = new StringBuilder();
         while ( index.get() < string.length() ) {
             char character = Parser.nextProperChar( string, index );
-            if ( ( character < 'a' || character > 'z' ) && ( character < 'A' || character > 'Z' ) && character != '_' ) {
+            if ( ( character < '0' || character > '9' ) && ( character < 'a' || character > 'z' ) && ( character < 'A' || character > 'Z' ) && character != '_' ) {
                 index.decrementAndGet();
                 break;
             }
