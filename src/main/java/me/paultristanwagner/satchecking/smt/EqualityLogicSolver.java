@@ -8,7 +8,6 @@ import me.paultristanwagner.satchecking.theory.EqualityLogic;
 import me.paultristanwagner.satchecking.theory.EqualityLogic.EqualityLogicResult;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -67,19 +66,32 @@ public class EqualityLogicSolver implements SMTSolver<EqualityConstraint> {
         Solver satSolver = new DPLLCDCLSolver();
         satSolver.load( cnf.getBooleanStructure() );
 
+        EqualityLogic equalityLogic = new EqualityLogic();
+        int lastLevel = 0;
         PartialAssignment assignment;
         while ( ( assignment = ( (DPLLCDCLSolver) satSolver ).nextPartialAssignment() ) != null ) {
-            List<Literal> trueLiterals = assignment.getTrueLiterals();
+            int newLevel = assignment.getDecisionLevel();
+            if ( newLevel < lastLevel ) {
+                equalityLogic = new EqualityLogic();
 
-            EqualityLogic equalityLogic = new EqualityLogic();
-            Set<EqualityConstraint> selectedConstraints = new HashSet<>();
-            for ( Literal trueLiteral : trueLiterals ) {
-                EqualityConstraint constraint = cnf.getConstraintLiteralMap().inverse().get( trueLiteral.getName() );
+                // Re-adding all up-until the new level
+                // todo: Even better: just pop the constraint from undone levels
+                for ( Literal trueLiteral : assignment.getTrueLiterals() ) {
+                    EqualityConstraint constraint = cnf.getConstraintLiteralMap().inverse().get( trueLiteral.getName() );
 
-                selectedConstraints.add( constraint );
+                    equalityLogic.addConstraint( constraint );
+                }
+            } else {
+                List<Literal> trueLiteralsOnCurrentLevel = assignment.getTrueLiteralsOnCurrentLevel();
+                for ( Literal trueLiteral : trueLiteralsOnCurrentLevel ) {
+                    EqualityConstraint constraint = cnf.getConstraintLiteralMap().inverse().get( trueLiteral.getName() );
+
+                    equalityLogic.addConstraint( constraint );
+                }
             }
+            lastLevel = newLevel;
 
-            EqualityLogicResult equalityLogicResult = equalityLogic.solve( selectedConstraints );
+            EqualityLogicResult equalityLogicResult = equalityLogic.checkConsistency();
             if ( equalityLogicResult.isSatisfiable() ) {
                 if ( assignment.isComplete() ) {
                     return equalityLogicResult.getAssignment();

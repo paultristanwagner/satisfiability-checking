@@ -9,7 +9,11 @@ public class PartialAssignment extends Assignment {
     private boolean complete;
 
     public PartialAssignment( Assignment other ) {
-        super( other );
+        this.decisionLevel = other.decisionLevel;
+        this.decisionLevels = other.decisionLevels;
+        this.literalAssignments = other.literalAssignments;
+        this.literalAssignmentLevel = other.literalAssignmentLevel;
+
         complete = false;
     }
 

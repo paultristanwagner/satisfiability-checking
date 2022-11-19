@@ -1,37 +1,37 @@
 package me.paultristanwagner.satchecking.builder;
 
 public class SudokuEqualityBuilder {
-    
+
     private final int blockSize;
     private final int N;
     private final StringBuilder builder;
-    
+
     public SudokuEqualityBuilder( int blockSize ) {
         this.blockSize = blockSize;
         this.builder = new StringBuilder();
         this.N = blockSize * blockSize;
     }
-    
+
     private String cell( int i, int j ) {
         return "a" + i + "_" + j;
     }
-    
+
     private String constant( int i ) {
         if ( i < 1 || i > N ) {
             throw new IllegalArgumentException( "Constant must be between 1 and " + N );
         }
-        
+
         return "c" + i;
     }
-    
+
     private void equal( String a, String b ) {
         builder.append( "[" ).append( a ).append( "=" ).append( b ).append( "]" );
     }
-    
+
     private void notEqual( String a, String b ) {
         builder.append( "[" ).append( a ).append( "!=" ).append( b ).append( "]" );
     }
-    
+
     public String build() {
         /*
             Define constants. which differ pairwise.
@@ -43,7 +43,7 @@ public class SudokuEqualityBuilder {
                 builder.append( ")" );
             }
         }
-        
+
         // Every cell has a value
         for ( int i = 1; i <= N; i++ ) {
             for ( int j = 1; j <= N; j++ ) {
@@ -57,7 +57,7 @@ public class SudokuEqualityBuilder {
                 builder.append( ")" );
             }
         }
-        
+
         // No two cells in a row have the same value
         for ( int i = 1; i <= N; i++ ) {
             for ( int j1 = 1; j1 <= N; j1++ ) {
@@ -68,7 +68,7 @@ public class SudokuEqualityBuilder {
                 }
             }
         }
-        
+
         // No two cells in a column have the same value
         for ( int j = 1; j <= N; j++ ) {
             for ( int i1 = 1; i1 <= N; i1++ ) {
@@ -79,7 +79,7 @@ public class SudokuEqualityBuilder {
                 }
             }
         }
-        
+
         // No two cells in a block have the same value
         for ( int i = 1; i <= N; i += blockSize ) {
             for ( int j = 1; j <= N; j += blockSize ) {
@@ -90,7 +90,7 @@ public class SudokuEqualityBuilder {
                                 if ( i1 == i2 && j1 == j2 ) {
                                     continue;
                                 }
-                                
+
                                 builder.append( " & (" );
                                 notEqual( cell( i1, j1 ), cell( i2, j2 ) );
                                 builder.append( ")" );
@@ -100,7 +100,7 @@ public class SudokuEqualityBuilder {
                 }
             }
         }
-        
+
         return builder.substring( 3 );
     }
 }

@@ -8,10 +8,10 @@ import java.util.*;
  */
 public class Assignment {
 
-    private int decisionLevel;
-    private final Stack<List<LiteralAssignment>> decisionLevels;
-    private final Map<String, LiteralAssignment> literalAssignments;
-    private final Map<String, Integer> literalAssignmentLevel;
+    protected int decisionLevel;
+    protected Stack<List<LiteralAssignment>> decisionLevels;
+    protected Map<String, LiteralAssignment> literalAssignments;
+    protected Map<String, Integer> literalAssignmentLevel;
 
     public Assignment() {
         decisionLevel = 0;
@@ -19,16 +19,6 @@ public class Assignment {
         decisionLevels.add( new ArrayList<>() );
         literalAssignments = new HashMap<>();
         literalAssignmentLevel = new HashMap<>();
-    }
-
-    public Assignment( Assignment other ) {
-        decisionLevel = other.decisionLevel;
-        decisionLevels = new Stack<>();
-        for ( List<LiteralAssignment> level : other.decisionLevels ) {
-            decisionLevels.add( new ArrayList<>( level ) );
-        }
-        literalAssignments = new HashMap<>( other.literalAssignments );
-        literalAssignmentLevel = new HashMap<>( other.literalAssignmentLevel );
     }
 
     public boolean fits( CNF cnf ) {
@@ -198,5 +188,18 @@ public class Assignment {
         } );
 
         return trueLiterals;
+    }
+
+    // todo: Proof of concept
+    public List<Literal> getTrueLiteralsOnCurrentLevel() {
+        List<Literal> result = new ArrayList<>();
+        List<LiteralAssignment> assignmentsOnCurrentLevel = getAssignmentsOnCurrentLevel();
+        for ( LiteralAssignment literalAssignment : assignmentsOnCurrentLevel ) {
+            if ( literalAssignment.getValue() ) {
+                result.add( new Literal( literalAssignment.getLiteralName() ) );
+            }
+        }
+
+        return result;
     }
 }

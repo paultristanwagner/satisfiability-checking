@@ -14,7 +14,6 @@ public class EqualityLogic {
         Scanner scanner = new Scanner( System.in );
         EqualityConstraintParser parser = new EqualityConstraintParser();
         EqualityLogic solver = new EqualityLogic();
-        Set<EqualityConstraint> constraints = new HashSet<>();
         while ( true ) {
             String line = scanner.nextLine();
             if ( line.equals( "solve" ) ) {
@@ -22,10 +21,10 @@ public class EqualityLogic {
             }
 
             EqualityConstraint c = parser.parse( line );
-            constraints.add( c );
+            solver.addConstraint( c );
         }
 
-        EqualityLogicResult result = solver.solve( constraints );
+        EqualityLogicResult result = solver.checkConsistency();
         if ( result.isSatisfiable() ) {
             System.out.println( "SAT!" );
             System.out.println( result.getAssignment() );
@@ -35,41 +34,64 @@ public class EqualityLogic {
         }
     }
 
-    public EqualityLogicResult solve( Set<EqualityConstraint> constraints ) {
-        Map<String, String> pointers = new HashMap<>();
-        Map<String, Integer> ranks = new HashMap<>();
+    private final List<EqualityConstraint> constraints;
+    private final List<EqualityConstraint> equalities;
+    private final List<EqualityConstraint> inequalities;
+    private final Map<String, String> pointers;
+    private final Map<String, Integer> ranks;
 
-        for ( EqualityConstraint constraint : constraints ) {
-            pointers.put( constraint.getLeft(), constraint.getLeft() );
-            pointers.put( constraint.getRight(), constraint.getRight() );
+    public EqualityLogic() {
+        this.constraints = new LinkedList<>();
+        this.equalities = new LinkedList<>();
+        this.inequalities = new LinkedList<>();
+        this.pointers = new HashMap<>();
+        this.ranks = new HashMap<>();
+    }
 
-            ranks.put( constraint.getLeft(), 1 );
-            ranks.put( constraint.getRight(), 1 );
+    public void addConstraint( EqualityConstraint constraint ) {
+        this.constraints.add( constraint );
+
+        String lhs = constraint.getLeft();
+        String rhs = constraint.getRight();
+        this.pointers.putIfAbsent( lhs, lhs );
+        this.pointers.putIfAbsent( rhs, rhs );
+
+        this.ranks.putIfAbsent( lhs, 1 );
+        this.ranks.putIfAbsent( rhs, 1 );
+
+        if ( constraint.areEqual() ) {
+            addEquality( constraint );
+        } else {
+            addInequality( constraint );
         }
+    }
 
-        for ( EqualityConstraint constraint : constraints ) {
-            if ( constraint.areEqual() ) {
-                union( constraint.getLeft(), constraint.getRight(), pointers, ranks );
+    private void addEquality( EqualityConstraint equality ) {
+        this.equalities.add( equality );
+        union( equality.getLeft(), equality.getRight() );
+    }
+
+    private void addInequality( EqualityConstraint inequality ) {
+        this.inequalities.add( inequality );
+    }
+
+    public EqualityLogicResult checkConsistency() {
+        for ( EqualityConstraint inequality : inequalities ) {
+            String aRoot = find( inequality.getLeft() );
+            String bRoot = find( inequality.getRight() );
+            if ( aRoot.equals( bRoot ) ) {
+                Set<EqualityConstraint> explanation = constructEqualityPath( inequality.getLeft(), inequality.getRight() );
+                explanation.add( inequality );
+                return EqualityLogicResult.unsatisfiable( explanation );
             }
         }
 
-        for ( EqualityConstraint constraint : constraints ) {
-            if ( !constraint.areEqual() ) {
-                String aRoot = find( constraint.getLeft(), pointers );
-                String bRoot = find( constraint.getRight(), pointers );
-                if ( aRoot.equals( bRoot ) ) {
-                    Set<EqualityConstraint> explanation = constructPath( constraints, constraint.getLeft(), constraint.getRight() );
-                    explanation.add( constraint );
-                    return EqualityLogicResult.unsatisfiable( explanation );
-                }
-            }
-        }
-
+        // todo: Put this code into an extra method
         VariableAssignment assignment = new VariableAssignment();
         Map<String, Integer> rootMapping = new HashMap<>();
         int i = 0;
         for ( String variable : pointers.keySet() ) {
-            String root = find( variable, pointers );
+            String root = find( variable );
             if ( rootMapping.containsKey( root ) ) {
                 int v = rootMapping.get( root );
                 assignment.assign( variable, v );
@@ -82,28 +104,24 @@ public class EqualityLogic {
         return EqualityLogicResult.satisfiable( assignment );
     }
 
-    // todo: bad code, improve later
-    // We cannot directly use the pointers map, because it does not represent an actual path
-    private Set<EqualityConstraint> constructPath( Set<EqualityConstraint> constraints, String a, String b ) {
+    private Set<EqualityConstraint> constructEqualityPath( String a, String b ) {
         Map<String, List<Pair<String, EqualityConstraint>>> neighbors = new HashMap<>();
         Map<String, Boolean> visited = new HashMap<>();
         Map<String, Pair<String, EqualityConstraint>> previous = new HashMap<>();
-        for ( EqualityConstraint constraint : constraints ) {
-            if ( !neighbors.containsKey( constraint.getLeft() ) ) {
-                neighbors.put( constraint.getLeft(), new ArrayList<>() );
-                visited.put( constraint.getLeft(), false );
-                previous.put( constraint.getLeft(), null );
+        for ( EqualityConstraint equality : equalities ) {
+            if ( !neighbors.containsKey( equality.getLeft() ) ) {
+                neighbors.put( equality.getLeft(), new ArrayList<>() );
+                visited.put( equality.getLeft(), false );
+                previous.put( equality.getLeft(), null );
             }
-            if ( !neighbors.containsKey( constraint.getRight() ) ) {
-                neighbors.put( constraint.getRight(), new ArrayList<>() );
-                visited.put( constraint.getRight(), false );
-                previous.put( constraint.getRight(), null );
+            if ( !neighbors.containsKey( equality.getRight() ) ) {
+                neighbors.put( equality.getRight(), new ArrayList<>() );
+                visited.put( equality.getRight(), false );
+                previous.put( equality.getRight(), null );
             }
 
-            if ( constraint.areEqual() ) {
-                neighbors.get( constraint.getLeft() ).add( Pair.of( constraint.getRight(), constraint ) );
-                neighbors.get( constraint.getRight() ).add( Pair.of( constraint.getLeft(), constraint ) );
-            }
+            neighbors.get( equality.getLeft() ).add( Pair.of( equality.getRight(), equality ) );
+            neighbors.get( equality.getRight() ).add( Pair.of( equality.getLeft(), equality ) );
         }
 
         Queue<String> queue = new LinkedList<>();
@@ -135,7 +153,7 @@ public class EqualityLogic {
         return path;
     }
 
-    private String find( String variable, Map<String, String> pointers ) {
+    private String find( String variable ) {
         String current = variable;
         while ( !pointers.get( current ).equals( current ) ) {
             current = pointers.get( current );
@@ -143,9 +161,9 @@ public class EqualityLogic {
         return current;
     }
 
-    private void union( String a, String b, Map<String, String> pointers, Map<String, Integer> ranks ) {
-        String aRoot = find( a, pointers );
-        String bRoot = find( b, pointers );
+    private void union( String a, String b ) {
+        String aRoot = find( a );
+        String bRoot = find( b );
         if ( aRoot.equals( bRoot ) ) {
             return;
         }
