@@ -391,7 +391,9 @@ public class Simplex2 {
             }
 
             if ( objective != null ) {
-                objective = objective.positiveNegativeSubstitute( unboundedVariable, positive, negative );
+                if ( objective.getCoefficients().containsKey( unboundedVariable ) ) {
+                    objective = objective.positiveNegativeSubstitute( unboundedVariable, positive, negative );
+                }
             }
         }
     }
