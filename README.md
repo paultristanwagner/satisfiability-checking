@@ -59,9 +59,17 @@ An optional objective function can be given to maximize or minimize the value of
 <img src="images/simplex-optimal.png" alt="Optimal Simplex example" width="450" /> <br>
 <img src="images/simplex-unbounded.png" alt="Unbounded Simplex example" width="350" /> <br>
 
+## Equality logic
+
+The program supports equality logic.
+
 # SMT solver
 
-A proof of concept for an SMT solver is implemented for linear real arithmetic.
+A proof of concept for an SMT solver is implemented for linear real arithmetic and equality logic.
 
-<img src="images/smt-sat.png" alt="Satisfiable SMT example" width="350" /> <br>
-<img src="images/smt-unsat.png" alt="Unsatisfiable SMT example" width="350" /> <br>
+<img src="images/smt-qflra-sat.png" alt="Satisfiable SMT example of linear real arithmetic" width="450" /> <br>
+<img src="images/smt-qflra-unsat.png" alt="Unsatisfiable SMT example of linear real arithmetic" width="450" /> <br>
+
+<img src="images/smt-qfeq-sat.png" alt="Satisfiable SMT example of equality logic" width="450" /> <br>
+<img src="images/smt-qfeq-unsat.png" alt="Unsatisfiable SMT example of equality logic" width="450" /> <br>
+

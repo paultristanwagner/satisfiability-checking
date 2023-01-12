@@ -10,81 +10,84 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class EqualityConstraintParser implements Parser<EqualityConstraint> {
 
-    /* Grammar for equality constraints:
-        S   -> V = V
-            -> V != V
-        V   -> VAR_NAME
-            -> VAR_NAME NUMBER
-     */
+  /* Grammar for equality constraints:
+     S   -> V = V
+         -> V != V
+     V   -> VAR_NAME
+         -> VAR_NAME NUMBER
+  */
 
-    @Override
-    public EqualityConstraint parse( String string, AtomicInteger index ) {
-        String left = VAR( string, index );
+  @Override
+  public EqualityConstraint parse(String string, AtomicInteger index) {
+    String left = VAR(string, index);
 
-        char c = Parser.nextProperChar( string, index );
+    char c = Parser.nextProperChar(string, index);
 
-        boolean equal = true;
+    boolean equal = true;
 
-        if ( c == '!' ) {
-            if ( string.charAt( index.get() ) != '=' ) {
-                throw new SyntaxError( "= expected at index " + index.get(), string, index.get() );
-            }
-            index.incrementAndGet();
-            equal = false;
-        } else if ( c != '=' ) {
-            throw new SyntaxError( "= or != expected at index " + index.get(), string, index.get() );
-        }
-
-        String right = VAR( string, index );
-
-        return new EqualityConstraint( left, right, equal );
+    if (c == '!') {
+      if (string.charAt(index.get()) != '=') {
+        throw new SyntaxError("= expected at index " + index.get(), string, index.get());
+      }
+      index.incrementAndGet();
+      equal = false;
+    } else if (c != '=') {
+      throw new SyntaxError("= or != expected at index " + index.get(), string, index.get());
     }
 
-    private static String VAR( String string, AtomicInteger index ) {
-        String result = VAR_NAME( string, index );
-        int fallback = index.get();
-        try {
-            result += NUMBER( string, index );
-        } catch ( SyntaxError e ) {
-            index.set( fallback );
-        }
-        return result;
+    String right = VAR(string, index);
+
+    return new EqualityConstraint(left, right, equal);
+  }
+
+  private static String VAR(String string, AtomicInteger index) {
+    String result = VAR_NAME(string, index);
+    int fallback = index.get();
+    try {
+      result += NUMBER(string, index);
+    } catch (SyntaxError e) {
+      index.set(fallback);
+    }
+    return result;
+  }
+
+  private static String VAR_NAME(String string, AtomicInteger index) {
+    StringBuilder builder = new StringBuilder();
+    while (index.get() < string.length()) {
+      char character = Parser.nextProperChar(string, index);
+      if ((character < '0' || character > '9')
+          && (character < 'a' || character > 'z')
+          && (character < 'A' || character > 'Z')
+          && character != '_') {
+        index.decrementAndGet();
+        break;
+      }
+
+      builder.append(character);
     }
 
-    private static String VAR_NAME( String string, AtomicInteger index ) {
-        StringBuilder builder = new StringBuilder();
-        while ( index.get() < string.length() ) {
-            char character = Parser.nextProperChar( string, index );
-            if ( ( character < '0' || character > '9' ) && ( character < 'a' || character > 'z' ) && ( character < 'A' || character > 'Z' ) && character != '_' ) {
-                index.decrementAndGet();
-                break;
-            }
-
-            builder.append( character );
-        }
-
-        if ( builder.isEmpty() ) {
-            throw new SyntaxError( "Variable expected at index " + index.get(), string, index.get() );
-        }
-
-        return builder.toString();
+    if (builder.isEmpty()) {
+      throw new SyntaxError("Variable expected at index " + index.get(), string, index.get());
     }
 
-    private static String NUMBER( String string, AtomicInteger index ) {
-        StringBuilder builder = new StringBuilder();
-        while ( index.get() < string.length() ) {
-            char character = Parser.nextProperChar( string, index );
-            if ( character < '0' || character > '9' ) {
-                index.decrementAndGet();
-                break;
-            }
+    return builder.toString();
+  }
 
-            builder.append( character );
-        }
+  private static String NUMBER(String string, AtomicInteger index) {
+    StringBuilder builder = new StringBuilder();
+    while (index.get() < string.length()) {
+      char character = Parser.nextProperChar(string, index);
+      if (character < '0' || character > '9') {
+        index.decrementAndGet();
+        break;
+      }
 
-        if ( builder.isEmpty() ) {
-            throw new SyntaxError( "Number expected at index " + index.get(), string, index.get() );
-        }
-        return builder.toString();
+      builder.append(character);
     }
+
+    if (builder.isEmpty()) {
+      throw new SyntaxError("Number expected at index " + index.get(), string, index.get());
+    }
+    return builder.toString();
+  }
 }

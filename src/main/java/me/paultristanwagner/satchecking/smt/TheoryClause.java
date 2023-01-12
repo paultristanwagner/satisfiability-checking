@@ -1,5 +1,7 @@
 package me.paultristanwagner.satchecking.smt;
 
+import me.paultristanwagner.satchecking.theory.Constraint;
+
 import java.util.List;
 
 /**
@@ -8,30 +10,30 @@ import java.util.List;
  */
 public class TheoryClause<T extends Constraint> {
 
-    private final List<T> constraints;
+  private final List<T> constraints;
 
-    public TheoryClause( List<T> constraints ) {
-        this.constraints = constraints;
+  public TheoryClause(List<T> constraints) {
+    this.constraints = constraints;
+  }
+
+  public static <T extends Constraint> TheoryClause<T> parse(String string) {
+    throw new UnsupportedOperationException();
+  }
+
+  public List<T> getConstraints() {
+    return constraints;
+  }
+
+  @Override
+  public String toString() {
+    if (constraints.isEmpty()) {
+      return "()";
     }
 
-    public static <T extends Constraint> TheoryClause<T> parse( String string ) {
-        throw new UnsupportedOperationException();
+    StringBuilder sb = new StringBuilder();
+    for (Constraint constraint : constraints) {
+      sb.append(" | [").append(constraint).append("]");
     }
-
-    public List<T> getConstraints() {
-        return constraints;
-    }
-
-    @Override
-    public String toString() {
-        if ( constraints.isEmpty() ) {
-            return "()";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        for ( Constraint constraint : constraints ) {
-            sb.append( " | [" ).append( constraint ).append( "]" );
-        }
-        return sb.substring( 3 );
-    }
+    return sb.substring(3);
+  }
 }

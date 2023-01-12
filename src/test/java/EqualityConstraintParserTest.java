@@ -10,23 +10,23 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class EqualityConstraintParserTest {
 
-    @Test
-    public void testEquality() {
-        EqualityConstraintParser parser = new EqualityConstraintParser();
-        EqualityConstraint constraint = parser.parse( "f1=z" );
+  @Test
+  public void testEquality() {
+    EqualityConstraintParser parser = new EqualityConstraintParser();
+    EqualityConstraint constraint = parser.parse("f1=z");
 
-        assertEquals( "f1", constraint.getLeft() );
-        assertEquals( "z", constraint.getRight() );
-        assertTrue( constraint.areEqual() );
-    }
+    assertEquals("f1", constraint.getLeft());
+    assertEquals("z", constraint.getRight());
+    assertTrue(constraint.areEqual());
+  }
 
-    @Test
-    public void testInequality() {
-        EqualityConstraintParser parser = new EqualityConstraintParser();
-        EqualityConstraint constraint = parser.parse( "x!=y" );
+  @Test
+  public void testInequality() {
+    EqualityConstraintParser parser = new EqualityConstraintParser();
+    EqualityConstraint constraint = parser.parse("x!=y");
 
-        assertEquals( "x", constraint.getLeft() );
-        assertEquals( "y", constraint.getRight() );
-        assertFalse( constraint.areEqual() );
-    }
+    assertEquals("x", constraint.getLeft());
+    assertEquals("y", constraint.getRight());
+    assertFalse(constraint.areEqual());
+  }
 }
