@@ -172,7 +172,13 @@ public class CLI {
         TheorySolver theorySolver = theory.getTheorySolver();
         smtSolver.setTheorySolver(theorySolver);
 
-        TheoryCNF cnf = parser.parse(cnfString);
+        TheoryCNF cnf;
+        try {
+          cnf = parser.parse(cnfString);
+        } catch (Exception e) {
+          e.printStackTrace();
+          continue;
+        }
         smtSolver.load(cnf);
 
         long beforeMs = System.currentTimeMillis();

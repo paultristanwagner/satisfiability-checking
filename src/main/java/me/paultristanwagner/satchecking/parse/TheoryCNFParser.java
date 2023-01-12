@@ -4,6 +4,7 @@ import me.paultristanwagner.satchecking.smt.TheoryCNF;
 import me.paultristanwagner.satchecking.smt.TheoryClause;
 import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.EqualityConstraint;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 
 import java.util.ArrayList;
@@ -96,6 +97,9 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
     } else if (constraintClass == EqualityConstraint.class) {
       EqualityConstraintParser equalityConstraintParser = new EqualityConstraintParser();
       constraint = (T) equalityConstraintParser.parse(subString);
+    } else if (constraintClass == EqualityFunctionConstraint.class) {
+      EqualityFunctionParser equalityFunctionParser = new EqualityFunctionParser();
+      constraint = (T) equalityFunctionParser.parse(subString);
     } else {
       throw new RuntimeException(
           "Cannot parse constraint of type " + constraintClass.getSimpleName());
