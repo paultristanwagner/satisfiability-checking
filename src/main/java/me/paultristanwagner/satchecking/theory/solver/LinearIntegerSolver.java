@@ -57,6 +57,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     LinearConstraint upperBound = new LinearConstraint();
     upperBound.setCoefficient( firstNonIntegralVariable, 1 );
     upperBound.setValue( Math.floor( nonIntegralValue ) );
+    upperBound.setBound( LinearConstraint.Bound.UPPER );
     
     LinearIntegerSolver solverA = new LinearIntegerSolver();
     solverA.load( constraints );
@@ -70,6 +71,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     LinearConstraint lowerBound = new LinearConstraint();
     lowerBound.setCoefficient( firstNonIntegralVariable, 1 );
     lowerBound.setValue( Math.ceil( nonIntegralValue ) );
+    lowerBound.setBound( LinearConstraint.Bound.LOWER );
     
     LinearIntegerSolver solverB = new LinearIntegerSolver();
     solverB.load( constraints );
