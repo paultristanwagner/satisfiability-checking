@@ -1,5 +1,7 @@
 package me.paultristanwagner.satchecking.theory;
 
+import me.paultristanwagner.satchecking.smt.VariableAssignment;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -170,5 +172,13 @@ public class LinearConstraint implements Constraint {
         });
 
     return sb.toString();
+  }
+  
+  public double evaluate( VariableAssignment assignment ) {
+    double result = 0;
+    for ( String variable : variables ) {
+      result += coefficients.get( variable ) * assignment.getAssignment( variable );
+    }
+    return result;
   }
 }

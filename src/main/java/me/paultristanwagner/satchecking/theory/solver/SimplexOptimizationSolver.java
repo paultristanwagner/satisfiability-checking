@@ -600,8 +600,20 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
     return fresh;
   }
-
+  
+  public LinearConstraint getOriginalObjective() {
+    return originalObjective;
+  }
+  
   public boolean hasObjectiveFunction() {
     return objective != null;
+  }
+  
+  public boolean isMaximization() {
+    return originalObjective instanceof MaximizingConstraint;
+  }
+  
+  public boolean isMinimization() {
+    return originalObjective instanceof MinimizingConstraint;
   }
 }

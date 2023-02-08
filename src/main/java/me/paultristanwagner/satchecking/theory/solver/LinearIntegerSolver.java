@@ -63,9 +63,25 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     solverA.load( constraints );
     solverA.addConstraint( upperBound );
    
+    boolean isOptimizationProblem = simplexSolver.hasObjectiveFunction();
+    boolean isMaximizationProblem = simplexSolver.isMaximization();
+    boolean isMinimizationProblem = simplexSolver.isMinimization();
+    
+    double localOptimum = isMaximizationProblem ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+    LinearConstraint objective = simplexSolver.getOriginalObjective();
+    
     TheoryResult<LinearConstraint> aResult = solverA.solve();
     if(aResult.isSatisfiable()) {
-      return aResult;
+      if(!isOptimizationProblem) {
+        return aResult;
+      } else {
+        double value = objective.evaluate( aResult.getSolution() );
+        if(isMaximizationProblem && value > localOptimum) {
+          localOptimum = value;
+        } else if(isMinimizationProblem && value < localOptimum) {
+          localOptimum = value;
+        }
+      }
     }
     
     LinearConstraint lowerBound = new LinearConstraint();
@@ -79,7 +95,26 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     
     TheoryResult<LinearConstraint> bResult = solverB.solve();
     if(bResult.isSatisfiable()) {
-      return bResult;
+      if(!isOptimizationProblem) {
+        return bResult;
+      } else {
+        double value = objective.evaluate( bResult.getSolution() );
+        if(isMaximizationProblem) {
+          if(value > localOptimum) {
+            return bResult;
+          } else {
+            return aResult;
+          }
+        } else if(isMinimizationProblem) {
+          if(value < localOptimum) {
+            return bResult;
+          } else {
+            return aResult;
+          }
+        }
+      }
+    } else if(aResult.isSatisfiable()) {
+      return aResult;
     }
     
     return TheoryResult.unsatisfiable( constraints );
