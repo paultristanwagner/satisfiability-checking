@@ -59,6 +59,10 @@ An optional objective function can be given to maximize or minimize the value of
 <img src="images/simplex-optimal.png" alt="Optimal Simplex example" width="450" /> <br>
 <img src="images/simplex-unbounded.png" alt="Unbounded Simplex example" width="350" /> <br>
 
+## Linear integer arithmetic (QF_LIA)
+
+The program supports linear integer arithmetic.
+
 ## Equality logic (QF_EQ)
 
 The program supports equality logic.
@@ -74,6 +78,9 @@ uninterpreted functions.
 
 <img src="images/smt-qflra-sat.png" alt="Satisfiable SMT example of linear real arithmetic" width="450" /> <br>
 <img src="images/smt-qflra-unsat.png" alt="Unsatisfiable SMT example of linear real arithmetic" width="450" /> <br>
+
+<img src="images/smt-qflia-sat.png" alt="Satisfiable SMT example of linear integer arithmetic" width="450" /> <br>
+<img src="images/smt-qflia-unsat.png" alt="Unsatisfiable SMT example of linear integer arithmetic" width="450" /> <br>
 
 <img src="images/smt-qfeq-sat.png" alt="Satisfiable SMT example of equality logic" width="450" /> <br>
 <img src="images/smt-qfeq-unsat.png" alt="Unsatisfiable SMT example of equality logic" width="450" /> <br>

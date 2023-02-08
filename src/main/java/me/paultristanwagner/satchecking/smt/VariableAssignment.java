@@ -1,9 +1,6 @@
 package me.paultristanwagner.satchecking.smt;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class VariableAssignment {
 
@@ -17,6 +14,10 @@ public class VariableAssignment {
     return assignments.get(variable);
   }
 
+  public Set<String> getVariables() {
+    return assignments.keySet();
+  }
+  
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
