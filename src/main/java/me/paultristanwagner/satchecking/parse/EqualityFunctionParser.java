@@ -34,12 +34,12 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     if (c == '!') {
       if (string.charAt(index.get()) != '=') {
-        throw new SyntaxError("= expected at index " + index.get(), string, index.get());
+        throw new SyntaxError("= expected", string, index.get());
       }
       index.incrementAndGet();
       equal = false;
     } else if (c != '=') {
-      throw new SyntaxError("= or != expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("= or != expected", string, index.get());
     }
 
     Function right = FUNCTION(string, index);
@@ -60,7 +60,8 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
         c = Parser.nextProperChar(string, index);
       }
       if (c != ')') {
-        throw new SyntaxError(") expected at index " + index.get(), string, index.get());
+        int lastIndex = index.get() - 1;
+        throw new SyntaxError(") expected", string, lastIndex);
       }
     } else {
       index.decrementAndGet();
@@ -96,7 +97,7 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
     }
 
     if (builder.isEmpty()) {
-      throw new SyntaxError("Variable expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Variable expected", string, index.get());
     }
 
     return builder.toString();
@@ -115,7 +116,7 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
     }
 
     if (builder.isEmpty()) {
-      throw new SyntaxError("Number expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Number expected", string, index.get());
     }
     return builder.toString();
   }

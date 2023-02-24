@@ -27,12 +27,13 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
 
     if (c == '!') {
       if (string.charAt(index.get()) != '=') {
-        throw new SyntaxError("= expected at index " + index.get(), string, index.get());
+        throw new SyntaxError("= expected", string, index.get());
       }
       index.incrementAndGet();
       equal = false;
     } else if (c != '=') {
-      throw new SyntaxError("= or != expected at index " + index.get(), string, index.get());
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("= or != expected", string, lastIndex);
     }
 
     String right = VAR(string, index);
@@ -67,7 +68,7 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
     }
 
     if (builder.isEmpty()) {
-      throw new SyntaxError("Variable expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Variable expected", string, index.get());
     }
 
     return builder.toString();
@@ -86,7 +87,7 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
     }
 
     if (builder.isEmpty()) {
-      throw new SyntaxError("Number expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Number expected", string, index.get());
     }
     return builder.toString();
   }

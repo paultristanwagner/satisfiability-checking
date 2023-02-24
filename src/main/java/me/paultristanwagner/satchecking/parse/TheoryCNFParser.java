@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static me.paultristanwagner.satchecking.parse.Parser.nextProperChar;
+
 public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T>> {
 
   private final Class<T> constraintClass;
@@ -40,18 +42,18 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
   */
 
   private List<TheoryClause<T>> S(String string, AtomicInteger index) {
-    if (nextChar(string, index) != '(') {
-      throw new RuntimeException("Cannot parse CNF. Expected '(' at index " + index);
+    if (nextProperChar(string, index) != '(') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Cannot parse CNF. Expected '('", string, lastIndex);
     }
-    index.incrementAndGet();
 
     List<T> literals = D(string, index);
     TheoryClause<T> clause = new TheoryClause<>(literals);
 
-    if (nextChar(string, index) != ')') {
-      throw new RuntimeException("Cannot parse CNF. Expected ')' at index " + index);
+    if (nextProperChar(string, index) != ')') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Cannot parse CNF. Expected ')'", string, lastIndex);
     }
-    index.incrementAndGet();
 
     List<TheoryClause<T>> clauses = new ArrayList<>();
     clauses.add(clause);
@@ -59,10 +61,10 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
       return clauses;
     }
 
-    if (nextChar(string, index) != '&') {
-      throw new RuntimeException("Expected '&' at index " + index);
+    if (nextProperChar(string, index) != '&') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Expected '&'", string, lastIndex);
     }
-    index.incrementAndGet();
 
     clauses.addAll(S(string, index));
     return clauses;
@@ -72,45 +74,50 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
     T constraint = L(string, index);
     List<T> constraints = new ArrayList<>();
     constraints.add(constraint);
-    if (nextChar(string, index) == '|') {
-      index.incrementAndGet();
+    if (nextProperChar(string, index) == '|') {
       constraints.addAll(D(string, index));
+    } else {
+      index.decrementAndGet();
     }
     return constraints;
   }
 
   private T L(String string, AtomicInteger index) {
-    if (nextChar(string, index) != '[') {
-      throw new RuntimeException("Expected '[' at index " + index);
+    if (nextProperChar(string, index) != '[') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Expected '['", string, lastIndex);
     }
     int closingIndex = string.indexOf(']', index.get());
     if (closingIndex == -1) {
-      throw new RuntimeException("No closing ']' found after index" + index.get());
+      throw new SyntaxError("No closing ']' found", string, index.get());
     }
-    index.incrementAndGet();
     String subString = string.substring(index.get(), closingIndex);
 
     T constraint;
-    if (constraintClass == LinearConstraint.class) {
-      LinearConstraintParser linearConstraintParser = new LinearConstraintParser();
-      constraint = (T) linearConstraintParser.parse(subString);
-    } else if (constraintClass == EqualityConstraint.class) {
-      EqualityConstraintParser equalityConstraintParser = new EqualityConstraintParser();
-      constraint = (T) equalityConstraintParser.parse(subString);
-    } else if (constraintClass == EqualityFunctionConstraint.class) {
-      EqualityFunctionParser equalityFunctionParser = new EqualityFunctionParser();
-      constraint = (T) equalityFunctionParser.parse(subString);
-    } else {
-      throw new RuntimeException(
-          "Cannot parse constraint of type " + constraintClass.getSimpleName());
+    try {
+      if (constraintClass == LinearConstraint.class) {
+        LinearConstraintParser linearConstraintParser = new LinearConstraintParser();
+        constraint = (T) linearConstraintParser.parse(subString);
+      } else if (constraintClass == EqualityConstraint.class) {
+        EqualityConstraintParser equalityConstraintParser = new EqualityConstraintParser();
+        constraint = (T) equalityConstraintParser.parse(subString);
+      } else if (constraintClass == EqualityFunctionConstraint.class) {
+        EqualityFunctionParser equalityFunctionParser = new EqualityFunctionParser();
+        constraint = (T) equalityFunctionParser.parse(subString);
+      } else {
+        throw new RuntimeException(
+            "Cannot parse constraint of type " + constraintClass.getSimpleName());
+      }
+    } catch (SyntaxError e) {
+      throw new SyntaxError(e.getInternalMessage(), string, index.get() + e.getIndex());
     }
 
     index.addAndGet(subString.length());
 
-    if (nextChar(string, index) != ']') {
-      throw new RuntimeException("Expected ']' at index " + index);
+    if (nextProperChar(string, index) != ']') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Expected ']'", string, lastIndex);
     }
-    index.incrementAndGet();
 
     return constraint;
   }

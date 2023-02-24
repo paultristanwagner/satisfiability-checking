@@ -48,7 +48,8 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       TERM(string, index, lc);
 
       if (Parser.nextProperChar(string, index) != ')') {
-        throw new IllegalArgumentException("Expected ')' at index " + index.get());
+        int lastIndex = index.get();
+        throw new SyntaxError("Expected ')'", string, lastIndex);
       }
     } else if (string.startsWith("min(")) {
       lc = new MinimizingConstraint();
@@ -56,7 +57,8 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       TERM(string, index, lc);
 
       if (Parser.nextProperChar(string, index) != ')') {
-        throw new IllegalArgumentException("Expected ')' at index " + index.get());
+        int lastIndex = index.get();
+        throw new SyntaxError("Expected ')'", string, lastIndex);
       }
     } else {
       lc = new LinearConstraint();
@@ -67,7 +69,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     }
 
     if (index.get() != string.length()) {
-      throw new SyntaxError("Unexpected character at index " + index.get(), string, index.get());
+      throw new SyntaxError("Unexpected character", string, index.get());
     }
 
     return lc;
@@ -107,8 +109,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         lc.setBound(LinearConstraint.Bound.LOWER);
       } else {
         index.decrementAndGet();
-        throw new SyntaxError(
-            "Comparison >= expected at index " + index.get(), string, index.get());
+        throw new SyntaxError("Comparison >= expected", string, index.get());
       }
     } else if (character0 == '<') {
       char character1 = Parser.nextProperChar(string, index);
@@ -116,13 +117,11 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
         lc.setBound(LinearConstraint.Bound.UPPER);
       } else {
         index.decrementAndGet();
-        throw new SyntaxError(
-            "Comparison <= expected at index " + index.get(), string, index.get());
+        throw new SyntaxError("Comparison <= expected", string, index.get());
       }
     } else {
       index.decrementAndGet();
-      throw new SyntaxError(
-          "Comparison (=, >=, <=) expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Comparison (=, >=, <=) expected", string, index.get());
     }
   }
 
@@ -176,7 +175,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     }
 
     if (!read) {
-      throw new SyntaxError("Sign expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Sign expected", string, index.get());
     }
     return result;
   }
@@ -208,7 +207,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     }
 
     if (builder.isEmpty()) {
-      throw new SyntaxError("Variable expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Variable expected", string, index.get());
     }
 
     return builder.toString();
@@ -227,7 +226,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     }
 
     if (builder.isEmpty()) {
-      throw new SyntaxError("Number expected at index " + index.get(), string, index.get());
+      throw new SyntaxError("Number expected", string, index.get());
     }
     return builder.toString();
   }

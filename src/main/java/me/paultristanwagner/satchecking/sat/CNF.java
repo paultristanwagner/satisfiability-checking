@@ -1,8 +1,12 @@
 package me.paultristanwagner.satchecking.sat;
 
+import me.paultristanwagner.satchecking.parse.SyntaxError;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static me.paultristanwagner.satchecking.parse.Parser.nextProperChar;
 
 /**
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
@@ -63,18 +67,18 @@ public class CNF {
   }
 
   private static List<Clause> S(String string, AtomicInteger index) {
-    if (nextChar(string, index) != '(') {
-      throw new RuntimeException("Cannot parse CNF. Expected '(' at index " + index);
+    if (nextProperChar(string, index) != '(') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Cannot parse CNF. Expected '('", string, lastIndex);
     }
-    index.incrementAndGet();
 
     List<Literal> literals = D(string, index);
     Clause clause = new Clause(literals);
 
-    if (nextChar(string, index) != ')') {
-      throw new RuntimeException("Cannot parse CNF. Expected ')' at index " + index);
+    if (nextProperChar(string, index) != ')') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Cannot parse CNF. Expected ')'", string, lastIndex);
     }
-    index.incrementAndGet();
 
     List<Clause> clauses = new ArrayList<>();
     clauses.add(clause);
@@ -82,10 +86,10 @@ public class CNF {
       return clauses;
     }
 
-    if (nextChar(string, index) != '&') {
-      throw new RuntimeException("Expected '&' at index " + index);
+    if (nextProperChar(string, index) != '&') {
+      int lastIndex = index.get() - 1;
+      throw new SyntaxError("Expected '&'", string, lastIndex);
     }
-    index.incrementAndGet();
 
     clauses.addAll(S(string, index));
     return clauses;
@@ -95,25 +99,29 @@ public class CNF {
     Literal literal = L(string, index);
     List<Literal> literals = new ArrayList<>();
     literals.add(literal);
-    if (nextChar(string, index) == '|') {
-      index.incrementAndGet();
+    if (nextProperChar(string, index) == '|') {
       literals.addAll(D(string, index));
+    } else {
+      index.decrementAndGet();
     }
     return literals;
   }
 
   private static Literal L(String string, AtomicInteger index) {
     boolean negated = false;
-    if (nextChar(string, index) == '~') {
-      index.incrementAndGet();
+    if (nextProperChar(string, index) == '~') {
       negated = true;
+    } else {
+      index.decrementAndGet();
     }
+    
     StringBuilder sb = new StringBuilder();
     while (true) {
-      char c = string.charAt(index.get());
+      boolean hasNext = index.get() < string.length();
+      char c = hasNext ? string.charAt(index.get()) : ' ';
       if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '_') {
         if (sb.length() == 0) {
-          throw new RuntimeException("Literal expected, got '" + c + "' instead");
+          throw new SyntaxError("Literal expected, got '" + c + "' instead", string, index.get());
         }
         break;
       }
@@ -122,14 +130,6 @@ public class CNF {
     }
 
     return new Literal(sb.toString(), negated);
-  }
-
-  private static char nextChar(String string, AtomicInteger index) {
-    char c;
-    while ((c = string.charAt(index.get())) == ' ') {
-      index.incrementAndGet();
-    }
-    return c;
   }
 
   @Override

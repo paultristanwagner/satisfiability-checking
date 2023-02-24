@@ -1,7 +1,8 @@
 package me.paultristanwagner.satchecking;
 
 import me.paultristanwagner.satchecking.parse.LinearConstraintParser;
-import me.paultristanwagner.satchecking.parse.Parser;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
 import me.paultristanwagner.satchecking.parse.SyntaxError;
 import me.paultristanwagner.satchecking.parse.TheoryCNFParser;
 import me.paultristanwagner.satchecking.sat.Assignment;
@@ -33,10 +34,12 @@ import static me.paultristanwagner.satchecking.AnsiColor.*;
  */
 public class CLI {
 
+  private static final String WELCOME_MESSAGE =
+      "SMT-Solver version 1.0-SNAPSHOT © 2021 Paul T. Wagner\n" + "Type '?' for help.";
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static void main(String[] args) throws IOException {
-    System.out.println("SMT-Solver version 1.0-SNAPSHOT © 2021 Paul T. Wagner");
-    System.out.println("Type '?' for help.");
+    System.out.println(WELCOME_MESSAGE);
 
     Config config = Config.load();
 
@@ -55,6 +58,11 @@ public class CLI {
       String[] split = input.split(" ");
       String command = split[0];
 
+      if (command.equals("clear")) {
+        SystemUtil.clearConsole();
+        System.out.println(WELCOME_MESSAGE);
+        continue;
+      }
       if (command.equals("read")) {
         if (split.length != 2) {
           System.out.println(RED + "Syntax: read <file>" + RESET);
@@ -88,6 +96,13 @@ public class CLI {
         System.out.println(
             "   simplex <constraints> ... - Applies the simplex algorithm to the specified constraints");
         System.out.println("   smt <theory> <cnf of theory constraints> - Solves an SMT problem");
+        System.out.println("     Available theories:");
+        System.out.println(
+            "       QF_LRA (Linear real arithmetic), QF_LIA (Linear integer arithmetic), ");
+        System.out.println(
+            "       QF_EQ (Equality logic), QF_EQUF (Equality logic with uninterpreted functions)");
+        System.out.println(
+            "   tseitin <formula> - Transforms a given formula in propositional logic into conjuctive normal form");
         System.out.println();
         continue;
       } else if (command.equals("reloadConfig")) {
@@ -102,12 +117,17 @@ public class CLI {
           continue;
         }
 
+        String constraints = input.substring(8);
+        String[] splitConstraints = constraints.split(" ");
+
         SimplexOptimizationSolver simplex = new SimplexOptimizationSolver();
         LinearConstraintParser parser = new LinearConstraintParser();
         boolean syntaxError = false;
-        for (int i = 1; i < split.length; i++) {
+
+        int index = 0;
+        for (String splitConstraint : splitConstraints) {
           try {
-            LinearConstraint lc = parser.parse(split[i]);
+            LinearConstraint lc = parser.parse(splitConstraint);
 
             if (lc instanceof MaximizingConstraint) {
               simplex.maximize(lc);
@@ -117,14 +137,17 @@ public class CLI {
               simplex.addConstraint(lc);
             }
           } catch (SyntaxError e) {
-            System.out.println(RED + "Syntax error: " + e.getMessage());
-            System.out.println(split[i]);
-            Parser.printPointer(e.getIndex());
+            SyntaxError derivedError =
+                new SyntaxError(e.getInternalMessage(), constraints, index + e.getIndex());
+            System.out.print(RED);
+            derivedError.printWithContext();
             System.out.print(RESET);
 
             syntaxError = true;
             break;
           }
+
+          index += splitConstraint.length() + 1;
         }
 
         if (syntaxError) {
@@ -141,18 +164,15 @@ public class CLI {
           System.out.print(GREEN + "Solution: ");
           System.out.println(result);
         } else if (result.isOptimal()) {
-          System.out.println();
           System.out.println(GREEN + "SAT! " + GRAY + "(" + GREEN + "optimal" + GRAY + ")");
           System.out.print(GREEN + "Solution: ");
           System.out.print(result);
           System.out.println(GREEN + "Optimum: " + result.getOptimum());
         } else if (result.isFeasible()) {
-          System.out.println();
           System.out.println(GREEN + "SAT!");
           System.out.print(GREEN + "Solution: ");
           System.out.print(result);
         } else {
-          System.out.println();
           System.out.println(RED + "UNSAT!");
           System.out.print("Explanation: ");
           System.out.print(result);
@@ -161,6 +181,12 @@ public class CLI {
         System.out.println(RESET);
         continue;
       } else if (command.equals("smt")) {
+        if (split.length < 3) {
+          System.out.println(RED + "Syntax: smt <theory> <cnf of theory constraints>");
+          System.out.println(RESET);
+          continue;
+        }
+
         String theoryName = split[1];
 
         cnfString = input.substring(5 + theoryName.length());
@@ -175,8 +201,10 @@ public class CLI {
         TheoryCNF cnf;
         try {
           cnf = parser.parse(cnfString);
-        } catch (Exception e) {
-          e.printStackTrace();
+        } catch (SyntaxError e) {
+          System.out.print(RED);
+          e.printWithContext();
+          System.out.print(RESET);
           continue;
         }
         smtSolver.load(cnf);
@@ -197,16 +225,45 @@ public class CLI {
         System.out.println(RESET);
 
         continue;
+      } else if(command.equals( "tseitin" )) {
+        if (split.length == 1) {
+          System.out.println(RED + "Syntax: tseitin <formula>" + RESET);
+          continue;
+        }
+
+        String formulaString = input.substring(8);
+
+        PropositionalLogicParser propositionalLogicParser = new PropositionalLogicParser();
+        PropositionalLogicExpression expression;
+        try {
+          expression = propositionalLogicParser.parse(formulaString);
+        } catch (SyntaxError e) {
+          System.out.print(RED);
+          e.printWithContext();
+          System.out.print(RESET);
+          continue;
+        }
+
+        CNF cnf = PropositionalLogicParser.tseitin( expression );
+
+        System.out.println(GREEN + "Tseitin's transformation:");
+        System.out.println( cnf );
+        System.out.println(RESET);
+        continue;
       } else {
         cnfString = input;
+
+        // strip trailing whitespace
+        cnfString = cnfString.replaceAll("\\s+$", "");
       }
 
       CNF cnf;
       try {
         cnf = CNF.parse(cnfString);
-      } catch (RuntimeException e) {
-        System.out.println(RED + "Syntax Error: " + e.getMessage() + RESET);
-        System.out.println();
+      } catch (SyntaxError e) {
+        System.out.print(RED);
+        e.printWithContext();
+        System.out.print(RESET);
         continue;
       }
 

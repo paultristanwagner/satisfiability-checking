@@ -23,11 +23,18 @@ public interface Parser<T> {
     index.incrementAndGet();
     return 0;
   }
+  
+  static char previousProperChar(String string, AtomicInteger index) {
+    while (index.get() >= 0) {
+      char character = string.charAt(index.get());
+      index.decrementAndGet();
 
-  static void printPointer(int index) {
-    for (int i = 0; i < index; i++) {
-      System.out.print(" ");
+      if (character != ' ' && character != '\n') {
+        return character;
+      }
     }
-    System.out.println("^");
+
+    index.decrementAndGet();
+    return 0;
   }
 }
