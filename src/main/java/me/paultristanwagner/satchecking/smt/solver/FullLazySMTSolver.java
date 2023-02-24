@@ -3,7 +3,7 @@ package me.paultristanwagner.satchecking.smt.solver;
 import me.paultristanwagner.satchecking.sat.Assignment;
 import me.paultristanwagner.satchecking.sat.Clause;
 import me.paultristanwagner.satchecking.sat.Literal;
-import me.paultristanwagner.satchecking.smt.VariableAssignment;
+import me.paultristanwagner.satchecking.smt.SMTResult;
 import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.TheoryResult;
 
@@ -15,7 +15,7 @@ import java.util.Set;
 public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
 
   @Override
-  public VariableAssignment solve() {
+  public SMTResult<C> solve() {
     satSolver.load(cnf.getBooleanStructure());
 
     Assignment assignment;
@@ -33,9 +33,12 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
 
       theorySolver.load(selectedConstraints);
       TheoryResult<C> theoryResult = theorySolver.solve();
+      if (theoryResult.isUnknown()) { // If the theory solver is unknown, we can't do anything
+        return SMTResult.unknown();
+      }
 
       if (theoryResult.isSatisfiable()) {
-        return theoryResult.getSolution();
+        return SMTResult.satisfiable(theoryResult.getSolution());
       }
 
       // Exclude explanation
@@ -51,6 +54,6 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
       cnf.getBooleanStructure().learnClause(clause);
     }
 
-    return null;
+    return SMTResult.unsatisfiable();
   }
 }

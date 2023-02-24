@@ -4,7 +4,7 @@ import me.paultristanwagner.satchecking.sat.Clause;
 import me.paultristanwagner.satchecking.sat.Literal;
 import me.paultristanwagner.satchecking.sat.PartialAssignment;
 import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
-import me.paultristanwagner.satchecking.smt.VariableAssignment;
+import me.paultristanwagner.satchecking.smt.SMTResult;
 import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.TheoryResult;
 
@@ -15,7 +15,7 @@ import java.util.Set;
 public class LessLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
 
   @Override
-  public VariableAssignment solve() {
+  public SMTResult<C> solve() {
     satSolver.load(cnf.getBooleanStructure());
 
     int lastLevel = 0;
@@ -42,13 +42,17 @@ public class LessLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
       }
       lastLevel = newLevel;
 
-      TheoryResult<C> equalityLogicResult = theorySolver.solve();
-      if (equalityLogicResult.isSatisfiable()) {
+      TheoryResult<C> theoryResult = theorySolver.solve();
+      if (theoryResult.isUnknown()) { // If the theory solver is unknown, we can't do anything
+        return SMTResult.unknown();
+      }
+
+      if (theoryResult.isSatisfiable()) {
         if (assignment.isComplete()) {
-          return equalityLogicResult.getSolution();
+          return SMTResult.satisfiable(theoryResult.getSolution());
         }
       } else {
-        Set<C> explanation = equalityLogicResult.getExplanation();
+        Set<C> explanation = theoryResult.getExplanation();
 
         List<Literal> literals = new ArrayList<>();
         for (C equalityConstraint : explanation) {
@@ -64,6 +68,6 @@ public class LessLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
       }
     }
 
-    return null;
+    return SMTResult.unsatisfiable();
   }
 }

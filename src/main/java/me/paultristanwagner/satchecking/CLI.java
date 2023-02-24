@@ -8,8 +8,8 @@ import me.paultristanwagner.satchecking.sat.Assignment;
 import me.paultristanwagner.satchecking.sat.CNF;
 import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
 import me.paultristanwagner.satchecking.sat.solver.SATSolver;
+import me.paultristanwagner.satchecking.smt.SMTResult;
 import me.paultristanwagner.satchecking.smt.TheoryCNF;
-import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.smt.solver.SMTSolver;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
@@ -182,12 +182,14 @@ public class CLI {
         smtSolver.load(cnf);
 
         long beforeMs = System.currentTimeMillis();
-        VariableAssignment assignment = smtSolver.solve();
+        SMTResult<?> result = smtSolver.solve();
         long afterMs = System.currentTimeMillis();
 
-        if (assignment != null) {
+        if (result.isSatisfiable()) {
           System.out.println(GREEN + "SAT:");
-          System.out.println("" + assignment);
+          System.out.println("" + result.getSolution());
+        } else if (!theory.isComplete() && result.isUnknown()) {
+          System.out.println(YELLOW + "UNKNOWN " + GRAY + "(theory is incomplete)");
         } else {
           System.out.println(RED + "UNSAT");
         }

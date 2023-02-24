@@ -12,6 +12,7 @@ public class SimplexResult extends TheoryResult<LinearConstraint> {
   double optimum;
 
   private SimplexResult(
+      boolean unknown,
       boolean satisfiable,
       boolean feasible,
       boolean unbounded,
@@ -19,7 +20,7 @@ public class SimplexResult extends TheoryResult<LinearConstraint> {
       double optimum,
       VariableAssignment solution,
       Set<LinearConstraint> explanation) {
-    super(satisfiable, solution, explanation);
+    super(unknown, satisfiable, solution, explanation);
     this.feasible = feasible;
     this.unbounded = unbounded;
     this.optimal = optimal;
@@ -27,20 +28,20 @@ public class SimplexResult extends TheoryResult<LinearConstraint> {
   }
 
   public static SimplexResult infeasible(Set<LinearConstraint> explanation) {
-    return new SimplexResult(false, false, false, false, 0, null, explanation);
+    return new SimplexResult(false, false, false, false, false, 0, null, explanation);
   }
 
   public static SimplexResult feasible(VariableAssignment solution) {
-    return new SimplexResult(true, true, false, false, 0, solution, null);
+    return new SimplexResult(false, true, true, false, false, 0, solution, null);
   }
 
   public static SimplexResult optimal(VariableAssignment solution, double optimum) {
-    return new SimplexResult(true, true, false, true, optimum, solution, null);
+    return new SimplexResult(false, true, true, false, true, optimum, solution, null);
   }
 
   public static SimplexResult unbounded(
       VariableAssignment solution, Set<LinearConstraint> explanation) {
-    return new SimplexResult(false, true, true, false, 0, solution, explanation);
+    return new SimplexResult(false, false, true, true, false, 0, solution, explanation);
   }
 
   public boolean isFeasible() {

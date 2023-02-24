@@ -1,8 +1,8 @@
 package me.paultristanwagner.satchecking.smt.solver;
 
 import me.paultristanwagner.satchecking.sat.solver.SATSolver;
+import me.paultristanwagner.satchecking.smt.SMTResult;
 import me.paultristanwagner.satchecking.smt.TheoryCNF;
-import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.solver.TheorySolver;
 
@@ -24,5 +24,5 @@ public abstract class SMTSolver<C extends Constraint> {
     this.cnf = theoryCNF;
   }
 
-  public abstract VariableAssignment solve();
+  public abstract SMTResult<C> solve();
 }

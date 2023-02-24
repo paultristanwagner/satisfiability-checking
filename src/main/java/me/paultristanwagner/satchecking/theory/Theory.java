@@ -9,21 +9,23 @@ import me.paultristanwagner.satchecking.theory.solver.*;
 public class Theory {
 
   private static final String QF_LRA_NAME = "QF_LRA";
-  public static final Theory QF_LRA = new Theory(QF_LRA_NAME);
-  
+  public static final Theory QF_LRA = new Theory(QF_LRA_NAME, true);
+
   private static final String QF_LIA_NAME = "QF_LIA";
-  public static final Theory QF_LIA = new Theory(QF_LIA_NAME);
-  
+  public static final Theory QF_LIA = new Theory(QF_LIA_NAME, false);
+
   private static final String QF_EQ_NAME = "QF_EQ";
-  public static final Theory QF_EQ = new Theory(QF_EQ_NAME);
+  public static final Theory QF_EQ = new Theory(QF_EQ_NAME, false);
 
   private static final String QF_EQUF_NAME = "QF_EQUF";
-  public static final Theory QF_EQUF = new Theory(QF_EQUF_NAME);
+  public static final Theory QF_EQUF = new Theory(QF_EQUF_NAME, false);
 
   private final String name;
+  private final boolean complete;
 
-  private Theory(String name) {
+  private Theory(String name, boolean complete) {
     this.name = name;
+    this.complete = complete;
   }
 
   public static Theory get(String name) {
@@ -64,5 +66,9 @@ public class Theory {
       case QF_EQ_NAME -> new LessLazySMTSolver<>();
       default -> throw new IllegalArgumentException("Unknown theory: " + name);
     };
+  }
+
+  public boolean isComplete() {
+    return complete;
   }
 }
