@@ -87,3 +87,11 @@ uninterpreted functions.
 
 <img src="images/smt-qfequf-sat.png" alt="Satisfiable SMT example of equality logic with uninterpreted functions" width="500" /> <br>
 <img src="images/smt-qfequf-unsat.png" alt="Unsatisfiable SMT example of equality logic with uninterpreted functions" width="500" /> <br>
+
+# Tseitin's transformation
+
+The Tseitin transformation is implemented for propositional logic.
+It can be used to transform a formula into an equi-satisfiable formula in conjunctive normal form.
+The logical operators '~', '&', '|', '->', '<->' as well as parentheses are supported.
+
+<img src="images/tseitin.png" alt="Tseitin transformation for proving 'modus ponens'" width="700" /> <br>
