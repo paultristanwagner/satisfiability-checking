@@ -129,7 +129,7 @@ public class PropositionalLogicParser
   private static PropositionalLogicVariable VARIABLE(String string, AtomicInteger index) {
     StringBuilder builder = new StringBuilder();
 
-    while (index.get() >= 0) {
+    while (index.get() >= -1) {
       char c = Parser.previousProperChar(string, index);
       if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
         builder.append(c);
