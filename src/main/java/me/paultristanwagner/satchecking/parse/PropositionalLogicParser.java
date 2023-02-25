@@ -45,11 +45,17 @@ public class PropositionalLogicParser
 
   private static PropositionalLogicExpression S(String string, AtomicInteger index) {
     PropositionalLogicExpression last = B(string, index);
-    if (Parser.previousProperChar(string, index) == '|') {
-      PropositionalLogicExpression first = S(string, index);
-      return new PropositionalLogicOr(first, last);
+    if (Parser.previousProperChar(string, index) == '>') {
+      if (Parser.previousProperChar(string, index) != '-') {
+        throw new IllegalArgumentException("Expected '-' before '>'");
+      }
+      if (Parser.previousProperChar(string, index) == '<') {
+        PropositionalLogicExpression first = S(string, index);
+        return new PropositionalLogicBiConditional(first, last);
+      }
+      index.addAndGet(2);
     }
-
+  
     index.incrementAndGet();
     return last;
   }
@@ -60,11 +66,14 @@ public class PropositionalLogicParser
       if (Parser.previousProperChar(string, index) != '-') {
         throw new IllegalArgumentException("Expected '-' before '>'");
       }
-      if (Parser.previousProperChar(string, index) == '<') {
+      if (Parser.previousProperChar(string, index) != '<') {
+        index.incrementAndGet();
+
         PropositionalLogicExpression first = B(string, index);
-        return new PropositionalLogicBiConditional(first, last);
+        return new PropositionalLogicImplication(first, last);
+      } else { // '->' belongs to '<->', ignore it
+        index.addAndGet(2);
       }
-      index.addAndGet(2);
     }
 
     index.incrementAndGet();
@@ -73,20 +82,11 @@ public class PropositionalLogicParser
   
   private static PropositionalLogicExpression I(String string, AtomicInteger index) {
     PropositionalLogicExpression last = C(string, index);
-    if (Parser.previousProperChar(string, index) == '>') {
-      if (Parser.previousProperChar(string, index) != '-') {
-        throw new IllegalArgumentException("Expected '-' before '>'");
-      }
-      if (Parser.previousProperChar(string, index) != '<') {
-        index.incrementAndGet();
-
-        PropositionalLogicExpression first = I(string, index);
-        return new PropositionalLogicImplication(first, last);
-      } else {
-        index.addAndGet(2);
-      }
+    if (Parser.previousProperChar(string, index) == '|') {
+      PropositionalLogicExpression first = I(string, index);
+      return new PropositionalLogicOr(first, last);
     }
-
+  
     index.incrementAndGet();
     return last;
   }
