@@ -5,10 +5,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public interface Parser<T> {
 
   default T parse(String string) {
-    return parse(string, new AtomicInteger());
+    return parseWithRemaining(string).result();
   }
 
-  T parse(String string, AtomicInteger index);
+  ParseResult<T> parseWithRemaining(String string);
 
   static char nextProperChar(String string, AtomicInteger index) {
     while (index.get() < string.length()) {

@@ -4,15 +4,6 @@ import java.util.*;
 
 public class EqualityFunctionConstraint implements Constraint {
 
-  public static void main(String[] args) {
-    Function c = Function.of("c");
-    Function f = Function.of("f", c, c, c);
-    Function g = Function.of("g", f, c);
-
-    System.out.println(g);
-    System.out.println(g.getAllSubTerms());
-  }
-
   private final Function left;
   private final Function right;
   private final boolean equal;

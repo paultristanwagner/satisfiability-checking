@@ -8,143 +8,120 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
+
 public class PropositionalLogicParser
     implements Parser<PropositionalLogicParser.PropositionalLogicExpression> {
 
   /*
-   Grammar for not, and, or, parenthesis, and variables:
-     S -> B
-       -> S <-> B
-     B -> I
-       -> B -> I
-     I -> C
-       -> I | C
-     C -> N
-       -> C & N
-     N -> P
-       -> ~P
-     P -> VARIABLE
-       -> (S)
-  */
+   * Grammar for propositional logic:
+   *    <S> ::= <B>
+   *          | <B> '<->' <S>
+   *
+   *    <B> ::= <I>
+   *          | <I> '->' <B>
+   *
+   *    <I> ::= <C>
+   *          | <I> '|' <C>
+   *
+   *    <C> ::= <N>
+   *          | <C> '&' <N>
+   *
+   *    <N> ::= <P>
+   *          | '~' <P>
+   *
+   *   <P> ::= IDENTIFIER
+   *         | '(' <S> ')'
+   */
 
   @Override
-  public PropositionalLogicExpression parse(String string) {
-    return parse(string, new AtomicInteger(string.length() - 1));
-  }
-  
-  @Override
-  public PropositionalLogicExpression parse(String string, AtomicInteger index) {
-    PropositionalLogicExpression expression = S(string, index);
-    if (index.get() != -1) {
-      char c = string.charAt(index.get());
-      throw new SyntaxError("Unexpected character '" + c + "'", string, index.get());
-    }
+  public ParseResult<PropositionalLogicExpression> parseWithRemaining(String string) {
+    Lexer lexer = new PropositionalLogicLexer(string);
 
-    return expression;
+    lexer.requireNextToken();
+
+    PropositionalLogicExpression expression = S(lexer);
+
+    return new ParseResult<>(expression, lexer.getRemaining());
   }
 
-  private static PropositionalLogicExpression S(String string, AtomicInteger index) {
-    PropositionalLogicExpression last = B(string, index);
-    if (Parser.previousProperChar(string, index) == '>') {
-      if (Parser.previousProperChar(string, index) != '-') {
-        throw new IllegalArgumentException("Expected '-' before '>'");
-      }
-      if (Parser.previousProperChar(string, index) == '<') {
-        PropositionalLogicExpression first = S(string, index);
-        return new PropositionalLogicBiConditional(first, last);
-      }
-      index.addAndGet(2);
+  private static PropositionalLogicExpression S(Lexer lexer) {
+    PropositionalLogicExpression first = B(lexer);
+
+    if (lexer.hasNextToken() && lexer.getLookahead().getType().equals(EQUIVALENCE)) {
+      lexer.consume(EQUIVALENCE);
+      PropositionalLogicExpression last = S(lexer);
+      return new PropositionalLogicBiConditional(first, last);
     }
-  
-    index.incrementAndGet();
-    return last;
+
+    return first;
   }
 
-  private static PropositionalLogicExpression B(String string, AtomicInteger index) {
-    PropositionalLogicExpression last = I(string, index);
-    if (Parser.previousProperChar(string, index) == '>') {
-      if (Parser.previousProperChar(string, index) != '-') {
-        throw new IllegalArgumentException("Expected '-' before '>'");
-      }
-      if (Parser.previousProperChar(string, index) != '<') {
-        index.incrementAndGet();
+  private static PropositionalLogicExpression B(Lexer lexer) {
+    PropositionalLogicExpression first = I(lexer);
 
-        PropositionalLogicExpression first = B(string, index);
-        return new PropositionalLogicImplication(first, last);
-      } else { // '->' belongs to '<->', ignore it
-        index.addAndGet(2);
-      }
+    if (lexer.hasNextToken() && lexer.getLookahead().getType().equals(IMPLIES)) {
+      lexer.consume(IMPLIES);
+      PropositionalLogicExpression last = B(lexer);
+      return new PropositionalLogicImplication(first, last);
     }
 
-    index.incrementAndGet();
-    return last;
-  }
-  
-  private static PropositionalLogicExpression I(String string, AtomicInteger index) {
-    PropositionalLogicExpression last = C(string, index);
-    if (Parser.previousProperChar(string, index) == '|') {
-      PropositionalLogicExpression first = I(string, index);
-      return new PropositionalLogicOr(first, last);
-    }
-  
-    index.incrementAndGet();
-    return last;
+    return first;
   }
 
-  private static PropositionalLogicExpression C(String string, AtomicInteger index) {
-    PropositionalLogicExpression last = N(string, index);
-    if (Parser.previousProperChar(string, index) == '&') {
-      PropositionalLogicExpression first = C(string, index);
-      return new PropositionalLogicAnd(first, last);
+  private static PropositionalLogicExpression I(Lexer lexer) {
+    PropositionalLogicExpression res = C(lexer);
+
+    while (lexer.hasNextToken() && lexer.getLookahead().getType().equals(OR)) {
+      lexer.consume(OR);
+      PropositionalLogicExpression next = I(lexer);
+      res = new PropositionalLogicOr(res, next);
     }
 
-    index.incrementAndGet();
-    return last;
+    return res;
   }
 
-  private static PropositionalLogicExpression N(String string, AtomicInteger index) {
-    PropositionalLogicExpression last = P(string, index);
-    if (Parser.previousProperChar(string, index) == '~') {
-      return new PropositionalLogicNegation(last);
+  private static PropositionalLogicExpression C(Lexer lexer) {
+    PropositionalLogicExpression res = N(lexer);
+
+    while (lexer.hasNextToken() && lexer.getLookahead().getType().equals(AND)) {
+      lexer.consume(AND);
+      PropositionalLogicExpression next = C(lexer);
+      res = new PropositionalLogicAnd(res, next);
     }
 
-    index.incrementAndGet();
-    return last;
+    return res;
   }
 
-  private static PropositionalLogicExpression P( String string, AtomicInteger index) {
-    if (Parser.previousProperChar(string, index) == ')') {
-      PropositionalLogicExpression last = S(string, index);
-      if (Parser.previousProperChar(string, index) != '(') {
-        int lastIndex = index.get() + 1;
-        throw new SyntaxError("Expected '('", string, lastIndex);
-      }
-      return new PropositionalLogicParenthesis(last);
-    } else {
-      index.incrementAndGet();
-      return VARIABLE(string, index);
+  private static PropositionalLogicExpression N(Lexer lexer) {
+    if (lexer.hasNextToken() && lexer.getLookahead().getType().equals(NOT)) {
+      lexer.consume(NOT);
+      PropositionalLogicExpression next = P(lexer);
+      return new PropositionalLogicNegation(next);
     }
+
+    return P(lexer);
   }
 
-  private static PropositionalLogicVariable VARIABLE(String string, AtomicInteger index) {
-    StringBuilder builder = new StringBuilder();
-
-    while (index.get() >= -1) {
-      char c = Parser.previousProperChar(string, index);
-      if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') {
-        builder.append(c);
-      } else {
-        break;
-      }
-    }
-    index.incrementAndGet();
-
-    if (builder.isEmpty()) {
-      int lastIndex = index.get() + 1;
-      throw new SyntaxError("Expected variable", string, lastIndex);
+  private static PropositionalLogicExpression P(Lexer lexer) {
+    if (lexer.getLookahead().getType().equals(LPAREN)) {
+      lexer.consume(LPAREN);
+      PropositionalLogicExpression res = S(lexer);
+      lexer.consume(RPAREN);
+      return new PropositionalLogicParenthesis(res);
     }
 
-    return new PropositionalLogicVariable(builder.reverse().toString());
+    if (lexer.getLookahead().getType().equals(IDENTIFIER)) {
+      return VARIABLE(lexer);
+    }
+
+    throw new SyntaxError("Expected identifier or parenthesis", lexer.getInput(), lexer.getCursor());
+  }
+
+  private static PropositionalLogicVariable VARIABLE(Lexer lexer) {
+    Token lookahead = lexer.getLookahead();
+    lexer.consume(IDENTIFIER);
+    return new PropositionalLogicVariable(lookahead.getValue());
   }
 
   public static class PropositionalLogicExpression {
@@ -166,11 +143,11 @@ public class PropositionalLogicParser
       return "~" + expression;
     }
   }
-  
+
   static abstract class PropositionalLogicBinary extends PropositionalLogicExpression {
     protected PropositionalLogicExpression left;
     protected PropositionalLogicExpression right;
-    
+
     public PropositionalLogicBinary(
         PropositionalLogicExpression left, PropositionalLogicExpression right) {
       this.left = left;
@@ -179,21 +156,21 @@ public class PropositionalLogicParser
   }
 
   static class PropositionalLogicImplication extends PropositionalLogicBinary {
-    public PropositionalLogicImplication( PropositionalLogicExpression left, PropositionalLogicExpression right ) {
-      super( left, right );
+    public PropositionalLogicImplication(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      super(left, right);
     }
-  
+
     @Override
     public String toString() {
       return left + " -> " + right;
     }
   }
-  
+
   static class PropositionalLogicBiConditional extends PropositionalLogicBinary {
-    public PropositionalLogicBiConditional( PropositionalLogicExpression left, PropositionalLogicExpression right ) {
-      super( left, right );
+    public PropositionalLogicBiConditional(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      super(left, right);
     }
-  
+
     @Override
     public String toString() {
       return left + " <-> " + right;
@@ -201,10 +178,10 @@ public class PropositionalLogicParser
   }
 
   static class PropositionalLogicAnd extends PropositionalLogicBinary {
-    public PropositionalLogicAnd( PropositionalLogicExpression left, PropositionalLogicExpression right ) {
-      super( left, right );
+    public PropositionalLogicAnd(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      super(left, right);
     }
-  
+
     @Override
     public String toString() {
       return left + " & " + right;
@@ -212,10 +189,10 @@ public class PropositionalLogicParser
   }
 
   static class PropositionalLogicOr extends PropositionalLogicBinary {
-    public PropositionalLogicOr( PropositionalLogicExpression left, PropositionalLogicExpression right ) {
-      super( left, right );
+    public PropositionalLogicOr(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      super(left, right);
     }
-  
+
     @Override
     public String toString() {
       return left + " | " + right;
@@ -288,7 +265,7 @@ public class PropositionalLogicParser
 
       List<Clause> clauses = new ArrayList<>(left.clauses);
       clauses.addAll(right.clauses);
-  
+
       Literal leftLiteral = new Literal(left.nodeName);
       Literal notLeftLiteral = leftLiteral.not();
       Literal rightLiteral = new Literal(right.nodeName);

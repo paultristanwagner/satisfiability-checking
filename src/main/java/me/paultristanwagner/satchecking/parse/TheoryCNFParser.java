@@ -9,9 +9,8 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import static me.paultristanwagner.satchecking.parse.Parser.nextProperChar;
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T>> {
 
@@ -22,111 +21,81 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
   }
 
   @Override
-  public TheoryCNF<T> parse(String string) {
-    return parse(string, new AtomicInteger());
-  }
+  public ParseResult<TheoryCNF<T>> parseWithRemaining(String string) {
+    Lexer lexer = new TheoryCNFLexer(string);
 
-  @Override
-  public TheoryCNF<T> parse(String string, AtomicInteger index) {
-    List<TheoryClause<T>> clauses = S(string, index);
-    return new TheoryCNF<>(clauses);
+    lexer.requireNextToken();
+
+    List<TheoryClause<T>> clauses = S(lexer);
+
+    return new ParseResult<>(new TheoryCNF<>(clauses), lexer.getRemaining());
   }
 
   /*
-     Grammar:
-     S -> ( D ) & S
-     S -> ( D )
-     D -> L | D
-     D -> L
-     L -> [Constraint]
-  */
+   * Grammar for theory CNF:
+   *    <S> ::= <CLAUSE> { '&' <CLAUSE> }
+   *
+   *    <CLAUSE> ::= '(' LITERAL { '|' LITERAL } ')'
+   *
+   */
 
-  private List<TheoryClause<T>> S(String string, AtomicInteger index) {
-    if (nextProperChar(string, index) != '(') {
-      int lastIndex = index.get() - 1;
-      throw new SyntaxError("Cannot parse CNF. Expected '('", string, lastIndex);
-    }
-
-    List<T> literals = D(string, index);
-    TheoryClause<T> clause = new TheoryClause<>(literals);
-
-    if (nextProperChar(string, index) != ')') {
-      int lastIndex = index.get() - 1;
-      throw new SyntaxError("Cannot parse CNF. Expected ')'", string, lastIndex);
-    }
-
+  private List<TheoryClause<T>> S(Lexer lexer) {
     List<TheoryClause<T>> clauses = new ArrayList<>();
+
+    List<T> literals = CLAUSE(lexer);
+    TheoryClause<T> clause = new TheoryClause<>(literals);
     clauses.add(clause);
-    if (string.length() == index.get()) {
-      return clauses;
+
+    while(lexer.hasNextToken() && lexer.getLookahead().getType() == AND) {
+      lexer.consume(AND);
+      literals = CLAUSE(lexer);
+      clause = new TheoryClause<>(literals);
+      clauses.add(clause);
     }
 
-    if (nextProperChar(string, index) != '&') {
-      int lastIndex = index.get() - 1;
-      throw new SyntaxError("Expected '&'", string, lastIndex);
-    }
-
-    clauses.addAll(S(string, index));
     return clauses;
   }
 
-  private List<T> D(String string, AtomicInteger index) {
-    T constraint = L(string, index);
+  private List<T> CLAUSE(Lexer lexer) {
+    lexer.consume(LPAREN);
+
     List<T> constraints = new ArrayList<>();
-    constraints.add(constraint);
-    if (nextProperChar(string, index) == '|') {
-      constraints.addAll(D(string, index));
-    } else {
-      index.decrementAndGet();
+    constraints.add(LITERAL(lexer));
+
+    while(lexer.hasNextToken() && lexer.getLookahead().getType() == OR) {
+      lexer.consume(OR);
+      constraints.add(LITERAL(lexer));
     }
+
+    lexer.consume(RPAREN);
+
     return constraints;
   }
 
-  private T L(String string, AtomicInteger index) {
-    if (nextProperChar(string, index) != '[') {
-      int lastIndex = index.get() - 1;
-      throw new SyntaxError("Expected '['", string, lastIndex);
-    }
-    int closingIndex = string.indexOf(']', index.get());
-    if (closingIndex == -1) {
-      throw new SyntaxError("No closing ']' found", string, index.get());
-    }
-    String subString = string.substring(index.get(), closingIndex);
+  private T LITERAL(Lexer lexer) {
+    String remaining = lexer.getRemaining();
 
-    T constraint;
+    ParseResult<T> parseResult;
     try {
       if (constraintClass == LinearConstraint.class) {
         LinearConstraintParser linearConstraintParser = new LinearConstraintParser();
-        constraint = (T) linearConstraintParser.parse(subString);
+        parseResult = (ParseResult<T>) linearConstraintParser.parseWithRemaining(remaining);
       } else if (constraintClass == EqualityConstraint.class) {
         EqualityConstraintParser equalityConstraintParser = new EqualityConstraintParser();
-        constraint = (T) equalityConstraintParser.parse(subString);
+        parseResult = (ParseResult<T>) equalityConstraintParser.parseWithRemaining(remaining);
       } else if (constraintClass == EqualityFunctionConstraint.class) {
         EqualityFunctionParser equalityFunctionParser = new EqualityFunctionParser();
-        constraint = (T) equalityFunctionParser.parse(subString);
+        parseResult = (ParseResult<T>) equalityFunctionParser.parseWithRemaining(remaining);
       } else {
         throw new RuntimeException(
             "Cannot parse constraint of type " + constraintClass.getSimpleName());
       }
     } catch (SyntaxError e) {
-      throw new SyntaxError(e.getInternalMessage(), string, index.get() + e.getIndex());
+      throw new SyntaxError(e.getInternalMessage(), remaining, e.getIndex());
     }
 
-    index.addAndGet(subString.length());
+    lexer.initialize(parseResult.remaining());
 
-    if (nextProperChar(string, index) != ']') {
-      int lastIndex = index.get() - 1;
-      throw new SyntaxError("Expected ']'", string, lastIndex);
-    }
-
-    return constraint;
-  }
-
-  private static char nextChar(String string, AtomicInteger index) {
-    char c;
-    while ((c = string.charAt(index.get())) == ' ') {
-      index.incrementAndGet();
-    }
-    return c;
+    return parseResult.result();
   }
 }

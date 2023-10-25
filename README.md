@@ -5,6 +5,15 @@ The techniques used here are introduced in the RWTH University
 lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
 by Prof. Dr. Erika Ábrahám.
 
+# TODO: 
+- [ ] Improve parser such that it can properly output syntax errors: "smt QF_EQUF (a=b) & (f(a)!=f(a) & (c=d)"
+- [ ] Improve theory selection
+- [ ] Add aliases for tokens like 'and' for '&'
+- [ ] Update images
+- [ ] Add proper command framework
+- [ ] Improve error handling
+- [ ] Clean up and refactor code
+
 # How to build and run the project
 
 Clone the git repository:  

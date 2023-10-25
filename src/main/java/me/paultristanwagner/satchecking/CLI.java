@@ -1,10 +1,7 @@
 package me.paultristanwagner.satchecking;
 
-import me.paultristanwagner.satchecking.parse.LinearConstraintParser;
-import me.paultristanwagner.satchecking.parse.PropositionalLogicParser;
+import me.paultristanwagner.satchecking.parse.*;
 import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
-import me.paultristanwagner.satchecking.parse.SyntaxError;
-import me.paultristanwagner.satchecking.parse.TheoryCNFParser;
 import me.paultristanwagner.satchecking.sat.Assignment;
 import me.paultristanwagner.satchecking.sat.CNF;
 import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
@@ -19,12 +16,14 @@ import me.paultristanwagner.satchecking.theory.SimplexResult;
 import me.paultristanwagner.satchecking.theory.Theory;
 import me.paultristanwagner.satchecking.theory.solver.SimplexOptimizationSolver;
 import me.paultristanwagner.satchecking.theory.solver.TheorySolver;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.terminal.TerminalBuilder;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Scanner;
 
 import static me.paultristanwagner.satchecking.AnsiColor.*;
 
@@ -39,16 +38,18 @@ public class CLI {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static void main(String[] args) throws IOException {
+    LineReader reader = LineReaderBuilder.builder()
+        .terminal(TerminalBuilder.terminal())
+        .build();
+
     System.out.println(WELCOME_MESSAGE);
 
     Config config = Config.load();
 
-    Scanner scanner = new Scanner(System.in);
     while (true) {
-      System.out.print("> ");
       String input;
       try {
-        input = scanner.nextLine();
+        input = reader.readLine("> ");
       } catch (RuntimeException ignored) {
         // Program was terminated
         return;
@@ -198,16 +199,23 @@ public class CLI {
         TheorySolver theorySolver = theory.getTheorySolver();
         smtSolver.setTheorySolver(theorySolver);
 
-        TheoryCNF cnf;
+        ParseResult<TheoryCNF> parseResult;
         try {
-          cnf = parser.parse(cnfString);
+          parseResult = parser.parseWithRemaining(cnfString);
         } catch (SyntaxError e) {
           System.out.print(RED);
           e.printWithContext();
           System.out.print(RESET);
           continue;
         }
-        smtSolver.load(cnf);
+
+        if(!theory.isComplete()) {
+          new SyntaxError("Unexpected token", cnfString, 0).printWithContext();
+          continue;
+        }
+
+        TheoryCNF theoryCNF = parseResult.result();
+        smtSolver.load(theoryCNF);
 
         long beforeMs = System.currentTimeMillis();
         SMTResult<?> result = smtSolver.solve();
