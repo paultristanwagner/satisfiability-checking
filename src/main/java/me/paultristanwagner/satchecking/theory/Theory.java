@@ -29,7 +29,7 @@ public class Theory {
   }
 
   public static Theory get(String name) {
-    return switch (name) {
+    return switch (name.toUpperCase()) {
       case QF_LRA_NAME -> QF_LRA;
       case QF_LIA_NAME -> QF_LIA;
       case QF_EQ_NAME -> QF_EQ;

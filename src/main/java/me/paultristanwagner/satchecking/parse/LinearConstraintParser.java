@@ -6,228 +6,151 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstr
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
+
 public class LinearConstraintParser implements Parser<LinearConstraint> {
 
   /*
    *  Grammar for Linear constraints:
-   *  S 			-> TERM "=" OPT_SIGN VAL
-   *              -> TERM ">=" OPT_SIGN VAL
-   *              -> TERM "<=" OPT_SIGN VAL
-   *              -> max(TERM)
-   *              -> min(TERM)
+   *    <S> ::= <TERM> '=' <RATIONAL>
+   *          | <TERM> '<=' <RATIONAL>
+   *          | <TERM> '>=' <RATIONAL>
+   *          | MIN '(' <TERM> ')'
+   *          | MAX '(' <TERM> ')'
    *
-   *  TERM 		-> OPT_SIGN OPT_VAL VAR
-   *              -> OPT_SIGN OPT_VAL VAR SGN_TERM
+   *    <TERM> ::= [ <SIGNS> ] [ <RATIONAL> ] IDENTIFIER
+   *             | [ <SIGNS> ] [ <RATIONAL> ] IDENTIFIER [ <SIGNS> <TERM> ]
    *
-   *  SGN_TERM 	-> SIGN OPT_VAL VAR
-   *              -> SIGN OPT_VAL VAR SGN_TERM
+   *    <SIGNS> ::= '+' [ <SIGNS> ]
+   *              | '-' [ <SIGNS> ]
    *
-   *  VAL 		-> NUMBER
-   *              -> NUMBER "." NUMBER
+   *    <RATIONAL> ::= FRACTION | DECIMAL
    *
-   *  OPT_VAL		-> VAL
-   *              -> ""
-   *
-   *  SIGN 		-> "+" SIGN
-   *              -> "-" SIGN
-   *              -> "+"
-   *              -> "-"
-   *
-   *  VAR			-> VAR_NAME
-   *              -> VAR_NAME NUMBER
-   *
-   *  NUMBER 		-> "0" | ... | "9"
-   *              -> "0" | ... | "9" NUMBER
    */
   @Override
-  public LinearConstraint parse(String string, AtomicInteger index) {
+  public ParseResult<LinearConstraint> parseWithRemaining(String string) {
+    Lexer lexer = new LinearConstraintLexer(string);
+
+    lexer.requireNextToken();
+
+    LinearConstraint lc = TERM(lexer);
+
+    return new ParseResult<>(lc, lexer.getCursor(), lexer.getCursor() == string.length());
+  }
+
+  private static LinearConstraint TERM(Lexer lexer) {
     LinearConstraint lc;
-    if (string.startsWith("max(")) {
-      lc = new MaximizingConstraint();
-      index.addAndGet(4);
-      TERM(string, index, lc);
+    boolean optimization = false;
 
-      if (Parser.nextProperChar(string, index) != ')') {
-        int lastIndex = index.get();
-        throw new SyntaxError("Expected ')'", string, lastIndex);
-      }
-    } else if (string.startsWith("min(")) {
+    if(lexer.canConsume(MIN)) {
+      optimization = true;
+      lexer.consume(MIN);
+
+      lexer.consume(LPAREN);
       lc = new MinimizingConstraint();
-      index.addAndGet(4);
-      TERM(string, index, lc);
+    } else if(lexer.canConsume(MAX)) {
+      optimization = true;
+      lexer.consume(MAX);
 
-      if (Parser.nextProperChar(string, index) != ')') {
-        int lastIndex = index.get();
-        throw new SyntaxError("Expected ')'", string, lastIndex);
-      }
+      lexer.consume(LPAREN);
+      lc = new MaximizingConstraint();
     } else {
       lc = new LinearConstraint();
-      TERM(string, index, lc);
-      COMPARISON(string, index, lc);
-      int sign = OPT_SIGN(string, index);
-      lc.setValue(sign * VAL(string, index));
     }
 
-    if (index.get() != string.length()) {
-      throw new SyntaxError("Unexpected character", string, index.get());
+    double coefficient = OPTIONAL_SIGNS(lexer) * OPTIONAL_RATIONAL(lexer);
+    Token variableToken = lexer.getLookahead();
+    lexer.consume(IDENTIFIER);
+    String variable = variableToken.getValue();
+    lc.setCoefficient(variable, coefficient);
+
+    while(lexer.canConsumeEither(PLUS, MINUS, FRACTION, DECIMAL)) {
+      coefficient = OPTIONAL_SIGNS(lexer) * OPTIONAL_RATIONAL(lexer);
+      variableToken = lexer.getLookahead();
+
+      lexer.consume(IDENTIFIER);
+
+      variable = variableToken.getValue();
+      lc.setCoefficient(variable, coefficient);
     }
+
+    if(optimization) {
+      lexer.consume(RPAREN);
+      return lc;
+    }
+
+    lexer.requireEither(EQUALS, LOWER_EQUALS, GREATER_EQUALS);
+    if(lexer.canConsume(EQUALS)) {
+      lexer.consume(EQUALS);
+      lc.setBound(EQUAL);
+    } else if(lexer.canConsume(LOWER_EQUALS)) {
+      lexer.consume(LOWER_EQUALS);
+      lc.setBound(UPPER);
+    } else {
+      lexer.consume(GREATER_EQUALS);
+      lc.setBound(LOWER);
+    }
+
+    double value = OPTIONAL_SIGNS(lexer) * RATIONAL(lexer);
+    lc.setValue(value);
 
     return lc;
   }
 
-  private static void TERM(String string, AtomicInteger index, LinearConstraint lc) {
-    double firstSign = OPT_SIGN(string, index);
-    double firstCoefficient = firstSign * OPT_VAL(string, index);
-    String firstVar = VAR(string, index);
-    lc.setCoefficient(firstVar, firstCoefficient);
-
-    int fallback = index.get();
-    while (index.get() < string.length()) {
-      try {
-        int sign = SIGN(string, index);
-        double coefficient = sign * OPT_VAL(string, index);
-        String var = VAR(string, index);
-
-        coefficient += lc.getCoefficients().getOrDefault(var, 0.0);
-        lc.setCoefficient(var, coefficient);
-
-        fallback = index.get();
-      } catch (SyntaxError e) {
-        index.set(fallback);
-        break;
-      }
-    }
-  }
-
-  private static void COMPARISON(String string, AtomicInteger index, LinearConstraint lc) {
-    char character0 = Parser.nextProperChar(string, index);
-    if (character0 == '=') {
-      lc.setBound(LinearConstraint.Bound.EQUAL);
-    } else if (character0 == '>') {
-      char character1 = Parser.nextProperChar(string, index);
-      if (character1 == '=') {
-        lc.setBound(LinearConstraint.Bound.LOWER);
-      } else {
-        index.decrementAndGet();
-        throw new SyntaxError("Comparison >= expected", string, index.get());
-      }
-    } else if (character0 == '<') {
-      char character1 = Parser.nextProperChar(string, index);
-      if (character1 == '=') {
-        lc.setBound(LinearConstraint.Bound.UPPER);
-      } else {
-        index.decrementAndGet();
-        throw new SyntaxError("Comparison <= expected", string, index.get());
-      }
+  private static int OPTIONAL_SIGNS(Lexer lexer) {
+    if(lexer.canConsumeEither(PLUS, MINUS)) {
+      return SIGNS(lexer);
     } else {
-      index.decrementAndGet();
-      throw new SyntaxError("Comparison (=, >=, <=) expected", string, index.get());
-    }
-  }
-
-  private static double OPT_VAL(String string, AtomicInteger index) {
-    int fallback = index.get();
-    try {
-      return VAL(string, index);
-    } catch (SyntaxError error) {
-      index.set(fallback);
       return 1;
     }
   }
 
-  private static double VAL(String string, AtomicInteger index) {
-    String valString = NUMBER(string, index);
-    char character = Parser.nextProperChar(string, index);
-    if (character == '.') {
-      valString += "." + NUMBER(string, index);
-    } else {
-      index.decrementAndGet();
-    }
-    return Double.parseDouble(valString);
-  }
+  private static int SIGNS(Lexer lexer) {
+    lexer.requireEither(PLUS, MINUS);
 
-  private static int OPT_SIGN(String string, AtomicInteger index) {
-    int fallback = index.get();
-    int result = 1;
-    try {
-      result = SIGN(string, index);
-    } catch (SyntaxError e) {
-      index.set(fallback);
-    }
-    return result;
-  }
-
-  private static int SIGN(String string, AtomicInteger index) {
-    boolean read = false;
-    int result = 1;
-
-    while (index.get() < string.length()) {
-      char character = Parser.nextProperChar(string, index);
-      if (character == '+') {
-        read = true;
-      } else if (character == '-') {
-        read = true;
-        result *= -1;
+    int sign = 1;
+    do {
+      if(lexer.canConsume(PLUS)) {
+        lexer.consume(PLUS);
       } else {
-        index.decrementAndGet();
-        break;
+        lexer.consume(MINUS);
+        sign *= -1;
       }
-    }
+    } while(lexer.canConsumeEither(PLUS, MINUS));
 
-    if (!read) {
-      throw new SyntaxError("Sign expected", string, index.get());
-    }
-    return result;
+    return sign;
   }
 
-  private static String VAR(String string, AtomicInteger index) {
-    String result = VAR_NAME(string, index);
-    int fallback = index.get();
-    try {
-      result += NUMBER(string, index);
-    } catch (SyntaxError e) {
-      index.set(fallback);
+  private static double OPTIONAL_RATIONAL(Lexer lexer) {
+    if(lexer.canConsumeEither(FRACTION, DECIMAL)) {
+      return RATIONAL(lexer);
     }
-    return result;
+
+    return 1;
   }
 
-  private static String VAR_NAME(String string, AtomicInteger index) {
-    StringBuilder builder = new StringBuilder();
-    while (index.get() < string.length()) {
-      char character = Parser.nextProperChar(string, index);
-      if ((character < '0' || character > '9')
-          && (character < 'a' || character > 'z')
-          && (character < 'A' || character > 'Z')
-          && character != '_') {
-        index.decrementAndGet();
-        break;
-      }
+  private static double RATIONAL(Lexer lexer) {
+    lexer.requireEither(FRACTION, DECIMAL);
 
-      builder.append(character);
+    if(lexer.canConsume(FRACTION)) {
+      return FRACTION(lexer);
+    } else {
+      return DECIMAL(lexer);
     }
-
-    if (builder.isEmpty()) {
-      throw new SyntaxError("Variable expected", string, index.get());
-    }
-
-    return builder.toString();
   }
 
-  private static String NUMBER(String string, AtomicInteger index) {
-    StringBuilder builder = new StringBuilder();
-    while (index.get() < string.length()) {
-      char character = Parser.nextProperChar(string, index);
-      if (character < '0' || character > '9') {
-        index.decrementAndGet();
-        break;
-      }
+  private static double DECIMAL(Lexer lexer) {
+    Token token = lexer.getLookahead();
+    lexer.consume(DECIMAL);
+    return Double.parseDouble(token.getValue());
+  }
 
-      builder.append(character);
-    }
+  private static double FRACTION(Lexer lexer) {
+    Token token = lexer.getLookahead();
+    lexer.consume(FRACTION);
 
-    if (builder.isEmpty()) {
-      throw new SyntaxError("Number expected", string, index.get());
-    }
-    return builder.toString();
+    String[] parts = token.getValue().split("/");
+    return Double.parseDouble(parts[0]) / Double.parseDouble(parts[1]);
   }
 }

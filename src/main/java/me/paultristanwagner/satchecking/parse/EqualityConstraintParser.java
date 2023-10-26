@@ -1,8 +1,9 @@
 package me.paultristanwagner.satchecking.parse;
 
-import me.paultristanwagner.satchecking.theory.EqualityConstraint;
+import static me.paultristanwagner.satchecking.parse.EqualityConstraintLexer.*;
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import me.paultristanwagner.satchecking.theory.EqualityConstraint;
 
 /**
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
@@ -10,85 +11,36 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class EqualityConstraintParser implements Parser<EqualityConstraint> {
 
-  /* Grammar for equality constraints:
-     S   -> V = V
-         -> V != V
-     V   -> VAR_NAME
-         -> VAR_NAME NUMBER
-  */
+  /*
+   * Grammar for equality constraints:
+   *    <S> ::= IDENTIFIER '=' IDENTIFIER
+   *          | IDENTIFIER '!=' IDENTIFIER
+   */
 
   @Override
-  public EqualityConstraint parse(String string, AtomicInteger index) {
-    String left = VAR(string, index);
+  public ParseResult<EqualityConstraint> parseWithRemaining(String string) {
+    EqualityConstraintLexer lexer = new EqualityConstraintLexer(string);
 
-    char c = Parser.nextProperChar(string, index);
+    lexer.requireNextToken();
 
-    boolean equal = true;
+    Token a = lexer.getLookahead();
+    lexer.consume(IDENTIFIER);
 
-    if (c == '!') {
-      if (string.charAt(index.get()) != '=') {
-        throw new SyntaxError("= expected", string, index.get());
-      }
-      index.incrementAndGet();
-      equal = false;
-    } else if (c != '=') {
-      int lastIndex = index.get() - 1;
-      throw new SyntaxError("= or != expected", string, lastIndex);
+    lexer.requireEither(EQUALS, NOT_EQUALS);
+    boolean equal = lexer.canConsume(EQUALS);
+    if(equal) {
+      lexer.consume(EQUALS);
+    } else {
+      lexer.consume(NOT_EQUALS);
     }
 
-    String right = VAR(string, index);
+    Token b = lexer.getLookahead();
+    lexer.consume(IDENTIFIER);
 
-    return new EqualityConstraint(left, right, equal);
-  }
-
-  private static String VAR(String string, AtomicInteger index) {
-    String result = VAR_NAME(string, index);
-    int fallback = index.get();
-    try {
-      result += NUMBER(string, index);
-    } catch (SyntaxError e) {
-      index.set(fallback);
-    }
-    return result;
-  }
-
-  private static String VAR_NAME(String string, AtomicInteger index) {
-    StringBuilder builder = new StringBuilder();
-    while (index.get() < string.length()) {
-      char character = Parser.nextProperChar(string, index);
-      if ((character < '0' || character > '9')
-          && (character < 'a' || character > 'z')
-          && (character < 'A' || character > 'Z')
-          && character != '_') {
-        index.decrementAndGet();
-        break;
-      }
-
-      builder.append(character);
-    }
-
-    if (builder.isEmpty()) {
-      throw new SyntaxError("Variable expected", string, index.get());
-    }
-
-    return builder.toString();
-  }
-
-  private static String NUMBER(String string, AtomicInteger index) {
-    StringBuilder builder = new StringBuilder();
-    while (index.get() < string.length()) {
-      char character = Parser.nextProperChar(string, index);
-      if (character < '0' || character > '9') {
-        index.decrementAndGet();
-        break;
-      }
-
-      builder.append(character);
-    }
-
-    if (builder.isEmpty()) {
-      throw new SyntaxError("Number expected", string, index.get());
-    }
-    return builder.toString();
+    return new ParseResult<>(
+        new EqualityConstraint(a.getValue(), b.getValue(), equal),
+        lexer.getCursor(),
+        lexer.getCursor() == string.length()
+    );
   }
 }

@@ -23,24 +23,26 @@ public class Config {
   private static Config config;
 
   public static Config load() {
-    if (config == null) {
-      File file = new File(FILE_NAME);
-      if (!file.exists()) {
-        // create and store default config
-        Config defaultCfg = Config.defaultConfig();
-        config = defaultCfg;
-        defaultCfg.save();
-      } else {
-        try {
-          FileReader reader = new FileReader(file);
-          Properties properties = new Properties();
-          properties.load(reader);
-          reader.close();
-          config = new Config(properties);
-        } catch (IOException e) {
-          e.printStackTrace();
-          return Config.defaultConfig();
-        }
+    if (config != null) {
+      return config;
+    }
+
+    File file = new File(FILE_NAME);
+    if (!file.exists()) {
+      // create and store default config
+      Config defaultCfg = Config.defaultConfig();
+      config = defaultCfg;
+      defaultCfg.save();
+    } else {
+      try {
+        FileReader reader = new FileReader(file);
+        Properties properties = new Properties();
+        properties.load(reader);
+        reader.close();
+        config = new Config(properties);
+      } catch (IOException e) {
+        e.printStackTrace();
+        return Config.defaultConfig();
       }
     }
 
