@@ -25,7 +25,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
    *    <SIGNS> ::= '+' [ <SIGNS> ]
    *              | '-' [ <SIGNS> ]
    *
-   *    <RATIONAL> ::= DECIMAL | FRACTION
+   *    <RATIONAL> ::= FRACTION | DECIMAL
    *
    */
   @Override
@@ -36,21 +36,25 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
 
     LinearConstraint lc = TERM(lexer);
 
-    return new ParseResult<>(lc, lexer.getRemaining());
+    return new ParseResult<>(lc, lexer.getCursor(), lexer.getCursor() == string.length());
   }
 
   private static LinearConstraint TERM(Lexer lexer) {
     LinearConstraint lc;
     boolean optimization = false;
 
-    if(lexer.getLookahead().getType().equals(MIN)) {
+    if(lexer.canConsume(MIN)) {
       optimization = true;
       lexer.consume(MIN);
+
+      lexer.require(LPAREN);
       lexer.consume(LPAREN);
       lc = new MinimizingConstraint();
-    } else if(lexer.getLookahead().getType().equals(MAX)) {
+    } else if(lexer.canConsume(MAX)) {
       optimization = true;
       lexer.consume(MAX);
+
+      lexer.require(LPAREN);
       lexer.consume(LPAREN);
       lc = new MaximizingConstraint();
     } else {
@@ -59,38 +63,38 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
 
     double coefficient = OPTIONAL_SIGNS(lexer) * OPTIONAL_RATIONAL(lexer);
     Token variableToken = lexer.getLookahead();
+    lexer.require(IDENTIFIER);
     lexer.consume(IDENTIFIER);
     String variable = variableToken.getValue();
     lc.setCoefficient(variable, coefficient);
 
-    while(lexer.getLookahead().getType().equals(PLUS)
-        || lexer.getLookahead().getType().equals(MINUS)
-        || lexer.getLookahead().getType().equals(FRACTION)
-        || lexer.getLookahead().getType().equals(DECIMAL)
-    ) {
+    while(lexer.canConsumeEither(PLUS, MINUS, FRACTION, DECIMAL)) {
       coefficient = OPTIONAL_SIGNS(lexer) * OPTIONAL_RATIONAL(lexer);
       variableToken = lexer.getLookahead();
+
+      lexer.require(IDENTIFIER);
       lexer.consume(IDENTIFIER);
+
       variable = variableToken.getValue();
       lc.setCoefficient(variable, coefficient);
     }
 
     if(optimization) {
+      lexer.require(RPAREN);
       lexer.consume(RPAREN);
       return lc;
     }
 
-    if(lexer.getLookahead().getType().equals(EQUALS)) {
+    lexer.requireEither(EQUALS, LOWER_EQUALS, GREATER_EQUALS);
+    if(lexer.canConsume(EQUALS)) {
       lexer.consume(EQUALS);
       lc.setBound(EQUAL);
-    } else if(lexer.getLookahead().getType().equals(LOWER_EQUALS)) {
+    } else if(lexer.canConsume(LOWER_EQUALS)) {
       lexer.consume(LOWER_EQUALS);
       lc.setBound(UPPER);
-    } else if(lexer.getLookahead().getType().equals(GREATER_EQUALS)) {
+    } else {
       lexer.consume(GREATER_EQUALS);
       lc.setBound(LOWER);
-    } else {
-      throw new SyntaxError("Relation expected", lexer.getInput(), lexer.getCursor());
     }
 
     double value = OPTIONAL_SIGNS(lexer) * RATIONAL(lexer);
@@ -100,7 +104,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   }
 
   private static int OPTIONAL_SIGNS(Lexer lexer) {
-    if(lexer.getLookahead().getType().equals(PLUS) || lexer.getLookahead().getType().equals(MINUS)) {
+    if(lexer.canConsumeEither(PLUS, MINUS)) {
       return SIGNS(lexer);
     } else {
       return 1;
@@ -108,46 +112,50 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   }
 
   private static int SIGNS(Lexer lexer) {
+    lexer.requireEither(PLUS, MINUS);
+
     int sign = 1;
     do {
-      if(lexer.getLookahead().getType().equals(PLUS)) {
+      if(lexer.canConsume(PLUS)) {
         lexer.consume(PLUS);
-      } else if(lexer.getLookahead().getType().equals(MINUS)) {
+      } else {
         lexer.consume(MINUS);
         sign *= -1;
-      } else {
-        throw new SyntaxError("Sign expected", lexer.getInput(), lexer.getCursor());
       }
-    } while(lexer.getLookahead().getType().equals(PLUS) || lexer.getLookahead().getType().equals(MINUS));
+    } while(lexer.canConsumeEither(PLUS, MINUS));
 
     return sign;
   }
 
   private static double OPTIONAL_RATIONAL(Lexer lexer) {
-    if(lexer.getLookahead().getType().equals(DECIMAL)) {
-      return DECIMAL(lexer);
-    } else if(lexer.getLookahead().getType().equals(FRACTION)) {
-      return FRACTION(lexer);
-    } else {
-      return 1;
+    if(lexer.canConsumeEither(FRACTION, DECIMAL)) {
+      return RATIONAL(lexer);
     }
+
+    return 1;
   }
 
   private static double RATIONAL(Lexer lexer) {
-    if(lexer.getLookahead().getType().equals(DECIMAL)) {
-      return DECIMAL(lexer);
-    } else {
+    lexer.requireEither(FRACTION, DECIMAL);
+
+    if(lexer.canConsume(FRACTION)) {
       return FRACTION(lexer);
+    } else {
+      return DECIMAL(lexer);
     }
   }
 
   private static double DECIMAL(Lexer lexer) {
+    lexer.require(DECIMAL);
+
     Token token = lexer.getLookahead();
     lexer.consume(DECIMAL);
     return Double.parseDouble(token.getValue());
   }
 
   private static double FRACTION(Lexer lexer) {
+    lexer.require(FRACTION);
+
     Token token = lexer.getLookahead();
     lexer.consume(FRACTION);
 

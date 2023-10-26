@@ -1,11 +1,9 @@
 package me.paultristanwagner.satchecking.parse;
 
-import me.paultristanwagner.satchecking.theory.EqualityConstraint;
-
-import java.util.concurrent.atomic.AtomicInteger;
-
 import static me.paultristanwagner.satchecking.parse.EqualityConstraintLexer.*;
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
+
+import me.paultristanwagner.satchecking.theory.EqualityConstraint;
 
 /**
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
@@ -26,9 +24,11 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
     lexer.requireNextToken();
 
     Token a = lexer.getLookahead();
+    lexer.require(IDENTIFIER);
     lexer.consume(IDENTIFIER);
 
-    boolean equal = lexer.getLookahead().getType().equals(EQUALS);
+    lexer.requireEither(EQUALS, NOT_EQUALS);
+    boolean equal = lexer.canConsume(EQUALS);
     if(equal) {
       lexer.consume(EQUALS);
     } else {
@@ -36,8 +36,13 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
     }
 
     Token b = lexer.getLookahead();
+    lexer.require(IDENTIFIER);
     lexer.consume(IDENTIFIER);
 
-    return new ParseResult<>(new EqualityConstraint(a.getValue(), b.getValue(), equal), lexer.getRemaining());
+    return new ParseResult<>(
+        new EqualityConstraint(a.getValue(), b.getValue(), equal),
+        lexer.getCursor(),
+        lexer.getCursor() == string.length()
+    );
   }
 }

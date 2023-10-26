@@ -1,13 +1,11 @@
 package me.paultristanwagner.satchecking.parse;
 
-import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
-import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Function;
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Function;
 
 public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint> {
 
@@ -29,7 +27,8 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     Function left = FUNCTION(lexer);
 
-    boolean equal = lexer.getLookahead().getType().equals(EQUALS);
+    lexer.requireEither(EQUALS, NOT_EQUALS);
+    boolean equal = lexer.canConsume(EQUALS);
     if(equal) {
       lexer.consume(EQUALS);
     } else {
@@ -38,10 +37,15 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     Function right = FUNCTION(lexer);
 
-    return new ParseResult<>(new EqualityFunctionConstraint(left, right, equal), lexer.getRemaining());
+    return new ParseResult<>(
+        new EqualityFunctionConstraint(left, right, equal),
+        lexer.getCursor(),
+        lexer.getCursor() == string.length()
+    );
   }
 
   private static Function FUNCTION(Lexer lexer) {
+    lexer.canConsume(IDENTIFIER);
     Token functionNameToken = lexer.getLookahead();
     lexer.consume(IDENTIFIER);
 
@@ -49,17 +53,19 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     List<Function> parameters = new ArrayList<>();
 
-    if(!lexer.hasNextToken() || !lexer.getLookahead().getType().equals(LPAREN)) {
+    if(!lexer.canConsume(LPAREN)) {
       return Function.of(functionName, parameters);
     }
 
     lexer.consume(LPAREN);
 
-    while(lexer.hasNextToken()) {
+    while(true) {
       parameters.add(FUNCTION(lexer));
-      if(lexer.getLookahead().getType().equals(RPAREN)) {
+      if(lexer.canConsume(RPAREN)) {
         break;
       }
+
+      lexer.require(COMMA);
       lexer.consume(COMMA);
     }
 

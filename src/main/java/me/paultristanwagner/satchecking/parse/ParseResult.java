@@ -1,8 +1,5 @@
 package me.paultristanwagner.satchecking.parse;
 
-public record ParseResult<T>(T result, String remaining) {
+public record ParseResult<T>(T result, int charsRead, boolean complete) {
 
-  public boolean isComplete() {
-    return remaining.isEmpty();
-  }
 }

@@ -28,7 +28,7 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
 
     List<TheoryClause<T>> clauses = S(lexer);
 
-    return new ParseResult<>(new TheoryCNF<>(clauses), lexer.getRemaining());
+    return new ParseResult<>(new TheoryCNF<>(clauses), lexer.getCursor(), lexer.getCursor() == string.length());
   }
 
   /*
@@ -46,7 +46,7 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
     TheoryClause<T> clause = new TheoryClause<>(literals);
     clauses.add(clause);
 
-    while(lexer.hasNextToken() && lexer.getLookahead().getType() == AND) {
+    while(lexer.canConsume(AND)) {
       lexer.consume(AND);
       literals = CLAUSE(lexer);
       clause = new TheoryClause<>(literals);
@@ -57,16 +57,18 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
   }
 
   private List<T> CLAUSE(Lexer lexer) {
+    lexer.require(LPAREN);
     lexer.consume(LPAREN);
 
     List<T> constraints = new ArrayList<>();
     constraints.add(LITERAL(lexer));
 
-    while(lexer.hasNextToken() && lexer.getLookahead().getType() == OR) {
+    while(lexer.canConsume(OR)) {
       lexer.consume(OR);
       constraints.add(LITERAL(lexer));
     }
 
+    lexer.require(RPAREN);
     lexer.consume(RPAREN);
 
     return constraints;
@@ -94,7 +96,7 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
       throw new SyntaxError(e.getInternalMessage(), remaining, e.getIndex());
     }
 
-    lexer.initialize(parseResult.remaining());
+    lexer.skip(parseResult.charsRead());
 
     return parseResult.result();
   }

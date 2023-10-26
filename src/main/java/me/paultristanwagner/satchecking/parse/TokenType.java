@@ -11,7 +11,7 @@ public class TokenType {
   static final TokenType RPAREN = TokenType.of(")", "^\\)");
   static final TokenType COMMA = TokenType.of(",", "^,");
   static final TokenType DECIMAL = TokenType.of("decimal", "^[+-]?(?:\\d+\\.\\d*|\\.\\d+|\\d+)");
-  static final TokenType FRACTION = TokenType.of("fraction", "^[+-]?\\d+/\\d+$");
+  static final TokenType FRACTION = TokenType.of("fraction", "^[+-]?\\d+/\\d+");
   static final TokenType MIN = TokenType.of("min", "^min");
   static final TokenType MAX = TokenType.of("max", "^max");
   static final TokenType PLUS = TokenType.of("+", "^\\+");

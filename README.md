@@ -6,12 +6,12 @@ lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-te
 by Prof. Dr. Erika Ábrahám.
 
 # TODO: 
-- [ ] Improve parser such that it can properly output syntax errors: "smt QF_EQUF (a=b) & (f(a)!=f(a) & (c=d)"
+- [x] Improve parser such that it can properly output syntax errors: "smt QF_EQUF (a=b) & (f(a)!=f(a) & (c=d)"
 - [ ] Improve theory selection
 - [ ] Add aliases for tokens like 'and' for '&'
 - [ ] Update images
-- [ ] Add proper command framework
-- [ ] Improve error handling
+- [x] Add proper command framework
+- [x] Improve error handling
 - [ ] Clean up and refactor code
 
 # How to build and run the project

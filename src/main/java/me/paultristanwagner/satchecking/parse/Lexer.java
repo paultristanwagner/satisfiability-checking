@@ -26,6 +26,12 @@ public abstract class Lexer {
     this.nextToken();
   }
 
+  public void skip(int positions) {
+    this.cursor += positions;
+
+    this.nextToken();
+  }
+
   public void registerTokenType(TokenType tokenType) {
     this.tokenTypes.add(tokenType);
   }
@@ -53,9 +59,9 @@ public abstract class Lexer {
       }
 
       String group = matcher.group();
-      cursor += group.length();
 
       if (tokenType == WHITESPACE) {
+        cursor += group.length();
         return nextToken();
       }
 
@@ -65,6 +71,53 @@ public abstract class Lexer {
 
     lookahead = null;
     return null;
+  }
+
+  public void require(TokenType tokenType) {
+    requireEither(tokenType);
+  }
+
+  public void requireEither(TokenType... tokenTypes) {
+    for (TokenType tokenType : tokenTypes) {
+      if (canConsume(tokenType)) {
+        return;
+      }
+    }
+
+    if (tokenTypes.length == 1) {
+      throw new SyntaxError("Expected token '" + tokenTypes[0].getName() + "'", input, cursor);
+    }
+
+    StringBuilder builder = new StringBuilder();
+
+    for (int i = 0; i < tokenTypes.length; i++) {
+      TokenType tokenType = tokenTypes[i];
+      if(i != tokenTypes.length - 1) {
+        builder.append("'").append(tokenType.getName()).append("', ");
+      } else {
+        builder.append(" or '").append(tokenType.getName()).append("'");
+      }
+    }
+
+    throw new SyntaxError("Expected either token " + builder, input, cursor);
+  }
+
+  public boolean canConsume(TokenType tokenType) {
+    return canConsumeEither(tokenType);
+  }
+
+  public boolean canConsumeEither(TokenType... tokenTypes) {
+    if(lookahead == null) {
+      return false;
+    }
+
+    for (TokenType type : tokenTypes) {
+      if(lookahead.getType() == type) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   public void consume(TokenType token) {
@@ -80,9 +133,10 @@ public abstract class Lexer {
               + lookahead.getType().getName()
               + "'",
           input,
-          cursor - lookahead.getValue().length());
+          cursor);
     }
 
+    cursor += lookahead.getValue().length();
     nextToken();
   }
 
@@ -99,11 +153,7 @@ public abstract class Lexer {
   }
 
   public String getRemaining() {
-    if(lookahead == null) {
-      return input.substring(cursor);
-    }
-
-    return input.substring(cursor - lookahead.getValue().length());
+    return input.substring(cursor);
   }
 
   public boolean hasNextToken() {
@@ -123,9 +173,5 @@ public abstract class Lexer {
           input,
           cursor - lookahead.getValue().length());
     }
-  }
-
-  public int getTokenStart() {
-    return cursor - lookahead.getValue().length();
   }
 }

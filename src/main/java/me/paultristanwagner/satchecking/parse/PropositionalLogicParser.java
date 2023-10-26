@@ -42,13 +42,17 @@ public class PropositionalLogicParser
 
     PropositionalLogicExpression expression = S(lexer);
 
-    return new ParseResult<>(expression, lexer.getRemaining());
+    return new ParseResult<>(
+        expression,
+        lexer.getCursor(),
+        lexer.getCursor() == string.length()
+    );
   }
 
   private static PropositionalLogicExpression S(Lexer lexer) {
     PropositionalLogicExpression first = B(lexer);
 
-    if (lexer.hasNextToken() && lexer.getLookahead().getType().equals(EQUIVALENCE)) {
+    if (lexer.canConsume(EQUIVALENCE)) {
       lexer.consume(EQUIVALENCE);
       PropositionalLogicExpression last = S(lexer);
       return new PropositionalLogicBiConditional(first, last);
@@ -60,7 +64,7 @@ public class PropositionalLogicParser
   private static PropositionalLogicExpression B(Lexer lexer) {
     PropositionalLogicExpression first = I(lexer);
 
-    if (lexer.hasNextToken() && lexer.getLookahead().getType().equals(IMPLIES)) {
+    if (lexer.canConsume(IMPLIES)) {
       lexer.consume(IMPLIES);
       PropositionalLogicExpression last = B(lexer);
       return new PropositionalLogicImplication(first, last);
@@ -72,7 +76,7 @@ public class PropositionalLogicParser
   private static PropositionalLogicExpression I(Lexer lexer) {
     PropositionalLogicExpression res = C(lexer);
 
-    while (lexer.hasNextToken() && lexer.getLookahead().getType().equals(OR)) {
+    while (lexer.canConsume(OR)) {
       lexer.consume(OR);
       PropositionalLogicExpression next = I(lexer);
       res = new PropositionalLogicOr(res, next);
@@ -84,7 +88,7 @@ public class PropositionalLogicParser
   private static PropositionalLogicExpression C(Lexer lexer) {
     PropositionalLogicExpression res = N(lexer);
 
-    while (lexer.hasNextToken() && lexer.getLookahead().getType().equals(AND)) {
+    while (lexer.canConsume(AND)) {
       lexer.consume(AND);
       PropositionalLogicExpression next = C(lexer);
       res = new PropositionalLogicAnd(res, next);
@@ -94,7 +98,7 @@ public class PropositionalLogicParser
   }
 
   private static PropositionalLogicExpression N(Lexer lexer) {
-    if (lexer.hasNextToken() && lexer.getLookahead().getType().equals(NOT)) {
+    if (lexer.canConsume(NOT)) {
       lexer.consume(NOT);
       PropositionalLogicExpression next = P(lexer);
       return new PropositionalLogicNegation(next);
@@ -104,21 +108,25 @@ public class PropositionalLogicParser
   }
 
   private static PropositionalLogicExpression P(Lexer lexer) {
-    if (lexer.getLookahead().getType().equals(LPAREN)) {
+    lexer.requireEither(LPAREN, IDENTIFIER);
+
+    if (lexer.canConsume(LPAREN)) {
       lexer.consume(LPAREN);
+
       PropositionalLogicExpression res = S(lexer);
+
+      lexer.require(RPAREN);
       lexer.consume(RPAREN);
+
       return new PropositionalLogicParenthesis(res);
     }
 
-    if (lexer.getLookahead().getType().equals(IDENTIFIER)) {
-      return VARIABLE(lexer);
-    }
-
-    throw new SyntaxError("Expected identifier or parenthesis", lexer.getInput(), lexer.getCursor());
+    return VARIABLE(lexer);
   }
 
   private static PropositionalLogicVariable VARIABLE(Lexer lexer) {
+    lexer.require(IDENTIFIER);
+
     Token lookahead = lexer.getLookahead();
     lexer.consume(IDENTIFIER);
     return new PropositionalLogicVariable(lookahead.getValue());
