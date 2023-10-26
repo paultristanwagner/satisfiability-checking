@@ -5,15 +5,6 @@ The techniques used here are introduced in the RWTH University
 lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
 by Prof. Dr. Erika Ábrahám.
 
-# TODO: 
-- [x] Improve parser such that it can properly output syntax errors: "smt QF_EQUF (a=b) & (f(a)!=f(a) & (c=d)"
-- [ ] Improve theory selection
-- [ ] Add aliases for tokens like 'and' for '&'
-- [ ] Update images
-- [x] Add proper command framework
-- [x] Improve error handling
-- [ ] Clean up and refactor code
-
 # How to build and run the project
 
 Clone the git repository:  
@@ -32,12 +23,10 @@ A SAT solver is implemented that can
 employ [DPLL+CDCL](https://en.wikipedia.org/wiki/Conflict-driven_clause_learning), [DPLL](https://en.wikipedia.org/wiki/DPLL_algorithm)
 as well as simple enumeration to solve propositional logic problems.
 
-### Example
-
 Input can be given in conjunctive normal form in the following way.
 
-<img src="images/cnf-input-sat.png" alt="How to input in CNF" width="350" /> <br>
-<img src="images/cnf-input-unsat.png" alt="How to input in CNF" width="350" /> <br>
+<img src="images/cnf-input-sat.png" alt="How to input in CNF"/> <br>
+<img src="images/cnf-input-unsat.png" alt="How to input in CNF"/> <br>
 
 # Tseitin's transformation
 
@@ -45,7 +34,7 @@ The Tseitin transformation is implemented for propositional logic.
 It can be used to transform a formula into an equi-satisfiable formula in conjunctive normal form.
 The logical operators '~', '&', '|', '->', '<->' as well as parentheses are supported.
 
-<img src="images/tseitin.png" alt="Tseitin transformation for proving 'modus ponens'" width="700" /> <br>
+<img src="images/tseitin.png" alt="Tseitin transformation for proving 'modus ponens'"/> <br>
 
 # SMT solver
 
@@ -53,17 +42,17 @@ An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer
 QF_EQ) and equality logic with
 uninterpreted functions (QF_EQUF).
 
-<img src="images/smt-qflra-sat.png" alt="Satisfiable SMT example of linear real arithmetic" width="450" /> <br>
-<img src="images/smt-qflra-unsat.png" alt="Unsatisfiable SMT example of linear real arithmetic" width="450" /> <br>
+<img src="images/smt-qflra-sat.png" alt="Satisfiable SMT example of linear real arithmetic"/> <br>
+<img src="images/smt-qflra-unsat.png" alt="Unsatisfiable SMT example of linear real arithmetic"/> <br>
 
-<img src="images/smt-qflia-sat.png" alt="Satisfiable SMT example of linear integer arithmetic" width="450" /> <br>
-<img src="images/smt-qflia-unsat.png" alt="Unsatisfiable SMT example of linear integer arithmetic" width="450" /> <br>
+<img src="images/smt-qflia-sat.png" alt="Satisfiable SMT example of linear integer arithmetic"/> <br>
+<img src="images/smt-qflia-unsat.png" alt="Unsatisfiable SMT example of linear integer arithmetic"/> <br>
 
-<img src="images/smt-qfeq-sat.png" alt="Satisfiable SMT example of equality logic" width="450" /> <br>
-<img src="images/smt-qfeq-unsat.png" alt="Unsatisfiable SMT example of equality logic" width="450" /> <br>
+<img src="images/smt-qfeq-sat.png" alt="Satisfiable SMT example of equality logic"/> <br>
+<img src="images/smt-qfeq-unsat.png" alt="Unsatisfiable SMT example of equality logic"/> <br>
 
-<img src="images/smt-qfequf-sat.png" alt="Satisfiable SMT example of equality logic with uninterpreted functions" width="500" /> <br>
-<img src="images/smt-qfequf-unsat.png" alt="Unsatisfiable SMT example of equality logic with uninterpreted functions" width="500" /> <br>
+<img src="images/smt-qfequf-sat.png" alt="Satisfiable SMT example of equality logic with uninterpreted functions"/> <br>
+<img src="images/smt-qfequf-unsat.png" alt="Unsatisfiable SMT example of equality logic with uninterpreted functions"/> <br>
 
 # Theory solvers
 
@@ -77,10 +66,10 @@ Currently, the program supports decimal coefficients which will be handled via f
 
 ### Examples
 
-<img src="images/simplex-sat.png" alt="Satisfiable Simplex example" width="350" /> <br>
-<img src="images/simplex-unsat.png" alt="Unsatisfiable Simplex example" width="350" /> <br>
+<img src="images/simplex-sat.png" alt="Satisfiable Simplex example"/> <br>
+<img src="images/simplex-unsat.png" alt="Unsatisfiable Simplex example"/> <br>
 
 An optional objective function can be given to maximize or minimize the value of a linear expression.
 
-<img src="images/simplex-optimal.png" alt="Optimal Simplex example" width="450" /> <br>
-<img src="images/simplex-unbounded.png" alt="Unbounded Simplex example" width="350" /> <br>
+<img src="images/simplex-optimal.png" alt="Optimal Simplex example"/> <br>
+<img src="images/simplex-unbounded.png" alt="Unbounded Simplex example"/> <br>
