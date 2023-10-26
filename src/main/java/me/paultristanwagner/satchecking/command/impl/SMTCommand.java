@@ -37,7 +37,7 @@ public class SMTCommand extends Command {
           
             smt QF_EQ (a=b) & (b=c) & (a!=c | c!=d)
           
-            smt QF_EQ (x=y) & (f(x) = y) & (f(f(x)) = y)
+            smt QF_EQUF (x=y) & (f(x) = y) & (f(f(x)) = y)
         """
     );
   }

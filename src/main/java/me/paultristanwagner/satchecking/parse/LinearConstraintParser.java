@@ -47,14 +47,12 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       optimization = true;
       lexer.consume(MIN);
 
-      lexer.require(LPAREN);
       lexer.consume(LPAREN);
       lc = new MinimizingConstraint();
     } else if(lexer.canConsume(MAX)) {
       optimization = true;
       lexer.consume(MAX);
 
-      lexer.require(LPAREN);
       lexer.consume(LPAREN);
       lc = new MaximizingConstraint();
     } else {
@@ -63,7 +61,6 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
 
     double coefficient = OPTIONAL_SIGNS(lexer) * OPTIONAL_RATIONAL(lexer);
     Token variableToken = lexer.getLookahead();
-    lexer.require(IDENTIFIER);
     lexer.consume(IDENTIFIER);
     String variable = variableToken.getValue();
     lc.setCoefficient(variable, coefficient);
@@ -72,7 +69,6 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       coefficient = OPTIONAL_SIGNS(lexer) * OPTIONAL_RATIONAL(lexer);
       variableToken = lexer.getLookahead();
 
-      lexer.require(IDENTIFIER);
       lexer.consume(IDENTIFIER);
 
       variable = variableToken.getValue();
@@ -80,7 +76,6 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     }
 
     if(optimization) {
-      lexer.require(RPAREN);
       lexer.consume(RPAREN);
       return lc;
     }
@@ -146,16 +141,12 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   }
 
   private static double DECIMAL(Lexer lexer) {
-    lexer.require(DECIMAL);
-
     Token token = lexer.getLookahead();
     lexer.consume(DECIMAL);
     return Double.parseDouble(token.getValue());
   }
 
   private static double FRACTION(Lexer lexer) {
-    lexer.require(FRACTION);
-
     Token token = lexer.getLookahead();
     lexer.consume(FRACTION);
 

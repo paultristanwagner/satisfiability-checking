@@ -65,7 +65,6 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
         break;
       }
 
-      lexer.require(COMMA);
       lexer.consume(COMMA);
     }
 

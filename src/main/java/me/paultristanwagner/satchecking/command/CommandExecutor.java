@@ -7,9 +7,8 @@ public class CommandExecutor {
 
   private final CommandRegistry commandRegistry = CommandRegistry.getInstance();
 
-  private final Command fallbackCommand = commandRegistry.getCommandByName("sat");
-
   public void execute(String commandString) {
+    commandString = commandString.trim();
     String[] rawArgs = commandString.split(" ");
 
     String commandName = rawArgs[0];

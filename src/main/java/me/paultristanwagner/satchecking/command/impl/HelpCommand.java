@@ -35,7 +35,7 @@ public class HelpCommand extends Command {
       System.out.println();
     }
 
-    System.out.println("  Type '" + label + " <command>' for more information on a specific command.");
+    System.out.println("  Type '? <command>' for more information on a specific command.");
 
     return true;
   }

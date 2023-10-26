@@ -115,7 +115,6 @@ public class PropositionalLogicParser
 
       PropositionalLogicExpression res = S(lexer);
 
-      lexer.require(RPAREN);
       lexer.consume(RPAREN);
 
       return new PropositionalLogicParenthesis(res);
@@ -125,8 +124,6 @@ public class PropositionalLogicParser
   }
 
   private static PropositionalLogicVariable VARIABLE(Lexer lexer) {
-    lexer.require(IDENTIFIER);
-
     Token lookahead = lexer.getLookahead();
     lexer.consume(IDENTIFIER);
     return new PropositionalLogicVariable(lookahead.getValue());

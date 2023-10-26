@@ -24,7 +24,6 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
     lexer.requireNextToken();
 
     Token a = lexer.getLookahead();
-    lexer.require(IDENTIFIER);
     lexer.consume(IDENTIFIER);
 
     lexer.requireEither(EQUALS, NOT_EQUALS);
@@ -36,7 +35,6 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
     }
 
     Token b = lexer.getLookahead();
-    lexer.require(IDENTIFIER);
     lexer.consume(IDENTIFIER);
 
     return new ParseResult<>(

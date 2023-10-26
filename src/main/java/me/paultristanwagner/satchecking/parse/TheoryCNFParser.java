@@ -57,7 +57,6 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
   }
 
   private List<T> CLAUSE(Lexer lexer) {
-    lexer.require(LPAREN);
     lexer.consume(LPAREN);
 
     List<T> constraints = new ArrayList<>();
@@ -68,7 +67,6 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
       constraints.add(LITERAL(lexer));
     }
 
-    lexer.require(RPAREN);
     lexer.consume(RPAREN);
 
     return constraints;

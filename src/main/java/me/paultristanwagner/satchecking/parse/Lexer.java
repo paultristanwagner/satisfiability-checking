@@ -121,20 +121,7 @@ public abstract class Lexer {
   }
 
   public void consume(TokenType token) {
-    if (lookahead == null) {
-      throw new SyntaxError("Expected token '" + token.getName() + "'", input, cursor);
-    }
-
-    if (lookahead.getType() != token) {
-      throw new SyntaxError(
-          "Expected token '"
-              + token.getName()
-              + "' but got token '"
-              + lookahead.getType().getName()
-              + "'",
-          input,
-          cursor);
-    }
+    require(token);
 
     cursor += lookahead.getValue().length();
     nextToken();

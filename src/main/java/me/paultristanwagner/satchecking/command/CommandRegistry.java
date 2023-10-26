@@ -14,13 +14,14 @@ public class CommandRegistry {
   private CommandRegistry() {
     register(
         new HelpCommand(),
-        new ClearCommand(),
-        new ReloadCommand(),
-        new ReadCommand(),
         new SATCommand(),
         new SMTCommand(),
         new SimplexCommand(),
-        new TseitinCommand()
+        new TseitinCommand(),
+        new ReadCommand(),
+        new ClearCommand(),
+        new ExitCommand(),
+        new ReloadCommand()
     );
   }
 
