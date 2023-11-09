@@ -1,6 +1,7 @@
 # Satisfiability checking
 
-This project is supposed to be a practice environment to implement algorithms related to satisfiability checking.
+Command line tool for SAT solving, SMT solving in various theories, and other algorithms related to satisfiability checking.
+
 The techniques used here are introduced in the RWTH University
 lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
 by Prof. Dr. Erika Ábrahám.
