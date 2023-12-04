@@ -136,11 +136,15 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicNegation extends PropositionalLogicExpression {
+  public static class PropositionalLogicNegation extends PropositionalLogicExpression {
     private final PropositionalLogicExpression expression;
 
     public PropositionalLogicNegation(PropositionalLogicExpression expression) {
       this.expression = expression;
+    }
+
+    public static PropositionalLogicNegation negation(PropositionalLogicExpression expression) {
+      return new PropositionalLogicNegation(expression);
     }
 
     @Override
@@ -160,9 +164,13 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicImplication extends PropositionalLogicBinary {
+  public static class PropositionalLogicImplication extends PropositionalLogicBinary {
     public PropositionalLogicImplication(PropositionalLogicExpression left, PropositionalLogicExpression right) {
       super(left, right);
+    }
+
+    public static PropositionalLogicImplication implication(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      return new PropositionalLogicImplication(left, right);
     }
 
     @Override
@@ -171,9 +179,13 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicBiConditional extends PropositionalLogicBinary {
+  public static class PropositionalLogicBiConditional extends PropositionalLogicBinary {
     public PropositionalLogicBiConditional(PropositionalLogicExpression left, PropositionalLogicExpression right) {
       super(left, right);
+    }
+
+    public static PropositionalLogicBiConditional equivalence(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      return new PropositionalLogicBiConditional(left, right);
     }
 
     @Override
@@ -182,9 +194,25 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicAnd extends PropositionalLogicBinary {
+  public static class PropositionalLogicAnd extends PropositionalLogicBinary {
     public PropositionalLogicAnd(PropositionalLogicExpression left, PropositionalLogicExpression right) {
       super(left, right);
+    }
+
+    public static PropositionalLogicAnd and(PropositionalLogicExpression... propositionalLogicExpressions) {
+      return and(List.of(propositionalLogicExpressions));
+    }
+
+    public static PropositionalLogicAnd and(List<PropositionalLogicExpression> propositionalLogicExpressions) {
+      if(propositionalLogicExpressions.size() <= 1) {
+        throw new IllegalArgumentException("Cannot create an and expression with less than 2 expressions");
+      }
+
+      PropositionalLogicExpression result = propositionalLogicExpressions.get(0);
+      for (int i = 1; i < propositionalLogicExpressions.size(); i++) {
+        result = new PropositionalLogicAnd(result, propositionalLogicExpressions.get(i));
+      }
+      return (PropositionalLogicAnd) result;
     }
 
     @Override
@@ -193,9 +221,25 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicOr extends PropositionalLogicBinary {
+  public static class PropositionalLogicOr extends PropositionalLogicBinary {
     public PropositionalLogicOr(PropositionalLogicExpression left, PropositionalLogicExpression right) {
       super(left, right);
+    }
+
+    public static PropositionalLogicOr or(PropositionalLogicExpression... propositionalLogicExpressions) {
+      return or(List.of(propositionalLogicExpressions));
+    }
+
+    public static PropositionalLogicOr or(List<PropositionalLogicExpression> propositionalLogicExpressions) {
+      if(propositionalLogicExpressions.size() <= 1) {
+        throw new IllegalArgumentException("Cannot create an or expression with less than 2 expressions");
+      }
+
+      PropositionalLogicExpression result = propositionalLogicExpressions.get(0);
+      for (int i = 1; i < propositionalLogicExpressions.size(); i++) {
+        result = new PropositionalLogicOr(result, propositionalLogicExpressions.get(i));
+      }
+      return (PropositionalLogicOr) result;
     }
 
     @Override
@@ -204,11 +248,15 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicParenthesis extends PropositionalLogicExpression {
+  public static class PropositionalLogicParenthesis extends PropositionalLogicExpression {
     private final PropositionalLogicExpression expression;
 
     public PropositionalLogicParenthesis(PropositionalLogicExpression expression) {
       this.expression = expression;
+    }
+
+    public static PropositionalLogicParenthesis parenthesis(PropositionalLogicExpression expression) {
+      return new PropositionalLogicParenthesis(expression);
     }
 
     @Override
@@ -217,11 +265,15 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicVariable extends PropositionalLogicExpression {
+  public static class PropositionalLogicVariable extends PropositionalLogicExpression {
     private final String name;
 
     public PropositionalLogicVariable(String name) {
       this.name = name;
+    }
+
+    public static PropositionalLogicVariable variable(String name) {
+      return new PropositionalLogicVariable(name);
     }
 
     @Override
@@ -231,6 +283,7 @@ public class PropositionalLogicParser
   }
 
   // todo: just as a prototype
+  // todo: ensure that the helper variables are unique
   public static CNF tseitin(PropositionalLogicExpression expression) {
     TseitinNode result = tseitin(expression, new AtomicInteger(0));
     List<Clause> clauses = result.clauses;
