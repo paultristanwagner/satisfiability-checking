@@ -127,6 +127,13 @@ public abstract class Lexer {
     nextToken();
   }
 
+  public void consumeEither(TokenType... tokenTypes) {
+    requireEither(tokenTypes);
+
+    cursor += lookahead.getValue().length();
+    nextToken();
+  }
+
   public String getInput() {
     return input;
   }

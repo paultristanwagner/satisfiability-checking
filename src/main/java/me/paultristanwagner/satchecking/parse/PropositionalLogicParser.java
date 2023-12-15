@@ -5,6 +5,7 @@ import me.paultristanwagner.satchecking.sat.Clause;
 import me.paultristanwagner.satchecking.sat.Literal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -190,7 +191,7 @@ public class PropositionalLogicParser
 
     @Override
     public String toString() {
-      return left + " <-> " + right;
+      return "(" + left + " <-> " + right + ")";
     }
   }
 
@@ -199,25 +200,35 @@ public class PropositionalLogicParser
       super(left, right);
     }
 
-    public static PropositionalLogicAnd and(PropositionalLogicExpression... propositionalLogicExpressions) {
-      return and(List.of(propositionalLogicExpressions));
+    public static PropositionalLogicExpression and(PropositionalLogicExpression... propositionalLogicExpressions) {
+      return and(Arrays.asList(propositionalLogicExpressions));
     }
 
-    public static PropositionalLogicAnd and(List<PropositionalLogicExpression> propositionalLogicExpressions) {
-      if(propositionalLogicExpressions.size() <= 1) {
-        throw new IllegalArgumentException("Cannot create an and expression with less than 2 expressions");
+    public static PropositionalLogicExpression and(List<PropositionalLogicExpression> propositionalLogicExpressions) {
+      if(propositionalLogicExpressions.isEmpty()) {
+        throw new IllegalArgumentException("Cannot create an and expression with no expressions");
+      } else if (propositionalLogicExpressions.size() == 1) {
+        return propositionalLogicExpressions.get(0);
       }
 
       PropositionalLogicExpression result = propositionalLogicExpressions.get(0);
       for (int i = 1; i < propositionalLogicExpressions.size(); i++) {
+        PropositionalLogicExpression expression = propositionalLogicExpressions.get(i);
+        if(expression == null) continue;
+
+        if(result == null) {
+          result = expression;
+          continue;
+        }
+
         result = new PropositionalLogicAnd(result, propositionalLogicExpressions.get(i));
       }
-      return (PropositionalLogicAnd) result;
+      return result;
     }
 
     @Override
     public String toString() {
-      return left + " & " + right;
+      return "(" + left + " & " + right + ")";
     }
   }
 
@@ -227,16 +238,27 @@ public class PropositionalLogicParser
     }
 
     public static PropositionalLogicOr or(PropositionalLogicExpression... propositionalLogicExpressions) {
-      return or(List.of(propositionalLogicExpressions));
+      return or(Arrays.asList(propositionalLogicExpressions));
     }
 
     public static PropositionalLogicOr or(List<PropositionalLogicExpression> propositionalLogicExpressions) {
-      if(propositionalLogicExpressions.size() <= 1) {
-        throw new IllegalArgumentException("Cannot create an or expression with less than 2 expressions");
+      if(propositionalLogicExpressions.isEmpty()) {
+        throw new IllegalArgumentException("Cannot create an or expression with no expressions");
+      } else if (propositionalLogicExpressions.size() == 1) {
+        return (PropositionalLogicOr) propositionalLogicExpressions.get(0);
       }
 
       PropositionalLogicExpression result = propositionalLogicExpressions.get(0);
       for (int i = 1; i < propositionalLogicExpressions.size(); i++) {
+        PropositionalLogicExpression expression = propositionalLogicExpressions.get(i);
+
+        if(expression == null) continue;
+
+        if(result == null) {
+          result = expression;
+          continue;
+        }
+
         result = new PropositionalLogicOr(result, propositionalLogicExpressions.get(i));
       }
       return (PropositionalLogicOr) result;
@@ -244,7 +266,7 @@ public class PropositionalLogicParser
 
     @Override
     public String toString() {
-      return left + " | " + right;
+      return "(" + left + " | " + right + ")";
     }
   }
 
