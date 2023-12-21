@@ -3,21 +3,25 @@ package me.paultristanwagner.satchecking.theory.solver;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.*;
+
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.*;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> {
 
   private int rows;
   private int columns;
-  private double[][] tableau;
+  private Number[][] tableau;
 
   private List<String> basicVariables;
   private List<String> nonBasicVariables;
-  private List<Double> values;
+  private List<Number> values;
 
-  private Map<String, Double> lowerBounds;
-  private Map<String, Double> upperBounds;
+  private Map<String, Number> lowerBounds;
+  private Map<String, Number> upperBounds;
 
   private final List<LinearConstraint> constraints = new ArrayList<>();
 
@@ -44,9 +48,7 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     // Collect variables
     Set<String> variableSet = new HashSet<>();
     for (LinearConstraint constraint : constraints) {
-      for (String variable : constraint.getVariables()) {
-        variableSet.add("" + variable);
-      }
+      variableSet.addAll(constraint.getVariables());
     }
     List<String> variables = new ArrayList<>(variableSet);
     variables.sort(String::compareTo);
@@ -55,12 +57,12 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     nonBasicVariables = new ArrayList<>(variables);
     values = new ArrayList<>();
     for (int i = 0; i < variables.size(); i++) {
-      values.add(0.0);
+      values.add(ZERO());
     }
 
     // Initialize slack variables, tableau and constraints
     basicVariables = new ArrayList<>();
-    tableau = new double[constraints.size()][variableSet.size()];
+    tableau = new Number[constraints.size()][variableSet.size()];
     for (int i = 0; i < constraints.size(); i++) {
       String slackName = "s" + i;
       LinearConstraint constraint = constraints.get(i);
@@ -68,7 +70,7 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
       for (int j = 0; j < variableSet.size(); j++) {
         String variable = variables.get(j);
-        tableau[i][j] = constraint.getCoefficients().getOrDefault(variable, 0.0);
+        tableau[i][j] = constraint.getCoefficients().getOrDefault(variable, ZERO());
       }
 
       if (constraint.getBound() == LinearConstraint.Bound.EQUAL) {
@@ -85,8 +87,6 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     this.columns = tableau[0].length;
 
     while (true) {
-      // printTableau();
-
       Violation violation = getViolation();
       if (violation == null) {
         break;
@@ -103,7 +103,7 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     VariableAssignment variableAssignment = new VariableAssignment();
 
     for (String variable : variables) {
-      double value;
+      Number value;
       if (basicVariables.contains(variable)) {
         value = getBasicValue(basicVariables.indexOf(variable));
       } else {
@@ -124,8 +124,8 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
     int basicIndex = basicVariables.indexOf(violation.variable());
     for (int j = 0; j < columns; j++) {
-      double a = tableau[basicIndex][j];
-      if (a != 0) {
+      Number a = tableau[basicIndex][j];
+      if (a.isNonZero()) {
         String variable = nonBasicVariables.get(j);
         constraintIndex = Integer.parseInt(variable.split("s")[1]);
         constraint = constraints.get(constraintIndex);
@@ -141,23 +141,21 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     Violation result = null;
     for (int i = 0; i < rows; i++) {
       String variable = basicVariables.get(i);
-      double value = getBasicValue(i);
+      Number value = getBasicValue(i);
       if (result != null && result.variable().compareTo(variable) < 0) {
         continue;
       }
 
       if (upperBounds.containsKey(variable)) {
-        double u = upperBounds.get(variable);
-        if (value > u) {
-          // System.out.println( variable + " = " + value + " but " + variable + " <= " + u );
+        Number u = upperBounds.get(variable);
+        if (value.greaterThan(u)) {
           result = new Violation(variable, false);
         }
       }
 
       if (lowerBounds.containsKey(variable)) {
-        double l = lowerBounds.get(variable);
-        if (value < l) {
-          // System.out.println( variable + " = " + value + " but " + variable + " >= " + l );
+        Number l = lowerBounds.get(variable);
+        if (value.lessThan(l)) {
           result = new Violation(variable, true);
         }
       }
@@ -182,12 +180,12 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
   private boolean canPivot(String basic, String nonBasic, boolean increase) {
     int basicIndex = this.basicVariables.indexOf(basic);
     int nonBasicIndex = this.nonBasicVariables.indexOf(nonBasic);
-    double a = tableau[basicIndex][nonBasicIndex];
-    if (a == 0) {
+    Number a = tableau[basicIndex][nonBasicIndex];
+    if (a.isZero()) {
       return false;
     }
 
-    if (increase == a > 0) {
+    if (increase == a.isPositive()) {
       return canBeIncreased(nonBasic);
     } else {
       return canBeDecreased(nonBasic);
@@ -199,21 +197,22 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     int nonBasicIndex = this.nonBasicVariables.indexOf(nonBasic);
 
     if (increase) {
-      double l = lowerBounds.get(basic);
+      Number l = lowerBounds.get(basic);
       values.set(nonBasicIndex, l);
     } else {
-      double u = upperBounds.get(basic);
+      Number u = upperBounds.get(basic);
       values.set(nonBasicIndex, u);
     }
 
     // Swap
     this.basicVariables.set(basicIndex, nonBasic);
     this.nonBasicVariables.set(nonBasicIndex, basic);
-    double coefficient = tableau[basicIndex][nonBasicIndex];
-    tableau[basicIndex][nonBasicIndex] = 1.0 / coefficient;
+    Number coefficient = tableau[basicIndex][nonBasicIndex];
+    tableau[basicIndex][nonBasicIndex] = ONE().divide(coefficient);
     for (int j = 0; j < columns; j++) {
       if (j != nonBasicIndex) {
-        tableau[basicIndex][j] /= -coefficient;
+        Number result = tableau[basicIndex][j].divide(coefficient.negate());
+        tableau[basicIndex][j] = result;
       }
     }
 
@@ -223,11 +222,12 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
         continue;
       }
 
-      double m = tableau[i][nonBasicIndex];
-      tableau[i][nonBasicIndex] = m * tableau[basicIndex][nonBasicIndex];
+      Number m = tableau[i][nonBasicIndex];
+      tableau[i][nonBasicIndex] = m.multiply(tableau[basicIndex][nonBasicIndex]);
       for (int j = 0; j < columns; j++) {
         if (j != nonBasicIndex) {
-          tableau[i][j] += m * tableau[basicIndex][j];
+          Number result = tableau[i][j].add(m.multiply(tableau[basicIndex][j]));
+          tableau[i][j] = result;
         }
       }
     }
@@ -235,28 +235,29 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
   private boolean canBeIncreased(String variable) {
     if (upperBounds.containsKey(variable)) {
-      double u = upperBounds.get(variable);
-      double value = values.get(nonBasicVariables.indexOf(variable));
+      Number u = upperBounds.get(variable);
+      Number value = values.get(nonBasicVariables.indexOf(variable));
 
-      return value < u;
+      return value.lessThan(u);
     }
     return true;
   }
 
   private boolean canBeDecreased(String variable) {
     if (lowerBounds.containsKey(variable)) {
-      double l = lowerBounds.get(variable);
-      double value = values.get(nonBasicVariables.indexOf(variable));
+      Number l = lowerBounds.get(variable);
+      Number value = values.get(nonBasicVariables.indexOf(variable));
 
-      return value > l;
+      return value.greaterThan(l);
     }
     return true;
   }
 
-  public double getBasicValue(int row) {
-    double result = 0;
+  public Number getBasicValue(int row) {
+    Number result = ZERO();
     for (int i = 0; i < columns; i++) {
-      result += tableau[row][i] * values.get(i);
+      Number summand = tableau[row][i].multiply(values.get(i));
+      result = result.add(summand);
     }
     return result;
   }

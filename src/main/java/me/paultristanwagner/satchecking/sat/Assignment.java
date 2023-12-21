@@ -155,7 +155,7 @@ public class Assignment {
     List<LiteralAssignment> las = new ArrayList<>(literalAssignments.values());
     las.sort(Comparator.comparing(LiteralAssignment::getLiteralName));
     for (LiteralAssignment la : las) {
-      if (Config.load().reducedAssignments()) {
+      if (Config.get().reducedAssignments()) {
         if (la.getValue()) {
           anyTrue = true;
           sb.append(", ").append(la.getLiteralName()).append("=1");
@@ -165,7 +165,7 @@ public class Assignment {
       }
     }
 
-    if (!Config.load().reducedAssignments() || anyTrue) {
+    if (!Config.get().reducedAssignments() || anyTrue) {
       return sb.substring(2);
     } else {
       return "-";

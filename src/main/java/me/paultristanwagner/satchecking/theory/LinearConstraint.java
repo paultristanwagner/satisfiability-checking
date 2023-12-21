@@ -1,24 +1,28 @@
 package me.paultristanwagner.satchecking.theory;
 
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
+
 public class LinearConstraint implements Constraint {
 
   protected final Set<String> variables;
-  protected final Map<String, Double> coefficients;
+  protected final Map<String, Number> coefficients;
   private Bound bound;
-  private double value;
+  private Number value;
 
   private LinearConstraint derivedFrom;
 
   public LinearConstraint() {
     this.variables = new HashSet<>();
     this.coefficients = new HashMap<>();
+    this.value = ZERO();
   }
 
   public LinearConstraint(LinearConstraint constraint) {
@@ -29,7 +33,7 @@ public class LinearConstraint implements Constraint {
     this.derivedFrom = constraint;
   }
 
-  public void setCoefficient(String variable, double coefficient) {
+  public void setCoefficient(String variable, Number coefficient) {
     variables.add(variable);
     coefficients.put(variable, coefficient);
   }
@@ -38,7 +42,7 @@ public class LinearConstraint implements Constraint {
     return variables;
   }
 
-  public Map<String, Double> getCoefficients() {
+  public Map<String, Number> getCoefficients() {
     return coefficients;
   }
 
@@ -46,7 +50,7 @@ public class LinearConstraint implements Constraint {
     return bound;
   }
 
-  public double getValue() {
+  public Number getValue() {
     return value;
   }
 
@@ -54,7 +58,7 @@ public class LinearConstraint implements Constraint {
     this.bound = bound;
   }
 
-  public void setValue(double value) {
+  public void setValue(Number value) {
     this.value = value;
   }
 
@@ -62,7 +66,7 @@ public class LinearConstraint implements Constraint {
     this.derivedFrom = derivedFrom;
   }
 
-  public double getBoundOn(String variable) {
+  public Number getBoundOn(String variable) {
     if (variables.size() != 1) {
       throw new IllegalStateException("Constraint does not have exactly one variable");
     }
@@ -71,9 +75,9 @@ public class LinearConstraint implements Constraint {
       throw new IllegalArgumentException("Variable is not in constraint");
     }
 
-    double coefficient = coefficients.get(variable);
+    Number coefficient = coefficients.get(variable);
 
-    return value / coefficient;
+    return value.divide(coefficient);
   }
 
   public LinearConstraint getRoot() {
@@ -83,31 +87,33 @@ public class LinearConstraint implements Constraint {
     return derivedFrom.getRoot();
   }
 
-  public LinearConstraint offset(String variable, String substitute, double offset) {
+  public LinearConstraint offset(String variable, String substitute, Number offset) {
     LinearConstraint constraint = new LinearConstraint(this);
     if (!coefficients.containsKey(variable)) {
       return this;
     }
 
-    double coeff = coefficients.get(variable);
+    Number coeff = coefficients.get(variable);
     constraint.variables.remove(variable);
     constraint.coefficients.remove(variable);
     constraint.setCoefficient(substitute, coeff);
 
-    constraint.value = value - coeff * offset;
+    constraint.value = value.subtract(
+        coeff.multiply(offset)
+    );
 
     return constraint;
   }
 
   public LinearConstraint positiveNegativeSubstitute(
       String variable, String positive, String negative) {
-    double coeff = coefficients.get(variable);
+    Number coeff = coefficients.get(variable);
 
     LinearConstraint constraint = new LinearConstraint(this);
     constraint.variables.remove(variable);
     constraint.coefficients.remove(variable);
     constraint.setCoefficient(positive, coeff);
-    constraint.setCoefficient(negative, -coeff);
+    constraint.setCoefficient(negative, coeff.negate());
 
     return constraint;
   }
@@ -151,11 +157,11 @@ public class LinearConstraint implements Constraint {
     }
   }
 
-  private static String serializeTerm(Map<String, Double> coefficients) {
+  private static String serializeTerm(Map<String, Number> coefficients) {
     StringBuilder sb = new StringBuilder();
     coefficients.forEach(
-        (variable, coefficent) -> {
-          if (coefficent >= 0) {
+        (variable, coefficient) -> {
+          if (coefficient.isNonNegative()) {
             if (!sb.isEmpty()) {
               sb.append("+");
             }
@@ -163,9 +169,9 @@ public class LinearConstraint implements Constraint {
             sb.append("-");
           }
 
-          double abs = Math.abs(coefficent);
-          if (abs != 1) {
-            sb.append(abs);
+          Number absolute = coefficient.abs();
+          if (!absolute.isOne()) {
+            sb.append(absolute);
           }
 
           sb.append(variable);
@@ -174,11 +180,23 @@ public class LinearConstraint implements Constraint {
     return sb.toString();
   }
   
-  public double evaluate( VariableAssignment assignment ) {
-    double result = 0;
+  public Number evaluateTerm(VariableAssignment<Number> assignment ) {
+    Number result = ZERO();
     for ( String variable : variables ) {
-      result += coefficients.get( variable ) * assignment.getAssignment( variable );
+      Number summand = coefficients.get( variable ).multiply(assignment.getAssignment(variable));
+      result = result.add(summand);
     }
     return result;
+  }
+
+  public boolean evaluate(VariableAssignment<Number> assignment) {
+    Number result = evaluateTerm(assignment);
+    if (bound == Bound.EQUAL) {
+      return result.equals(value);
+    } else if (bound == Bound.LOWER) {
+      return result.greaterThanOrEqual(value);
+    } else {
+      return result.lessThanOrEqual(value);
+    }
   }
 }

@@ -5,6 +5,12 @@ The techniques used here are introduced in the RWTH University
 lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
 by Prof. Dr. Erika Ábrahám.
 
+TODO:
+- [ ] Implement a parser for SMT-LIB 2.6
+- [ ] Use TimedCommand class
+- [ ] Improve output on SMT solver: Functions, ILP, etc.
+- [ ] Implement exact rational arithmetic for Simplex
+
 # How to build and run the project
 Clone the git repository:  
 `git clone https://github.com/paultristanwagner/satisfiability-checking.git`  

@@ -22,7 +22,7 @@ public class Config {
 
   private static Config config;
 
-  public static Config load() {
+  public static Config get() {
     if (config != null) {
       return config;
     }
@@ -51,7 +51,7 @@ public class Config {
 
   public static Config reload() {
     config = null;
-    return Config.load();
+    return Config.get();
   }
 
   private static Config defaultConfig() {
@@ -60,6 +60,7 @@ public class Config {
     defaultProperties.setProperty("maxModelCount", MAXIMUM);
     defaultProperties.setProperty("printModels", "true");
     defaultProperties.setProperty("reducedAssignments", "false");
+    defaultProperties.setProperty("useFloats", "false");
     return new Config(defaultProperties);
   }
 
@@ -110,5 +111,9 @@ public class Config {
       maxModelCountString = Long.toString(Long.MAX_VALUE);
     }
     return Long.parseLong(maxModelCountString);
+  }
+
+  public boolean useFloats() {
+    return Boolean.parseBoolean(properties.getProperty("useFloats", "false"));
   }
 }
