@@ -61,30 +61,15 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
     BitVectorFlattener flattener = new BitVectorFlattener();
     CNF cnf = flattener.flatten(constraints);
 
-    System.out.println(cnf);
-
-    System.out.println();
-
-    flattener.bitVectorVariableToName.forEach(
-        (key, value1) -> System.out.println(key + " -> " + value1));
-
     // combine variables from all constraints
-    /* Set<BitVectorVariable> variables =
+    Set<BitVectorVariable> variables =
     constraints.stream()
         .map(BitVectorConstraint::getVariables)
         .flatMap(Set::stream)
-        .collect(Collectors.toSet()); */
-
-    Set<BitVectorVariable> variables =
-        flattener.bitVectorVariableToName.keySet().stream()
-            .filter(term -> term instanceof BitVectorVariable)
-            .map(term -> (BitVectorVariable) term)
-            .collect(Collectors.toSet());
+        .collect(Collectors.toSet());
 
     SATSolver solver = new DPLLCDCLSolver();
     solver.load(cnf);
-
-    System.out.println();
 
     Assignment assignment;
     if ((assignment = solver.nextModel()) != null) {

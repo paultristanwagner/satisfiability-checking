@@ -21,6 +21,8 @@ import me.paultristanwagner.satchecking.parse.PropositionalLogicParser;
 import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
 import me.paultristanwagner.satchecking.sat.Assignment;
 import me.paultristanwagner.satchecking.sat.CNF;
+import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
+import me.paultristanwagner.satchecking.sat.solver.SATSolver;
 
 public class BitVectorFlattener {
 
@@ -218,9 +220,10 @@ public class BitVectorFlattener {
   private PropositionalLogicExpression convertExtension(BitVectorExtension extension) {
     BitVectorTerm term = extension.getTerm();
 
-    // PropositionalLogicExpression expression = convertTerm(term);
+    PropositionalLogicExpression expression = convertTerm(term);
 
     String variableName = bitVectorVariableToName.get(term);
+    bitVectorVariableToName.put(extension, variableName);
 
     List<PropositionalLogicExpression> bitValueFormulas = new ArrayList<>();
 
@@ -232,7 +235,7 @@ public class BitVectorFlattener {
       );
     }
 
-    return and(bitValueFormulas);
+    return and(expression, and(bitValueFormulas));
   }
 
   private PropositionalLogicExpression convertNegation(BitVectorNegation negation) {
@@ -564,6 +567,8 @@ public class BitVectorFlattener {
     return and(expression1, expression2, individualProducts, r0, adderExpression);
   }
 
+  // todo: this works for unsigned terms but is very hacky :(
+  // todo: idea: turn extension into an actual extension and perform proper logic for signed terms
   private PropositionalLogicExpression convertRemainder(BitVectorRemainder remainder) {
     BitVectorTerm term1 = remainder.getTerm1();
     BitVectorTerm term2 = remainder.getTerm2();
@@ -575,26 +580,42 @@ public class BitVectorFlattener {
     // express that l = (l/r) * r + remainder
     // for this we need to extend all the variables in the formula to 2 * l bits
 
-    BitVectorExtension extendedTerm1 = extend(term1, 2 * term1.getLength());
-    BitVectorExtension extendedTerm2 = extend(term2, 2 * term2.getLength());
+    BitVectorTerm extendedTerm1 = extend(term1, term1.getLength() * 2);
+    BitVectorTerm extendedTerm2 = extend(term2, term1.getLength() * 2);
 
-    String coefficientVariableName = freshAnonymousVariableName();
-    BitVectorVariable coefficientVariable = bitvector(coefficientVariableName, 2 * term1.getLength());
+    String coefficientVariable = freshAnonymousVariableName();
+    BitVectorVariable coefficient = bitvector(coefficientVariable, term1.getLength());
+    BitVectorTerm extendedCoefficient = extend(coefficient, term1.getLength() * 2);
 
-    BitVectorProduct product = product(coefficientVariable, extendedTerm2);
+    String extraRemainderVariable = freshAnonymousVariableName();
+    BitVectorVariable extraRemainder = bitvector(extraRemainderVariable, term1.getLength());
+    BitVectorTerm extendedRemainder = extend(extraRemainder, term1.getLength() * 2);
 
-    String remainderVariableName = freshBitVectorVariableName(remainder);
-    BitVectorTerm extendedRemainder = extend(remainder, 2 * term1.getLength());
+    BitVectorTerm product = product(extendedCoefficient, extendedTerm2);
+    BitVectorTerm extendedAddition = addition(product, extendedRemainder);
+    BitVectorEqualConstraint equalConstraint = equal(extendedTerm1, extendedAddition);
 
-    BitVectorTerm addition = addition(product, extendedRemainder);
-    BitVectorEqualConstraint equalConstraint = equal(extendedTerm1, addition);
-
-    PropositionalLogicExpression equalConstraintExpression = convertEqualConstraint(equalConstraint);
+    PropositionalLogicExpression equalExpression = convertEqualConstraint(equalConstraint);
 
     BitVectorLessThanConstraint lessThanConstraint = lessThan(extendedRemainder, extendedTerm2);
-    PropositionalLogicExpression lessThanConstraintExpression = convertLessThanConstraint(lessThanConstraint);
+    PropositionalLogicExpression lessThanExpression = convertLessThanConstraint(lessThanConstraint);
 
-    return and(equalConstraintExpression, lessThanConstraintExpression);
+    String extraRemainderVariableName = bitVectorVariableToName.get(extraRemainder);
+    String resultVariable = freshBitVectorVariableName(remainder);
+    List<PropositionalLogicExpression> bitEqualFormulas = new ArrayList<>();
+    for(int i = 0; i < term1.getLength(); i++) {
+      String bitVariable = resultVariable + "_" + i;
+      String extendedBitVariable = extraRemainderVariableName + "_" + i;
+
+      bitEqualFormulas.add(
+          equivalence(
+              variable(bitVariable),
+              variable(extendedBitVariable)
+          )
+      );
+    }
+
+    return and(equalExpression, lessThanExpression, and(bitEqualFormulas));
   }
 
   private static PropositionalLogicExpression halfAdderFormula(String bitVariable1, String bitVariable2, String bitVariableResult, String carryVariable) {
