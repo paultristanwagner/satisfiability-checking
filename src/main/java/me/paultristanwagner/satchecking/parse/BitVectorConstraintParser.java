@@ -13,10 +13,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVector.DEFAULT_BIT_VECTOR_LENGTH;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorAddition.addition;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorConstant.constant;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorEqualConstraint.equal;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorLeftShift.leftShift;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorLessThanConstraint.lessThan;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorNegation.negation;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorProduct.product;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorRemainder.remainder;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorSubtraction.subtraction;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorUnequalConstraint.unequal;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorVariable.bitvector;
 
 public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
@@ -28,12 +35,12 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
 
     List<BitVectorConstraint> constraints = new ArrayList<>();
 
-    while(true) {
+    while (true) {
       try {
         System.out.print("> ");
         String input = scanner.nextLine();
 
-        if(input.equalsIgnoreCase("solve")) {
+        if (input.equalsIgnoreCase("solve")) {
           break;
         }
 
@@ -56,22 +63,35 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
 
     System.out.println(cnf);
 
+    System.out.println();
+
+    flattener.bitVectorVariableToName.forEach(
+        (key, value1) -> System.out.println(key + " -> " + value1));
+
     // combine variables from all constraints
-    Set<BitVectorVariable> variables = constraints
-        .stream()
+    /* Set<BitVectorVariable> variables =
+    constraints.stream()
         .map(BitVectorConstraint::getVariables)
         .flatMap(Set::stream)
-        .collect(Collectors.toSet());
+        .collect(Collectors.toSet()); */
+
+    Set<BitVectorVariable> variables =
+        flattener.bitVectorVariableToName.keySet().stream()
+            .filter(term -> term instanceof BitVectorVariable)
+            .map(term -> (BitVectorVariable) term)
+            .collect(Collectors.toSet());
 
     SATSolver solver = new DPLLCDCLSolver();
     solver.load(cnf);
 
+    System.out.println();
+
     Assignment assignment;
-    if((assignment = solver.nextModel()) != null) {
+    if ((assignment = solver.nextModel()) != null) {
       System.out.println("Solution found!");
       for (BitVectorVariable variable : variables) {
         BitVector value = flattener.reconstruct(variable, assignment);
-        System.out.println(variable + " = " + value + " (" + value.asLong() + ")");
+        System.out.println(variable + " = " + value + " (" + value.asInt() + ")");
       }
       System.out.println();
     } else {
@@ -93,17 +113,22 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
    *    <B> ::= <C> BITWISE_AND <C>
    *
    *    <C> ::= <D> BITWISE_LEFT_SHIFT <D>
-   *         | <D> BITWISE_RIGHT_SHIFT <D>
+   *          | <D> BITWISE_RIGHT_SHIFT <D>
    *
    *    <D> ::= <E> ADD <E>
+   *          | <E> MINUS <E>
    *
    *    <E> ::= <F> TIMES <F>
+   *          | <F> REMAINDER <F>
    *
-   *    <F> ::= IDENTIFIER
+   *    <F> ::= BITWISE_NEGATION <G>
+   *
+   *    <G> ::= IDENTIFIER
    *          | BINARY_CONSTANT
    *          | INTEGER
    *          | HEX_CONSTANT
    *
+   *   todo: add support for parentheses
    */
 
   @Override
@@ -124,19 +149,19 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
     lexer.consumeEither(EQUALS, NOT_EQUALS, LESS_THAN);
     BitVectorTerm term2 = parseTerm(lexer);
 
-    if(tokenType == EQUALS) {
-      return BitVectorEqualConstraint.equal(term1, term2);
-    } else if(lexer.canConsume(NOT_EQUALS)) {
-      throw new UnsupportedOperationException("Not implemented yet");
+    if (tokenType == EQUALS) {
+      return equal(term1, term2);
+    } else if (tokenType == NOT_EQUALS) {
+      return unequal(term1, term2);
     } else { // LESS_THAN
-      return BitVectorLessThanConstraint.lessThan(term1, term2);
+      return lessThan(term1, term2);
     }
   }
 
   private BitVectorTerm parseTerm(Lexer lexer) {
     BitVectorTerm term = parseA(lexer);
 
-    while(lexer.canConsume(BITWISE_OR)) {
+    while (lexer.canConsume(BITWISE_OR)) {
       throw new UnsupportedOperationException("Not implemented yet");
     }
 
@@ -146,7 +171,7 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
   private BitVectorTerm parseA(Lexer lexer) {
     BitVectorTerm term = parseB(lexer);
 
-    while(lexer.canConsume(BITWISE_XOR)) {
+    while (lexer.canConsume(BITWISE_XOR)) {
       throw new UnsupportedOperationException("Not implemented yet");
     }
 
@@ -156,7 +181,7 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
   private BitVectorTerm parseB(Lexer lexer) {
     BitVectorTerm term = parseC(lexer);
 
-    while(lexer.canConsume(BITWISE_AND)) {
+    while (lexer.canConsume(BITWISE_AND)) {
       throw new UnsupportedOperationException("Not implemented yet");
     }
 
@@ -166,8 +191,8 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
   private BitVectorTerm parseC(Lexer lexer) {
     BitVectorTerm term = parseD(lexer);
 
-    while(lexer.canConsumeEither(BITWISE_LEFT_SHIFT, BITWISE_RIGHT_SHIFT)) {
-      if(lexer.canConsume(BITWISE_LEFT_SHIFT)) {
+    while (lexer.canConsumeEither(BITWISE_LEFT_SHIFT, BITWISE_RIGHT_SHIFT)) {
+      if (lexer.canConsume(BITWISE_LEFT_SHIFT)) {
         lexer.consume(BITWISE_LEFT_SHIFT);
         term = leftShift(term, parseD(lexer));
       } else {
@@ -182,9 +207,14 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
   private BitVectorTerm parseD(Lexer lexer) {
     BitVectorTerm term = parseE(lexer);
 
-    while(lexer.canConsume(PLUS)) {
-      lexer.consume(PLUS);
-      term = addition(term, parseE(lexer));
+    while (lexer.canConsumeEither(PLUS, MINUS)) {
+      if (lexer.canConsume(PLUS)) {
+        lexer.consume(PLUS);
+        term = addition(term, parseE(lexer));
+      } else {
+        lexer.consume(MINUS);
+        term = subtraction(term, parseE(lexer));
+      }
     }
 
     return term;
@@ -193,15 +223,30 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
   private BitVectorTerm parseE(Lexer lexer) {
     BitVectorTerm term = parseF(lexer);
 
-    while(lexer.canConsume(TIMES)) {
-      lexer.consume(TIMES);
-      term = product(term, parseF(lexer));
+    while (lexer.canConsumeEither(TIMES, REMAINDER)) {
+      if (lexer.canConsume(TIMES)) {
+        lexer.consume(TIMES);
+        term = product(term, parseF(lexer));
+      } else {
+        lexer.consume(REMAINDER);
+        term = remainder(term, parseF(lexer));
+      }
     }
 
     return term;
   }
 
   private BitVectorTerm parseF(Lexer lexer) {
+    if (lexer.canConsume(BITWISE_NOT)) {
+      lexer.consume(BITWISE_NOT);
+
+      return negation(parseG(lexer));
+    }
+
+    return parseG(lexer);
+  }
+
+  private BitVectorTerm parseG(Lexer lexer) {
     lexer.requireEither(IDENTIFIER, BINARY_CONSTANT, INTEGER, HEX_CONSTANT);
 
     Token token = lexer.getLookahead();
@@ -209,12 +254,14 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
 
     if (tokenType == IDENTIFIER) {
       lexer.consume(IDENTIFIER);
-      return bitvector(token.getValue(), 8); // TODO: get bit width from somewhere
-    } else if(tokenType == INTEGER) {
+      return bitvector(
+          token.getValue(), DEFAULT_BIT_VECTOR_LENGTH); // TODO: get bit width from somewhere
+    } else if (tokenType == INTEGER) {
       lexer.consume(INTEGER);
-      long value = Long.parseLong(token.getValue());
-      return constant(new BitVector(value, 8)); // TODO: get bit width from somewhere
-    } else if(tokenType == BINARY_CONSTANT) {
+      int value = Integer.parseInt(token.getValue());
+      return constant(
+          new BitVector(value, DEFAULT_BIT_VECTOR_LENGTH)); // TODO: get bit width from somewhere
+    } else if (tokenType == BINARY_CONSTANT) {
       lexer.consume(BINARY_CONSTANT);
       return parseBinaryConstant(token.getValue());
     }
@@ -225,9 +272,10 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
   private BitVectorConstant parseBinaryConstant(String string) {
     string = string.substring(2); // remove 0b
 
-    boolean[] bits = new boolean[8]; // TODO: get bit width from somewhere
-    for (int length = string.length() - 1; length >= 0; length--) {
-      bits[length] = string.charAt(length) == '1';
+    boolean[] bits = new boolean[DEFAULT_BIT_VECTOR_LENGTH];
+    int max = Math.min(bits.length, string.length());
+    for (int i = 0; i < max; i++) {
+      bits[max - i - 1] = string.charAt(i) == '1';
     }
 
     return constant(new BitVector(bits));

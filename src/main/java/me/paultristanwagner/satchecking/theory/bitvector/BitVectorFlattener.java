@@ -1,87 +1,33 @@
 package me.paultristanwagner.satchecking.theory.bitvector;
 
-import me.paultristanwagner.satchecking.parse.PropositionalLogicParser;
-import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
-import me.paultristanwagner.satchecking.sat.Assignment;
-import me.paultristanwagner.satchecking.sat.CNF;
-import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
-import me.paultristanwagner.satchecking.sat.solver.SATSolver;
-
-import java.util.*;
-
+import static me.paultristanwagner.satchecking.parse.BitVectorExtension.extend;
 import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicAnd.and;
 import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicBiConditional.equivalence;
 import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicImplication.implication;
 import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicNegation.negation;
 import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicOr.or;
 import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicVariable.variable;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorAddition.addition;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorConstant.constant;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorEqualConstraint.equal;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorLeftShift.leftShift;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorLessThanConstraint.lessThan;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorProduct.product;
+import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorVariable.bitvector;
+
+import java.util.*;
+
+import me.paultristanwagner.satchecking.parse.BitVectorExtension;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
+import me.paultristanwagner.satchecking.sat.Assignment;
+import me.paultristanwagner.satchecking.sat.CNF;
 
 public class BitVectorFlattener {
 
   private static final String BIT_VECTOR_VARIABLE_PREFIX = "bv_";
 
   private int bitVectorVariableCounter = 0;
-  private final Map<BitVectorTerm, String> bitVectorVariableToName = new HashMap<>();
-
-  private static final int DEFAULT_BIT_VECTOR_LENGTH = 32;
-
-  public static void main(String[] args) {
-    BitVectorTerm a = BitVectorVariable.bitvector("a", DEFAULT_BIT_VECTOR_LENGTH);
-    BitVectorTerm b = BitVectorVariable.bitvector("b", DEFAULT_BIT_VECTOR_LENGTH);
-    BitVectorTerm c = BitVectorVariable.bitvector("c", DEFAULT_BIT_VECTOR_LENGTH);
-
-    BitVectorConstraint c1 = equal(
-        c,
-        leftShift(
-            a,
-            b
-        )
-    );
-
-    BitVectorConstraint c2 = equal(
-        a,
-        constant(1, DEFAULT_BIT_VECTOR_LENGTH)
-    );
-
-    BitVectorConstraint c3 = lessThan(
-        c,
-        constant(35000, DEFAULT_BIT_VECTOR_LENGTH)
-    );
-
-    BitVectorConstraint c4 = lessThan(
-        constant(0, DEFAULT_BIT_VECTOR_LENGTH),
-        c
-    );
-
-    List<BitVectorConstraint> constraints = List.of(c1, c2, c3, c4);
-
-    BitVectorFlattener flattener = new BitVectorFlattener();
-    constraints.forEach(System.out::println);
-    CNF cnf = flattener.flatten(constraints);
-
-    SATSolver satSolver = new DPLLCDCLSolver();
-    satSolver.load(cnf);
-    Assignment assignment;
-    while ((assignment = satSolver.nextModel()) != null) {
-      BitVector aBitVector = flattener.reconstruct(a, assignment);
-      BitVector bBitVector = flattener.reconstruct(b, assignment);
-      BitVector cBitVector = flattener.reconstruct(c, assignment);
-
-      System.out.printf(
-          "a = %s (%d), " +
-          "b = %s (%d), " +
-          "c = %s (%d), " +
-              "\n",
-          aBitVector, aBitVector.asLong(),
-          bBitVector, bBitVector.asLong(),
-          cBitVector, cBitVector.asLong()
-      );
-    }
-  }
+  public final Map<BitVectorTerm, String> bitVectorVariableToName = new HashMap<>();
 
   public CNF flatten(List<BitVectorConstraint> constraints) {
     List<PropositionalLogicExpression> expressions = new ArrayList<>();
@@ -100,6 +46,8 @@ public class BitVectorFlattener {
   private PropositionalLogicExpression convertConstraint(BitVectorConstraint constraint) {
     if (constraint instanceof BitVectorEqualConstraint equalConstraint) {
       return convertEqualConstraint(equalConstraint);
+    } else if(constraint instanceof BitVectorUnequalConstraint unequalConstraint) {
+      return convertUnequalConstraint(unequalConstraint);
     } else if (constraint instanceof BitVectorLessThanConstraint lessThanConstraint) {
       return convertLessThanConstraint(lessThanConstraint);
     }
@@ -137,6 +85,36 @@ public class BitVectorFlattener {
     return and(expression1, expression2, and(bitEqualFormulas));
   }
 
+  private PropositionalLogicExpression convertUnequalConstraint(BitVectorUnequalConstraint constraint) {
+    BitVectorTerm term1 = constraint.getTerm1();
+    BitVectorTerm term2 = constraint.getTerm2();
+
+    if (term1.getLength() != term2.getLength()) {
+      throw new IllegalArgumentException("BitVectorEqualConstraint: term1 and term2 must have the same length!");
+    }
+
+    PropositionalLogicExpression expression1 = convertTerm(term1);
+    PropositionalLogicExpression expression2 = convertTerm(term2);
+
+    String expression1Name = bitVectorVariableToName.get(term1);
+    String expression2Name = bitVectorVariableToName.get(term2);
+
+    List<PropositionalLogicExpression> bitUnequalFormula = new ArrayList<>();
+    for (int i = 0; i < term1.getLength(); i++) {
+      String bitVariable1 = expression1Name + "_" + i;
+      String bitVariable2 = expression2Name + "_" + i;
+
+      PropositionalLogicExpression bitEqualFormula = equivalence(
+          variable(bitVariable1),
+          negation(variable(bitVariable2))
+      );
+
+      bitUnequalFormula.add(bitEqualFormula);
+    }
+
+    return and(expression1, expression2, or(bitUnequalFormula));
+  }
+
   private PropositionalLogicExpression convertLessThanConstraint(BitVectorLessThanConstraint constraint) {
     BitVectorTerm term1 = constraint.getTerm1();
     BitVectorTerm term2 = constraint.getTerm2();
@@ -153,7 +131,18 @@ public class BitVectorFlattener {
 
     List<PropositionalLogicExpression> caseExpressions = new ArrayList<>();
 
-    for (int r = term1.getLength() - 1; r >= 0; r--) {
+    if(term1.isSigned()) {
+      caseExpressions.add(
+          and(
+              variable(expression1Name + "_" + (term1.getLength() - 1)),
+              negation(variable(expression2Name + "_" + (term2.getLength() - 1)))
+          )
+      );
+    }
+
+    int highestValueBit = term1.isSigned() ? term1.getLength() - 2 : term1.getLength() - 1;
+
+    for (int r = highestValueBit; r >= 0; r--) {
       String bitVariable1 = expression1Name + "_" + r;
       String bitVariable2 = expression2Name + "_" + r;
 
@@ -192,12 +181,20 @@ public class BitVectorFlattener {
       return null;
     } else if (term instanceof BitVectorConstant constant) {
       return convertConstant(constant);
+    } else if (term instanceof BitVectorExtension extension) {
+      return convertExtension(extension);
     } else if (term instanceof BitVectorAddition addition) {
       return convertAddition(addition);
+    } else if (term instanceof BitVectorSubtraction subtraction) {
+      return convertSubtraction(subtraction);
     } else if (term instanceof BitVectorProduct product) {
       return convertProduct(product);
+    } else if (term instanceof BitVectorRemainder remainder) {
+      return convertRemainder(remainder);
     } else if (term instanceof BitVectorLeftShift leftShift) {
       return convertLeftShift(leftShift);
+    } else if (term instanceof BitVectorNegation negation) {
+      return convertNegation(negation);
     }
 
     throw new UnsupportedOperationException("Not implemented yet");
@@ -216,6 +213,52 @@ public class BitVectorFlattener {
     }
 
     return and(bitValueFormulas);
+  }
+
+  private PropositionalLogicExpression convertExtension(BitVectorExtension extension) {
+    BitVectorTerm term = extension.getTerm();
+
+    // PropositionalLogicExpression expression = convertTerm(term);
+
+    String variableName = bitVectorVariableToName.get(term);
+
+    List<PropositionalLogicExpression> bitValueFormulas = new ArrayList<>();
+
+    for (int i = term.getLength(); i < extension.getLength(); i++) {
+      String bitResultVariable = variableName + "_" + i;
+
+      bitValueFormulas.add(
+          negation(variable(bitResultVariable))
+      );
+    }
+
+    return and(bitValueFormulas);
+  }
+
+  private PropositionalLogicExpression convertNegation(BitVectorNegation negation) {
+    BitVectorTerm term = negation.getTerm();
+
+    PropositionalLogicExpression expression = convertTerm(term);
+
+    String variableName = bitVectorVariableToName.get(term);
+
+    String resultVariable = freshBitVectorVariableName(negation);
+
+    List<PropositionalLogicExpression> bitValueFormulas = new ArrayList<>();
+
+    for (int i = 0; i < term.getLength(); i++) {
+      String bitResultVariable = resultVariable + "_" + i;
+      String bitTermVariable = variableName + "_" + i;
+
+      bitValueFormulas.add(
+          equivalence(
+              variable(bitResultVariable),
+              negation(variable(bitTermVariable))
+          )
+      );
+    }
+
+    return and(expression, and(bitValueFormulas));
   }
 
   private PropositionalLogicExpression convertAddition(BitVectorAddition addition) {
@@ -265,6 +308,57 @@ public class BitVectorFlattener {
     }
 
     return and(and(expressions), expression1, expression2);
+  }
+
+  private PropositionalLogicExpression convertSubtraction(BitVectorSubtraction subtraction) {
+    BitVectorTerm term1 = subtraction.getTerm1();
+    BitVectorTerm term2 = subtraction.getTerm2();
+
+    if (term1.getLength() != term2.getLength()) {
+      throw new IllegalArgumentException("BitVectorSubtraction: term1 and term2 must have the same length!");
+    }
+
+    PropositionalLogicExpression expression1 = convertTerm(term1);
+
+    String variable1 = bitVectorVariableToName.get(term1);
+
+    String resultVariable = freshBitVectorVariableName(subtraction);
+    String carryVariable = freshAnonymousVariableName();
+
+    List<PropositionalLogicExpression> expressions = new ArrayList<>();
+
+    BitVectorAddition twoComplementTerm = addition(BitVectorNegation.negation(term2), constant(1, term2.getLength()));
+    PropositionalLogicExpression twoComplementExpression = convertAddition(twoComplementTerm);
+    String twoComplementVariable = bitVectorVariableToName.get(twoComplementTerm);
+
+    expressions.add(
+        halfAdderFormula(
+            variable1 + "_0",
+            twoComplementVariable + "_0",
+            resultVariable + "_0",
+            carryVariable + "_0"
+        )
+    );
+
+    for (int i = 1; i < subtraction.getLength(); i++) {
+      String bitVariable1 = variable1 + "_" + i;
+      String bitVariable2 = twoComplementVariable + "_" + i;
+      String bitVariableResult = resultVariable + "_" + i;
+      String previousCarryVariable = carryVariable + "_" + (i - 1);
+      String bitCarryVariable = carryVariable + "_" + i;
+
+      expressions.add(
+          fullAdderFormula(
+              bitVariable1,
+              bitVariable2,
+              previousCarryVariable,
+              bitVariableResult,
+              bitCarryVariable
+          )
+      );
+    }
+
+    return and(and(expressions), expression1, twoComplementExpression);
   }
 
   private PropositionalLogicExpression convertLeftShift(BitVectorLeftShift leftShift) {
@@ -468,6 +562,39 @@ public class BitVectorFlattener {
     PropositionalLogicExpression adderExpression = and(adderList);
 
     return and(expression1, expression2, individualProducts, r0, adderExpression);
+  }
+
+  private PropositionalLogicExpression convertRemainder(BitVectorRemainder remainder) {
+    BitVectorTerm term1 = remainder.getTerm1();
+    BitVectorTerm term2 = remainder.getTerm2();
+
+    if (term1.getLength() != term2.getLength()) {
+      throw new IllegalArgumentException("BitVectorAddition: term1 and term2 must have the same length!");
+    }
+
+    // express that l = (l/r) * r + remainder
+    // for this we need to extend all the variables in the formula to 2 * l bits
+
+    BitVectorExtension extendedTerm1 = extend(term1, 2 * term1.getLength());
+    BitVectorExtension extendedTerm2 = extend(term2, 2 * term2.getLength());
+
+    String coefficientVariableName = freshAnonymousVariableName();
+    BitVectorVariable coefficientVariable = bitvector(coefficientVariableName, 2 * term1.getLength());
+
+    BitVectorProduct product = product(coefficientVariable, extendedTerm2);
+
+    String remainderVariableName = freshBitVectorVariableName(remainder);
+    BitVectorTerm extendedRemainder = extend(remainder, 2 * term1.getLength());
+
+    BitVectorTerm addition = addition(product, extendedRemainder);
+    BitVectorEqualConstraint equalConstraint = equal(extendedTerm1, addition);
+
+    PropositionalLogicExpression equalConstraintExpression = convertEqualConstraint(equalConstraint);
+
+    BitVectorLessThanConstraint lessThanConstraint = lessThan(extendedRemainder, extendedTerm2);
+    PropositionalLogicExpression lessThanConstraintExpression = convertLessThanConstraint(lessThanConstraint);
+
+    return and(equalConstraintExpression, lessThanConstraintExpression);
   }
 
   private static PropositionalLogicExpression halfAdderFormula(String bitVariable1, String bitVariable2, String bitVariableResult, String carryVariable) {

@@ -2,22 +2,22 @@ package me.paultristanwagner.satchecking.theory.bitvector;
 
 import java.util.Set;
 
-public class BitVectorProduct extends BitVectorTerm {
+public class BitVectorRemainder extends BitVectorTerm {
 
   private final BitVectorTerm term1;
   private final BitVectorTerm term2;
 
-  private BitVectorProduct(BitVectorTerm term1, BitVectorTerm term2) {
-    /* if(term1.getLength() != term2.getLength()) { // todo: uncomment
-      throw new IllegalArgumentException("BitVectorMultiplication: term1 and term2 must have the same length!");
-    } */
+  private BitVectorRemainder(BitVectorTerm term1, BitVectorTerm term2) {
+    if(term1.getLength() != term2.getLength()) {
+      throw new IllegalArgumentException("BitVectorRemainder: term1 and term2 must have the same length!");
+    }
 
     this.term1 = term1;
     this.term2 = term2;
   }
 
-  public static BitVectorProduct product(BitVectorTerm term1, BitVectorTerm term2) {
-    return new BitVectorProduct(term1, term2);
+  public static BitVectorRemainder remainder(BitVectorTerm term1, BitVectorTerm term2) {
+    return new BitVectorRemainder(term1, term2);
   }
 
   public BitVectorTerm getTerm1() {
@@ -42,6 +42,6 @@ public class BitVectorProduct extends BitVectorTerm {
 
   @Override
   public String toString() {
-    return "(" + term1 + " * " + term2 + ")";
+    return "(" + term1 + " % " + term2 + ")";
   }
 }
