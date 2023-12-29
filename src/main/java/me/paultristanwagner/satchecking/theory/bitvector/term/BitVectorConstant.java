@@ -1,4 +1,6 @@
-package me.paultristanwagner.satchecking.theory.bitvector;
+package me.paultristanwagner.satchecking.theory.bitvector.term;
+
+import me.paultristanwagner.satchecking.theory.bitvector.BitVector;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -36,7 +38,12 @@ public class BitVectorConstant extends BitVectorTerm {
   }
 
   @Override
+  public Set<BitVectorTerm> getProperSubTerms() {
+    return new HashSet<>();
+  }
+
+  @Override
   public String toString() {
-    return bitVector.toString();
+    return "0b" + bitVector.toString();
   }
 }

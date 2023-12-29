@@ -1,8 +1,7 @@
 package me.paultristanwagner.satchecking.parse;
 
-import me.paultristanwagner.satchecking.theory.bitvector.BitVector;
-import me.paultristanwagner.satchecking.theory.bitvector.BitVectorTerm;
-import me.paultristanwagner.satchecking.theory.bitvector.BitVectorVariable;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable;
 
 import java.util.Set;
 
@@ -41,5 +40,12 @@ public class BitVectorExtension extends BitVectorTerm {
   @Override
   public Set<BitVectorVariable> getVariables() {
     return term.getVariables();
+  }
+
+  @Override
+  public Set<BitVectorTerm> getProperSubTerms() {
+    Set<BitVectorTerm> subTerms = term.getProperSubTerms();
+    subTerms.add(term);
+    return subTerms;
   }
 }

@@ -1,4 +1,4 @@
-package me.paultristanwagner.satchecking.theory.bitvector;
+package me.paultristanwagner.satchecking.theory.bitvector.term;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -34,6 +34,11 @@ public class BitVectorVariable extends BitVectorTerm {
   @Override
   public Set<BitVectorVariable> getVariables() {
     return new HashSet<>(Set.of(this));
+  }
+
+  @Override
+  public Set<BitVectorTerm> getProperSubTerms() {
+    return new HashSet<>();
   }
 
   @Override

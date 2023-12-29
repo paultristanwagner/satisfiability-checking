@@ -1,10 +1,8 @@
 package me.paultristanwagner.satchecking.theory.bitvector;
 
-import java.math.BigInteger;
-
 public class BitVector {
 
-  public final static int DEFAULT_BIT_VECTOR_LENGTH = 8;
+  public final static int DEFAULT_BIT_VECTOR_LENGTH = 32;
 
   private final int length;
   private final boolean[] bits;
@@ -76,6 +74,7 @@ public class BitVector {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
+    sb.append("0b");
     for (int i = bits.length - 1; i >= 0; i--) {
       sb.append(bits[i] ? 1 : 0);
     }

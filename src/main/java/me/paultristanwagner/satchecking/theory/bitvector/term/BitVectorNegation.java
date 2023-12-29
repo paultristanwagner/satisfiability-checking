@@ -1,4 +1,4 @@
-package me.paultristanwagner.satchecking.theory.bitvector;
+package me.paultristanwagner.satchecking.theory.bitvector.term;
 
 import java.util.Set;
 
@@ -31,5 +31,12 @@ public class BitVectorNegation extends BitVectorTerm {
   @Override
   public Set<BitVectorVariable> getVariables() {
     return term.getVariables();
+  }
+
+  @Override
+  public Set<BitVectorTerm> getProperSubTerms() {
+    Set<BitVectorTerm> subTerms = term.getProperSubTerms();
+    subTerms.add(term);
+    return subTerms;
   }
 }

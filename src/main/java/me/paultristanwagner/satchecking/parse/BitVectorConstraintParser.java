@@ -5,6 +5,10 @@ import me.paultristanwagner.satchecking.sat.CNF;
 import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
 import me.paultristanwagner.satchecking.sat.solver.SATSolver;
 import me.paultristanwagner.satchecking.theory.bitvector.*;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorConstant;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,17 +18,17 @@ import java.util.stream.Collectors;
 
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVector.DEFAULT_BIT_VECTOR_LENGTH;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorAddition.addition;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorConstant.constant;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorEqualConstraint.equal;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorLeftShift.leftShift;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorLessThanConstraint.lessThan;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorNegation.negation;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorProduct.product;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorRemainder.remainder;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorSubtraction.subtraction;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorUnequalConstraint.unequal;
-import static me.paultristanwagner.satchecking.theory.bitvector.BitVectorVariable.bitvector;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorAddition.addition;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorConstant.constant;
+import static me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorEqualConstraint.equal;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorLeftShift.leftShift;
+import static me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorLessThanConstraint.lessThan;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorNegation.negation;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorProduct.product;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorRemainder.remainder;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorSubtraction.subtraction;
+import static me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorUnequalConstraint.unequal;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable.bitvector;
 
 public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
 
@@ -75,8 +79,9 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
     if ((assignment = solver.nextModel()) != null) {
       System.out.println("Solution found!");
       for (BitVectorVariable variable : variables) {
-        BitVector value = flattener.reconstruct(variable, assignment);
-        System.out.println(variable + " = " + value + " (" + value.asInt() + ")");
+        BitVector vector = flattener.reconstruct(variable, assignment);
+        Object value = variable.isSigned() ? vector.asInt() : vector.asUnsignedIntegerString();
+        System.out.println(variable + " = " + vector + " (" + value + ")");
       }
       System.out.println();
     } else {
