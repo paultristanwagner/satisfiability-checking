@@ -1,8 +1,10 @@
 package me.paultristanwagner.satchecking.theory.bitvector;
 
+import java.math.BigInteger;
+
 public class BitVector {
 
-  public final static int DEFAULT_BIT_VECTOR_LENGTH = 32;
+  public final static int DEFAULT_BIT_VECTOR_LENGTH = 8;
 
   private final int length;
   private final boolean[] bits;
@@ -42,6 +44,32 @@ public class BitVector {
         value |= (1L << i);
       }
     }
+    return value;
+  }
+
+  public BigInteger asUnsignedBigInteger() {
+    BigInteger value = BigInteger.ZERO;
+    for (int i = 0; i < length; i++) {
+      if (bits[i]) {
+        value = value.setBit(i);
+      }
+    }
+
+    return value;
+  }
+
+  public BigInteger asSignedBigInteger() {
+    BigInteger value = BigInteger.ZERO;
+    for (int i = 0; i < length; i++) {
+      if (bits[i]) {
+        value = value.setBit(i);
+      }
+    }
+
+    if (bits[length - 1]) {
+      value = value.subtract(BigInteger.ONE.shiftLeft(length));
+    }
+
     return value;
   }
 

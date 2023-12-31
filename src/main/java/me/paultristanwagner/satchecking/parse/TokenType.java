@@ -8,9 +8,11 @@ public class TokenType {
   static final TokenType LOWER_EQUALS = TokenType.of("<=", "^(<=|≤)");
   static final TokenType GREATER_EQUALS = TokenType.of(">=", "^(>=|≥)");
   static final TokenType LESS_THAN = TokenType.of("<", "^<");
-  // static final TokenType GREATER_THAN = TokenType.of(">", "^>");
+  static final TokenType GREATER_THAN = TokenType.of(">", "^>");
   static final TokenType LPAREN = TokenType.of("(", "^\\(");
   static final TokenType RPAREN = TokenType.of(")", "^\\)");
+  static final TokenType LBRACKET = TokenType.of("[", "^\\[");
+  static final TokenType RBRACKET = TokenType.of("]", "^\\]");
   static final TokenType COMMA = TokenType.of(",", "^,");
   static final TokenType INTEGER = TokenType.of("integer", "^[+-]?\\d+");
   static final TokenType DECIMAL = TokenType.of("decimal", "^[+-]?(?:\\d+\\.\\d*|\\.\\d+|\\d+)");
@@ -20,6 +22,7 @@ public class TokenType {
   static final TokenType PLUS = TokenType.of("+", "^\\+");
   static final TokenType MINUS = TokenType.of("-", "^-");
   static final TokenType TIMES = TokenType.of("*", "^\\*");
+  static final TokenType DIVIDE = TokenType.of("/", "^\\/");
   static final TokenType REMAINDER = TokenType.of("*", "^\\%");
   static final TokenType AND = TokenType.of("and", "^(&|&&|and|AND|∧)");
   static final TokenType OR = TokenType.of("or", "^(\\|\\||\\||or|OR|∨)");

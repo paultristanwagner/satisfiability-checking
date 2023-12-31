@@ -44,6 +44,6 @@ public class BitVectorConstant extends BitVectorTerm {
 
   @Override
   public String toString() {
-    return "0b" + bitVector.toString();
+    return bitVector.toString();
   }
 }

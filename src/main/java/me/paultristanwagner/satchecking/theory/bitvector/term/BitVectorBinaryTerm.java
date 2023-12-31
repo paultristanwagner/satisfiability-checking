@@ -34,11 +34,6 @@ public abstract class BitVectorBinaryTerm extends BitVectorTerm {
   }
 
   @Override
-  public boolean isSigned() {
-    return term1.isSigned();
-  }
-
-  @Override
   public Set<BitVectorVariable> getVariables() {
     Set<BitVectorVariable> variables = term1.getVariables();
     variables.addAll(term2.getVariables());
