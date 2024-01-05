@@ -28,7 +28,8 @@ public class SMTCommand extends Command {
                 QF_LRA (Linear real arithmetic),
                 QF_LIA (Linear integer arithmetic),
                 QF_EQ (Equality logic),
-                QF_EQUF (Equality logic with uninterpreted functions)
+                QF_EQUF (Equality logic with uninterpreted functions),
+                QF_BV (Bitvector arithmetic)
               
               Examples:
                 smt QF_LRA (x <= 5) & (max(x))
@@ -38,6 +39,8 @@ public class SMTCommand extends Command {
                 smt QF_EQ (a=b) & (b=c) & (a!=c | c!=d)
               
                 smt QF_EQUF (x=y) & (f(x) = y) & (f(f(x)) = y)
+                
+                smt QF_BV (x % 3 = 0) & (x % 4 = 3) & (x % 5 = 4)
             """
     );
   }

@@ -103,6 +103,20 @@ UNSAT
 Time: 0ms
 ```
 
+### QF_BV
+```c++
+> smt QF_BV (x >= 0) & (y > 0) & (y[6]) & (x >> y = 0) & (x + y < x * y)
+SAT:
+x=0b01010101 (85); y=0b01000000 (64);
+Time: 3ms
+```
+
+```c+++
+> smt QF_BV (a * b = c) & (b * a = c) & (x < y) & (y < x)
+UNSAT
+Time: 11ms
+```
+
 # Theory solvers
 ## Linear real arithmetic (QF_LRA)
 The program can check sets of weak linear constraints for satisfiability employing
