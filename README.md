@@ -37,7 +37,7 @@ UNSAT
 # Tseitin's transformation
 The Tseitin transformation is implemented for propositional logic.
 It can be used to transform a formula into an equi-satisfiable formula in conjunctive normal form.
-The logical operators '~', '&', '|', '->', '<->' as well as parentheses are supported.
+The logical operators ``'~', '&', '|', '->', '<->'`` as well as parentheses are supported.
 
 ```c++
 > tseitin ~(a & (a -> b) -> b)
@@ -46,9 +46,7 @@ Tseitin's transformation:
 ```
 
 # SMT solver
-An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (
-QF_EQ) and equality logic with
-uninterpreted functions (QF_EQUF).
+An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (QF_EQ), equality logic with uninterpreted functions (QF_EQUF) and bit vector arithmetic (QF_BV).
 
 ## Examples
 ### QF_LRA
