@@ -1,21 +1,9 @@
 package me.paultristanwagner.satchecking.parse;
 
-import me.paultristanwagner.satchecking.sat.Assignment;
-import me.paultristanwagner.satchecking.sat.CNF;
-import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
-import me.paultristanwagner.satchecking.sat.solver.SATSolver;
 import me.paultristanwagner.satchecking.theory.bitvector.BitVector;
-import me.paultristanwagner.satchecking.theory.bitvector.BitVectorFlattener;
 import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorConstraint;
 import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorConstant;
 import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
-import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
 import static me.paultristanwagner.satchecking.theory.bitvector.BitVector.DEFAULT_BIT_VECTOR_LENGTH;
@@ -35,71 +23,12 @@ import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorNe
 import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorOr.bitwiseOr;
 import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorProduct.product;
 import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorRemainder.remainder;
+import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorRightShift.rightShift;
 import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorSubtraction.subtraction;
 import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable.bitvector;
 import static me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorXor.bitwiseXor;
 
 public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
-
-  public static void main(String[] args) {
-    Scanner scanner = new Scanner(System.in);
-
-    BitVectorConstraintParser parser = new BitVectorConstraintParser();
-
-    List<BitVectorConstraint> constraints = new ArrayList<>();
-
-    while (true) {
-      try {
-        System.out.print("> ");
-        String input = scanner.nextLine();
-
-        if (input.equalsIgnoreCase("solve")) {
-          break;
-        }
-
-        BitVectorConstraint constraint = parser.parse(input);
-
-        constraints.add(constraint);
-
-      } catch (SyntaxError syntaxError) {
-        syntaxError.printWithContext();
-      }
-    }
-
-    for (BitVectorConstraint constraint : constraints) {
-      System.out.println(constraint);
-    }
-    System.out.println();
-
-    BitVectorFlattener flattener = new BitVectorFlattener();
-    CNF cnf = flattener.flatten(constraints);
-    System.out.println("Conversion to CNF done!");
-
-    // combine variables from all constraints
-    Set<BitVectorVariable> variables =
-        constraints.stream()
-            .map(BitVectorConstraint::getVariables)
-            .flatMap(Set::stream)
-            .collect(Collectors.toSet());
-
-    SATSolver solver = new DPLLCDCLSolver();
-    solver.load(cnf);
-
-    System.out.println("Solving...");
-
-    Assignment assignment;
-    if ((assignment = solver.nextModel()) != null) {
-      System.out.println("Solution found!");
-      for (BitVectorTerm variable : variables) {
-        BitVector vector = flattener.reconstruct(variable, assignment);
-        Object value = variable.isSigned() ? vector.asSignedBigInteger() : vector.asUnsignedBigInteger();
-        System.out.println(variable + " = " + vector + " (" + value + ")");
-      }
-      System.out.println();
-    } else {
-      System.out.println("No solution found!");
-    }
-  }
 
   /*
    *  Grammar for BitVector constraints:
@@ -109,7 +38,7 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
    *          | <TERM> GREATER_THAN <TERM>
    *          | <TERM> LOWER_EQUALS <TERM>
    *          | <TERM> GREATER_EQUALS <TERM>
-   *          | <TERM> [ <INTEGER> ]
+   *          | <TERM> '[' <INTEGER> ']'
    *
    *    <TERM> ::= BITWISE_NOT <TERM>
    *             | <A> BITWISE_OR <A>
@@ -143,7 +72,6 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
    *          | INTEGER
    *          | HEX_CONSTANT
    *
-   *   todo: add support for parentheses
    */
 
   @Override
@@ -249,7 +177,7 @@ public class BitVectorConstraintParser implements Parser<BitVectorConstraint> {
         term = leftShift(term, parseD(lexer));
       } else {
         lexer.consume(BITWISE_RIGHT_SHIFT);
-        throw new UnsupportedOperationException("Not implemented yet");
+        term = rightShift(term, parseD(lexer));
       }
     }
 

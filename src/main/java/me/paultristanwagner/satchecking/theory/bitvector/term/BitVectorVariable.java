@@ -37,7 +37,7 @@ public class BitVectorVariable extends BitVectorTerm {
   }
 
   @Override
-  public Set<BitVectorTerm> getProperSubTerms() {
+  public Set<BitVectorTerm> getMaximalProperSubTerms() {
     return new HashSet<>();
   }
 

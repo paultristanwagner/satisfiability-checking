@@ -3,6 +3,7 @@ package me.paultristanwagner.satchecking.theory.bitvector.constraint;
 import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
 import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public class BitVectorBitConstraint extends BitVectorConstraint {
@@ -38,8 +39,8 @@ public class BitVectorBitConstraint extends BitVectorConstraint {
   }
 
   @Override
-  public Set<BitVectorTerm> getTerms() {
-    Set<BitVectorTerm> terms = term.getProperSubTerms();
+  public Set<BitVectorTerm> getMaximalProperSubTerms() {
+    Set<BitVectorTerm> terms = new HashSet<>();
     terms.add(term);
     return terms;
   }

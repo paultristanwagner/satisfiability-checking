@@ -12,5 +12,5 @@ public abstract class BitVectorTerm {
 
   public abstract Set<BitVectorVariable> getVariables();
 
-  public abstract Set<BitVectorTerm> getProperSubTerms();
+  public abstract Set<BitVectorTerm> getMaximalProperSubTerms();
 }

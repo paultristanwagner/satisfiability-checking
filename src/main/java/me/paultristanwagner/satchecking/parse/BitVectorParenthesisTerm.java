@@ -37,7 +37,7 @@ public class BitVectorParenthesisTerm extends BitVectorTerm {
   }
 
   @Override
-  public Set<BitVectorTerm> getProperSubTerms() {
-    return term.getProperSubTerms();
+  public Set<BitVectorTerm> getMaximalProperSubTerms() {
+    return term.getMaximalProperSubTerms();
   }
 }

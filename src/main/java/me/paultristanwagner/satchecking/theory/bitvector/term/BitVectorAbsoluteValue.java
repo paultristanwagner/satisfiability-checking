@@ -1,5 +1,6 @@
 package me.paultristanwagner.satchecking.theory.bitvector.term;
 
+import java.util.HashSet;
 import java.util.Set;
 
 public class BitVectorAbsoluteValue extends BitVectorTerm {
@@ -43,9 +44,9 @@ public class BitVectorAbsoluteValue extends BitVectorTerm {
   }
 
   @Override
-  public Set<BitVectorTerm> getProperSubTerms() {
-    Set<BitVectorTerm> subTerms = term.getProperSubTerms();
-    subTerms.add(term);
-    return subTerms;
+  public Set<BitVectorTerm> getMaximalProperSubTerms() {
+    Set<BitVectorTerm> maximalProperSubTerms = new HashSet<>();
+    maximalProperSubTerms.add(term);
+    return maximalProperSubTerms;
   }
 }

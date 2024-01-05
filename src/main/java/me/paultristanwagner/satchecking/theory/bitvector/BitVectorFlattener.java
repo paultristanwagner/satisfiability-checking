@@ -38,15 +38,6 @@ public class BitVectorFlattener {
   public final Map<BitVectorConstraint, PropositionalLogicExpression> constraintToExpression =
       new HashMap<>();
 
-  /*
-   * todo:
-   *  - Implement binary bitvector terms : DONE
-   *  - Implement unary bitvector terms : MAYBE NOT NEEDED
-   *  - Change conversion to store expressions in a map
-   *
-   *  - If we convert a term, we need to store the variable name in a map
-   */
-
   public CNF flatten(List<BitVectorConstraint> constraints) {
     List<PropositionalLogicExpression> expressions = new ArrayList<>();
     for (BitVectorConstraint constraint : constraints) {
@@ -73,8 +64,8 @@ public class BitVectorFlattener {
     }
 
     PropositionalLogicExpression subTermExpression = null;
-    if (convertSubTerms && !constraint.getTerms().isEmpty()) {
-      subTermExpression = convertTermsRecursive(constraint.getTerms());
+    if (convertSubTerms && !constraint.getMaximalProperSubTerms().isEmpty()) {
+      subTermExpression = convertTermsRecursive(constraint.getMaximalProperSubTerms());
     }
 
     PropositionalLogicExpression constraintExpression;
@@ -217,6 +208,17 @@ public class BitVectorFlattener {
     );
   }
 
+  private PropositionalLogicExpression convertTermsNonRecursive(Collection<BitVectorTerm> terms) {
+    List<PropositionalLogicExpression> expressions = new ArrayList<>();
+    for (BitVectorTerm term : terms) {
+      PropositionalLogicExpression expression = convertTermNonRecursive(term);
+
+      expressions.add(expression);
+    }
+
+    return and(expressions);
+  }
+
   private PropositionalLogicExpression convertTermsRecursive(Collection<BitVectorTerm> terms) {
     List<PropositionalLogicExpression> expressions = new ArrayList<>();
     for (BitVectorTerm term : terms) {
@@ -242,8 +244,8 @@ public class BitVectorFlattener {
     }
 
     PropositionalLogicExpression subTermExpression = null;
-    if (convertSubTerms && !term.getProperSubTerms().isEmpty()) {
-      subTermExpression = convertTermsRecursive(term.getProperSubTerms());
+    if (convertSubTerms && !term.getMaximalProperSubTerms().isEmpty()) {
+      subTermExpression = convertTermsRecursive(term.getMaximalProperSubTerms());
     }
 
     if (term instanceof BitVectorVariable) {
@@ -277,6 +279,8 @@ public class BitVectorFlattener {
       termExpression = remainderExpression(remainder);
     } else if (term instanceof BitVectorLeftShift leftShift) {
       termExpression = leftShiftExpression(leftShift);
+    } else if(term instanceof BitVectorRightShift rightShift) {
+      termExpression = rightShiftExpression(rightShift);
     } else if (term instanceof BitVectorNegation negation) {
       termExpression = negationExpression(negation);
     } else if (term instanceof BitVectorOr bitwiseOr) {
@@ -313,7 +317,6 @@ public class BitVectorFlattener {
     return and(bitValueFormulas);
   }
 
-  // todo: add support for signed terms
   private PropositionalLogicExpression extensionExpression(BitVectorExtension extension) {
     BitVectorTerm term = extension.getTerm();
 
@@ -650,6 +653,91 @@ public class BitVectorFlattener {
     }
 
     return and(expressions);
+  }
+
+  private PropositionalLogicExpression constantRightShiftExpression(BitVectorRightShift rightShift) {
+    if(!(rightShift.getTerm2() instanceof BitVectorConstant term2)) {
+      throw new IllegalArgumentException("BitVectorRightShift: term2 must be a constant!");
+    }
+
+    BitVectorTerm term1 = rightShift.getTerm1();
+    String variable1 = bitVectorVariableToName.get(term1);
+
+    String resultVariable = freshBitVectorVariableName(rightShift);
+
+    List<PropositionalLogicExpression> expressions = new ArrayList<>();
+
+    for(int i = 0; i < rightShift.getLength(); i++) {
+      long shift = term2.getBitVector().asLong(); // todo: this might not be correct
+
+      String bitVariableResult = resultVariable + "_" + i;
+
+      if(i >= rightShift.getLength() - shift) {
+        expressions.add(negation(variable(bitVariableResult)));
+      } else {
+        String bitVariable1 = variable1 + "_" + (i + shift);
+
+        expressions.add(equivalence(variable(bitVariableResult), variable(bitVariable1)));
+      }
+    }
+
+    return and(expressions);
+  }
+
+  private PropositionalLogicExpression rightShiftExpression(BitVectorRightShift rightShift) {
+    if (rightShift.getTerm2() instanceof BitVectorConstant) {
+      return constantRightShiftExpression(rightShift);
+    }
+
+    BitVectorTerm term1 = rightShift.getTerm1();
+    BitVectorTerm term2 = rightShift.getTerm2();
+
+    String variable1 = bitVectorVariableToName.get(term1);
+    String variable2 = bitVectorVariableToName.get(term2);
+
+    String resultVariable = freshBitVectorVariableName(rightShift);
+    String helperVariable = freshAnonymousVariableName();
+
+    List<PropositionalLogicExpression> shifts = new ArrayList<>();
+
+    for (int s = 0; s < rightShift.getLength(); s++) {
+      String previousRoundVariable = s > 0 ? helperVariable + "_" + s : variable1;
+
+      for (int i = 0; i < rightShift.getLength(); i++) {
+        String bitVariableResult = resultVariable + "_" + i;
+
+        long shift = 1L << s;
+
+        String currentRoundBitVariable =
+            s < rightShift.getLength() - 1
+                ? helperVariable + "_" + (s + 1) + "_" + i
+                : bitVariableResult;
+        String previousRoundBitVariable = previousRoundVariable + "_" + i;
+
+        if (shift < 0 || i >= rightShift.getLength() - shift) {
+          shifts.add(
+              implication(
+                  variable(variable2 + "_" + s), negation(variable(currentRoundBitVariable))));
+        } else {
+          String shiftedPreviousRoundBitVariable = previousRoundVariable + "_" + (i + shift);
+
+          shifts.add(
+              implication(
+                  variable(variable2 + "_" + s),
+                  equivalence(
+                      variable(shiftedPreviousRoundBitVariable),
+                      variable(currentRoundBitVariable))));
+        }
+
+        shifts.add(
+            implication(
+                negation(variable(variable2 + "_" + s)),
+                equivalence(
+                    variable(previousRoundBitVariable), variable(currentRoundBitVariable))));
+      }
+    }
+
+    return and(shifts);
   }
 
   private PropositionalLogicExpression productExpression(BitVectorProduct product) {

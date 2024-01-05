@@ -43,8 +43,8 @@ public class BitVectorExtension extends BitVectorTerm {
   }
 
   @Override
-  public Set<BitVectorTerm> getProperSubTerms() {
-    Set<BitVectorTerm> subTerms = term.getProperSubTerms();
+  public Set<BitVectorTerm> getMaximalProperSubTerms() {
+    Set<BitVectorTerm> subTerms = term.getMaximalProperSubTerms();
     subTerms.add(term);
     return subTerms;
   }

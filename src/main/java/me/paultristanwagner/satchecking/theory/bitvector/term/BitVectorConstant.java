@@ -3,6 +3,7 @@ package me.paultristanwagner.satchecking.theory.bitvector.term;
 import me.paultristanwagner.satchecking.theory.bitvector.BitVector;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class BitVectorConstant extends BitVectorTerm {
@@ -38,12 +39,25 @@ public class BitVectorConstant extends BitVectorTerm {
   }
 
   @Override
-  public Set<BitVectorTerm> getProperSubTerms() {
+  public Set<BitVectorTerm> getMaximalProperSubTerms() {
     return new HashSet<>();
   }
 
   @Override
   public String toString() {
     return bitVector.toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    BitVectorConstant that = (BitVectorConstant) o;
+    return length == that.length && Objects.equals(bitVector, that.bitVector);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(length, bitVector);
   }
 }
