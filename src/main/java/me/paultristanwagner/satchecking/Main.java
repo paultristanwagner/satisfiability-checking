@@ -28,7 +28,7 @@ public class Main {
 
     System.out.println(WELCOME_MESSAGE);
 
-    Config.load();
+    Config.get();
 
     while (true) {
       String input;

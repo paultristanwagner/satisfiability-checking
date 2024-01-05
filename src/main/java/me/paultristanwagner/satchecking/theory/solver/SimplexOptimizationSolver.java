@@ -7,10 +7,14 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
-import org.apache.commons.lang3.mutable.MutableDouble;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
+import java.util.Map.Entry;
+
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint> {
 
@@ -22,13 +26,13 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   private final Set<String> nonBasicVariables;
 
   private final BiMap<String, String> substitutions;
-  private final Map<String, Double> offsets;
+  private final Map<String, Number> offsets;
 
   private final Map<String, Pair<String, String>> unbounded;
 
   private int rows;
   private int columns;
-  private double[][] tableau;
+  private Number[][] tableau;
 
   private final List<LinearConstraint> originalConstraints;
   private List<LinearConstraint> constraints;
@@ -79,7 +83,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     this.objective = new LinearConstraint(f);
 
     for (String variable : objective.getVariables()) {
-      objective.setCoefficient(variable, -objective.getCoefficients().get(variable));
+      objective.setCoefficient(variable, objective.getCoefficients().get(variable).negate());
     }
   }
 
@@ -165,9 +169,9 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     while (true) {
       int violatingRow = -1;
       for (int i = 0; i < basicVariables.size(); i++) {
-        double value = tableau[i + 1][allVariables.size()];
+        Number value = tableau[i + 1][allVariables.size()];
 
-        if (value < 0) {
+        if (value.lessThan(ZERO())) {
           violatingRow = i + 1;
           break;
         }
@@ -182,7 +186,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       // check for negative coefficient
       int pivotColumn = -1;
       for (int j = 0; j < allVariables.size(); j++) {
-        if (tableau[violatingRow][j] < 0) {
+        if (tableau[violatingRow][j].lessThan(ZERO())) {
           pivotColumn = j;
           break;
         }
@@ -206,10 +210,11 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     while (true) {
       // Find negative entry in objective row
       int pivotColumn = -1;
-      double smallestValue = Double.MAX_VALUE;
+
+      Number smallestValue = null;
       for (int j = 0; j < allVariables.size(); j++) {
-        double f_j = tableau[0][j];
-        if (f_j < 0 && f_j < smallestValue) {
+        Number f_j = tableau[0][j];
+        if(f_j.lessThan(ZERO()) && (smallestValue == null || f_j.lessThan(smallestValue))) {
           pivotColumn = j;
           smallestValue = f_j;
         }
@@ -218,7 +223,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       if (pivotColumn == -1) {
         VariableAssignment solution = calculateSolution();
 
-        double optimum = calculateObjectiveValue();
+        Number optimum = calculateObjectiveValue();
 
         result = SimplexResult.optimal(solution, optimum);
 
@@ -227,14 +232,14 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
       // Find row with the smallest ratio
       int pivotRow = -1;
-      double minRatio = Double.MAX_VALUE;
+      Number minRatio = null;
       for (int i = 1; i < rows; i++) {
-        if (tableau[i][pivotColumn] <= 0) {
+        if (tableau[i][pivotColumn].lessThanOrEqual(ZERO())) {
           continue;
         }
 
-        double ratio = tableau[i][columns - 1] / tableau[i][pivotColumn];
-        if (ratio >= 0 && ratio < minRatio) {
+        Number ratio = tableau[i][columns - 1].divide(tableau[i][pivotColumn]);
+        if (ratio.isNonNegative() && (minRatio == null || ratio.lessThan(minRatio))) {
           pivotRow = i;
           minRatio = ratio;
         }
@@ -259,18 +264,19 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     nonBasicVariables.add(leaving);
     basicVariables.set(pivotRow - 1, entering);
 
-    double temp = tableau[pivotRow][pivotColumn];
+    Number temp = tableau[pivotRow][pivotColumn];
 
     for (int j = 0; j < allVariables.size() + 1; j++) {
-      tableau[pivotRow][j] /= temp;
+      tableau[pivotRow][j] = tableau[pivotRow][j].divide(temp);
     }
 
     for (int i = 0; i < constraints.size() + 1; i++) {
       if (i == pivotRow) continue;
 
-      double factor = tableau[i][pivotColumn] / tableau[pivotRow][pivotColumn];
+      Number factor = tableau[i][pivotColumn].divide(tableau[pivotRow][pivotColumn]);
       for (int j = 0; j < allVariables.size() + 1; j++) {
-        tableau[i][j] += -factor * tableau[pivotRow][j];
+        Number minuend = factor.multiply(tableau[pivotRow][j]);
+        tableau[i][j] = tableau[i][j].subtract(minuend);
       }
     }
   }
@@ -293,18 +299,18 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
         String constraintVariable = constraint.getVariables().iterator().next();
         if (!variable.equals(constraintVariable)) continue;
 
-        double bound = constraint.getBoundOn(constraintVariable);
+        Number bound = constraint.getBoundOn(constraintVariable);
 
         if (constraint.getBound()
             != LinearConstraint.Bound.UPPER
-            == constraint.getCoefficients().get(constraintVariable) > 0) {
+            == constraint.getCoefficients().get(constraintVariable).greaterThan(ZERO())) {
           if (!lowerBounds.containsKey(variable)
-              || lowerBounds.get(variable).getBoundOn(variable) < bound) {
+              || lowerBounds.get(variable).getBoundOn(variable).lessThan(ZERO())) {
             lowerBounds.put(variable, constraint);
           }
         } else {
           if (!upperBounds.containsKey(variable)
-              || upperBounds.get(variable).getBoundOn(variable) > bound) {
+              || upperBounds.get(variable).getBoundOn(variable).greaterThan(bound)) {
             upperBounds.put(variable, constraint);
           }
         }
@@ -319,21 +325,21 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   }
 
   private SimplexResult checkBoundsConsistency(
-      Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferedBounds) {
-    Map<String, LinearConstraint> lowerBounds = inferedBounds.getLeft();
-    Map<String, LinearConstraint> upperBounds = inferedBounds.getRight();
+      Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferredBounds) {
+    Map<String, LinearConstraint> lowerBounds = inferredBounds.getLeft();
+    Map<String, LinearConstraint> upperBounds = inferredBounds.getRight();
     for (String variable : allVariables) {
       LinearConstraint lowerBound = lowerBounds.get(variable);
       LinearConstraint upperBound = upperBounds.get(variable);
-      double lowerBoundValue =
-          lowerBound != null
-              ? lowerBounds.get(variable).getBoundOn(variable)
-              : Double.NEGATIVE_INFINITY;
-      double upperBoundValue =
-          upperBound != null
-              ? upperBounds.get(variable).getBoundOn(variable)
-              : Double.POSITIVE_INFINITY;
-      if (lowerBoundValue > upperBoundValue) {
+
+      // todo: check if this is right
+
+      if(lowerBound == null || upperBound == null) continue;
+
+      Number lowerBoundValue = lowerBounds.get(variable).getBoundOn(variable);
+      Number upperBoundValue = upperBounds.get(variable).getBoundOn(variable);
+
+      if (lowerBoundValue.greaterThan(upperBoundValue)) {
         Set<LinearConstraint> explanation = new HashSet<>();
         explanation.add(lowerBound.getRoot());
         explanation.add(upperBound.getRoot());
@@ -345,16 +351,16 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   }
 
   private void transformOffsetVariables(
-      Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferedBounds) {
-    Map<String, LinearConstraint> lowerBounds = inferedBounds.getLeft();
+      Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferredBounds) {
+    Map<String, LinearConstraint> lowerBounds = inferredBounds.getLeft();
     for (ListIterator<String> iterator = allVariables.listIterator(); iterator.hasNext(); ) {
       String variable = iterator.next();
       if (!lowerBounds.containsKey(variable)) continue;
 
       LinearConstraint lowerBound = lowerBounds.get(variable);
-      double bound = lowerBound.getBoundOn(variable);
+      Number bound = lowerBound.getBoundOn(variable);
 
-      if (bound == 0) continue;
+      if (bound.isZero()) continue;
 
       String substitute = freshVariable("subst");
       offsets.put(substitute, bound);
@@ -415,13 +421,20 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     rows = constraints.size() + 1;
     columns = allVariables.size() + 1;
 
-    this.tableau = new double[rows][columns];
+    this.tableau = new Number[rows][columns];
+
+    // fill tableau
+    for(int i = 0; i < rows; i++) {
+      for(int j = 0; j < columns; j++) {
+        tableau[i][j] = ZERO();
+      }
+    }
 
     // Enter target function to tableau
     if (objective != null) {
       for (int i = 0; i < allVariables.size(); i++) {
         String variable = allVariables.get(i);
-        tableau[0][i] = -1 * objective.getCoefficients().getOrDefault(variable, 0.0);
+        tableau[0][i] = objective.getCoefficients().getOrDefault(variable, ZERO()).negate();
       }
     }
 
@@ -431,39 +444,39 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       if (constraint.getBound() == LinearConstraint.Bound.LOWER) {
         for (int j = 0; j < allVariables.size(); j++) {
           String variable = allVariables.get(j);
-          tableau[i + 1][j] = -1 * constraint.getCoefficients().getOrDefault(variable, 0.0);
+          tableau[i + 1][j] = constraint.getCoefficients().getOrDefault(variable, ZERO()).negate();
         }
-        tableau[i + 1][allVariables.size()] = -1 * constraint.getValue();
+        tableau[i + 1][allVariables.size()] = constraint.getValue().negate();
       } else {
         for (int j = 0; j < allVariables.size(); j++) {
           String variable = allVariables.get(j);
-          tableau[i + 1][j] = constraint.getCoefficients().getOrDefault(variable, 0.0);
+          tableau[i + 1][j] = constraint.getCoefficients().getOrDefault(variable, ZERO());
         }
         tableau[i + 1][allVariables.size()] = constraint.getValue();
       }
-      tableau[i + 1][nonBasicVariables.size() + i] = 1;
+      tableau[i + 1][nonBasicVariables.size() + i] = ONE();
     }
   }
 
-  private double getPureValue(String variable) {
+  private Number getPureValue(String variable) {
     if (nonBasicVariables.contains(variable)) {
-      return 0;
+      return ZERO();
     } else {
       int basisIndex = basicVariables.indexOf(variable);
       return tableau[basisIndex + 1][columns - 1];
     }
   }
 
-  private double getValue(String variable) {
-    double value;
+  private Number getValue(String variable) {
+    Number value;
     if (substitutions.containsKey(variable)) {
       String substitute = substitutions.get(variable);
-      double offset = offsets.get(substitute);
-      value = offset + getPureValue(substitute);
+      Number offset = offsets.get(substitute);
+      value = offset.add(getPureValue(substitute));
     } else if (unbounded.containsKey(variable)) {
-      double positive = getPureValue(unbounded.get(variable).getLeft());
-      double negative = getPureValue(unbounded.get(variable).getRight());
-      value = positive - negative;
+      Number positive = getPureValue(unbounded.get(variable).getLeft());
+      Number negative = getPureValue(unbounded.get(variable).getRight());
+      value = positive.subtract(negative);
     } else {
       value = getPureValue(variable);
     }
@@ -475,24 +488,22 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     VariableAssignment assignment = new VariableAssignment();
 
     for (String variable : originalVariables) {
-      double value = getValue(variable);
+      Number value = getValue(variable);
       assignment.assign(variable, value);
     }
 
     return assignment;
   }
 
-  private double calculateObjectiveValue() {
-    MutableDouble objectiveValue = new MutableDouble(0);
-    originalObjective
-        .getCoefficients()
-        .forEach(
-            (variable, coefficient) -> {
-              double value = getValue(variable);
-              objectiveValue.add(coefficient * value);
-            });
+  private Number calculateObjectiveValue() {
+    Number objectiveValue = ZERO();
 
-    return objectiveValue.getValue();
+    for (Entry<String, Number> pair : originalObjective.getCoefficients().entrySet()) {
+      Number value = getValue(pair.getKey());
+      objectiveValue = objectiveValue.add(pair.getValue().multiply(value));
+    }
+
+    return objectiveValue;
   }
 
   // todo: clean up this method
@@ -503,7 +514,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     for (int j = 0; j < columns - 1; j++) {
       String variable = allVariables.get(j);
 
-      if (tableau[pivotRow][j] == 0) {
+      if (tableau[pivotRow][j].isZero()) {
         continue;
       }
 
@@ -541,9 +552,9 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     System.out.printf("%1$10s", "b");
     System.out.println();
 
-    for (double[] row : tableau) {
-      for (double d : row) {
-        System.out.printf("%10.2f ", d);
+    for (Number[] row : tableau) {
+      for (Number d : row) {
+        System.out.printf(d.toString() + " ");
       }
       System.out.println();
     }

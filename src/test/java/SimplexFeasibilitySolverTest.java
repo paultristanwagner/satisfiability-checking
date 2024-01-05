@@ -1,7 +1,10 @@
 import me.paultristanwagner.satchecking.parse.LinearConstraintParser;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
+import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
 import me.paultristanwagner.satchecking.theory.solver.SimplexFeasibilitySolver;
+
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,20 +26,23 @@ public class SimplexFeasibilitySolverTest {
 
   @Test
   public void testFeasible() {
+    LinearConstraint c1 = parser.parse("x+y>=1");
+    LinearConstraint c2 = parser.parse("0.5x+2y<=4");
+    LinearConstraint c3 = parser.parse("2x+0.5y<=4");
+
     SimplexFeasibilitySolver simplex = new SimplexFeasibilitySolver();
-    simplex.addConstraint(parser.parse("x+y>=1"));
-    simplex.addConstraint(parser.parse("0.5x+2y<=4"));
-    simplex.addConstraint(parser.parse("2x+0.5y<=4"));
+
+    simplex.addConstraint(c1);
+    simplex.addConstraint(c2);
+    simplex.addConstraint(c3);
 
     SimplexResult result = simplex.solve();
     assertTrue(result.isFeasible());
 
-    VariableAssignment solution = result.getSolution();
-    double x = solution.getAssignment("x");
-    double y = solution.getAssignment("y");
+    VariableAssignment<Number> solution = (VariableAssignment<Number>) result.getSolution();
 
-    assertTrue(x + y >= 1);
-    assertTrue(0.5 * x + 2 * y <= 4);
-    assertTrue(2 * x + 0.5 * y <= 4);
+    assertTrue(c1.evaluate(solution));
+    assertTrue(c2.evaluate(solution));
+    assertTrue(c3.evaluate(solution));
   }
 }

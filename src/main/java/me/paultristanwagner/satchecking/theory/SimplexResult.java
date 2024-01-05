@@ -1,15 +1,18 @@
 package me.paultristanwagner.satchecking.theory;
 
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.Set;
 
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
+
 public class SimplexResult extends TheoryResult<LinearConstraint> {
 
-  boolean feasible;
-  boolean unbounded;
-  boolean optimal;
-  double optimum;
+  final boolean feasible;
+  final boolean unbounded;
+  final boolean optimal;
+  final Number optimum;
 
   private SimplexResult(
       boolean unknown,
@@ -17,7 +20,7 @@ public class SimplexResult extends TheoryResult<LinearConstraint> {
       boolean feasible,
       boolean unbounded,
       boolean optimal,
-      double optimum,
+      Number optimum,
       VariableAssignment solution,
       Set<LinearConstraint> explanation) {
     super(unknown, satisfiable, solution, explanation);
@@ -28,20 +31,20 @@ public class SimplexResult extends TheoryResult<LinearConstraint> {
   }
 
   public static SimplexResult infeasible(Set<LinearConstraint> explanation) {
-    return new SimplexResult(false, false, false, false, false, 0, null, explanation);
+    return new SimplexResult(false, false, false, false, false, ZERO(), null, explanation);
   }
 
   public static SimplexResult feasible(VariableAssignment solution) {
-    return new SimplexResult(false, true, true, false, false, 0, solution, null);
+    return new SimplexResult(false, true, true, false, false, ZERO(), solution, null);
   }
 
-  public static SimplexResult optimal(VariableAssignment solution, double optimum) {
+  public static SimplexResult optimal(VariableAssignment solution, Number optimum) {
     return new SimplexResult(false, true, true, false, true, optimum, solution, null);
   }
 
   public static SimplexResult unbounded(
       VariableAssignment solution, Set<LinearConstraint> explanation) {
-    return new SimplexResult(false, false, true, true, false, 0, solution, explanation);
+    return new SimplexResult(false, false, true, true, false, ZERO(), solution, explanation);
   }
 
   public boolean isFeasible() {
@@ -56,7 +59,7 @@ public class SimplexResult extends TheoryResult<LinearConstraint> {
     return optimal;
   }
 
-  public double getOptimum() {
+  public Number getOptimum() {
     return optimum;
   }
 

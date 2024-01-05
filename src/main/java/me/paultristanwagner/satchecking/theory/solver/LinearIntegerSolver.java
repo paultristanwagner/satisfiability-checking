@@ -4,8 +4,12 @@ import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.TheoryResult;
 
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+
 import java.util.HashSet;
 import java.util.Set;
+
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 
 public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
 
@@ -49,14 +53,15 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
       return result;
     }
 
-    VariableAssignment assignment = result.getSolution();
+    // todo: make checked
+    VariableAssignment<Number> assignment = result.getSolution();
     boolean integral = true;
     String firstNonIntegralVariable = null;
-    double nonIntegralValue = 0;
+    Number nonIntegralValue = Number.ZERO();
 
     for (String variable : assignment.getVariables()) {
-      double value = assignment.getAssignment(variable);
-      if (value != Math.floor(value)) { // todo: maybe add epsilon here
+      Number value = assignment.getAssignment(variable);
+      if (!value.isInteger()) {
         integral = false;
         firstNonIntegralVariable = variable;
         nonIntegralValue = value;
@@ -69,8 +74,8 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     }
 
     LinearConstraint upperBound = new LinearConstraint();
-    upperBound.setCoefficient(firstNonIntegralVariable, 1);
-    upperBound.setValue(Math.floor(nonIntegralValue));
+    upperBound.setCoefficient(firstNonIntegralVariable, Number.ONE());
+    upperBound.setValue(nonIntegralValue.floor());
     upperBound.setBound(LinearConstraint.Bound.UPPER);
 
     LinearIntegerSolver solverA = new LinearIntegerSolver(depth + 1);
@@ -81,8 +86,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     boolean isMaximizationProblem = simplexSolver.isMaximization();
     boolean isMinimizationProblem = simplexSolver.isMinimization();
 
-    double localOptimum =
-        isMaximizationProblem ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+    Number localOptimum = null;
     LinearConstraint objective = simplexSolver.getOriginalObjective();
 
     TheoryResult<LinearConstraint> aResult = solverA.solve();
@@ -93,19 +97,14 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     if (aResult.isSatisfiable()) {
       if (!isOptimizationProblem) {
         return aResult;
-      } else {
-        double value = objective.evaluate(aResult.getSolution());
-        if (isMaximizationProblem && value > localOptimum) {
-          localOptimum = value;
-        } else if (isMinimizationProblem && value < localOptimum) {
-          localOptimum = value;
-        }
       }
+
+      localOptimum = objective.evaluateTerm(aResult.getSolution());
     }
 
     LinearConstraint lowerBound = new LinearConstraint();
-    lowerBound.setCoefficient(firstNonIntegralVariable, 1);
-    lowerBound.setValue(Math.ceil(nonIntegralValue));
+    lowerBound.setCoefficient(firstNonIntegralVariable, ONE());
+    lowerBound.setValue(nonIntegralValue.ceil());
     lowerBound.setBound(LinearConstraint.Bound.LOWER);
 
     LinearIntegerSolver solverB = new LinearIntegerSolver(depth + 1);
@@ -120,20 +119,20 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     if (bResult.isSatisfiable()) {
       if (!isOptimizationProblem) {
         return bResult;
-      } else {
-        double value = objective.evaluate(bResult.getSolution());
-        if (isMaximizationProblem) {
-          if (value > localOptimum) {
-            return bResult;
-          } else {
-            return aResult;
-          }
-        } else if (isMinimizationProblem) {
-          if (value < localOptimum) {
-            return bResult;
-          } else {
-            return aResult;
-          }
+      }
+
+      Number value = objective.evaluateTerm(bResult.getSolution());
+      if (isMaximizationProblem) {
+        if (localOptimum == null || value.greaterThan(localOptimum)) {
+          return bResult;
+        } else {
+          return aResult;
+        }
+      } else if (isMinimizationProblem) {
+        if (localOptimum == null || value.lessThan(localOptimum)) {
+          return bResult;
+        } else {
+          return aResult;
         }
       }
     } else if (aResult.isSatisfiable()) {

@@ -42,7 +42,7 @@ public class SATCommand extends Command {
       return true;
     }
 
-    SATSolver satSolver = Config.load().getSolver();
+    SATSolver satSolver = Config.get().getSolver();
     long beforeMs = System.currentTimeMillis();
     satSolver.load(cnf);
     Assignment model = satSolver.nextModel();
@@ -55,10 +55,10 @@ public class SATCommand extends Command {
 
     long modelCount = 0;
     System.out.println(GREEN + "SAT:");
-    while (model != null && modelCount < Config.load().getMaxModelCount()) {
+    while (model != null && modelCount < Config.get().getMaxModelCount()) {
       modelCount++;
 
-      if (Config.load().printModels()) {
+      if (Config.get().printModels()) {
         System.out.println("" + GREEN + model + ";" + RESET);
       }
 
@@ -68,7 +68,7 @@ public class SATCommand extends Command {
     long timeMs = System.currentTimeMillis() - beforeMs;
 
     System.out.println("" + GREEN + modelCount + " model/s found in " + timeMs + " ms" + RESET);
-    if (modelCount == Config.load().getMaxModelCount()) {
+    if (modelCount == Config.get().getMaxModelCount()) {
       System.out.println(
           GRAY
               + "(List of models could be incomplete since maximum number of models is restricted)"
