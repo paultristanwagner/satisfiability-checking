@@ -27,7 +27,7 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
 
     lexer.requireEither(EQUALS, NOT_EQUALS);
     boolean equal = lexer.canConsume(EQUALS);
-    if(equal) {
+    if (equal) {
       lexer.consume(EQUALS);
     } else {
       lexer.consume(NOT_EQUALS);

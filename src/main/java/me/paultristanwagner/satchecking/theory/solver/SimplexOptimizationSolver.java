@@ -214,7 +214,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       Number smallestValue = null;
       for (int j = 0; j < allVariables.size(); j++) {
         Number f_j = tableau[0][j];
-        if(f_j.lessThan(ZERO()) && (smallestValue == null || f_j.lessThan(smallestValue))) {
+        if (f_j.lessThan(ZERO()) && (smallestValue == null || f_j.lessThan(smallestValue))) {
           pivotColumn = j;
           smallestValue = f_j;
         }
@@ -334,7 +334,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
       // todo: check if this is right
 
-      if(lowerBound == null || upperBound == null) continue;
+      if (lowerBound == null || upperBound == null) continue;
 
       Number lowerBoundValue = lowerBounds.get(variable).getBoundOn(variable);
       Number upperBoundValue = upperBounds.get(variable).getBoundOn(variable);
@@ -424,8 +424,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     this.tableau = new Number[rows][columns];
 
     // fill tableau
-    for(int i = 0; i < rows; i++) {
-      for(int j = 0; j < columns; j++) {
+    for (int i = 0; i < rows; i++) {
+      for (int j = 0; j < columns; j++) {
         tableau[i][j] = ZERO();
       }
     }
@@ -611,19 +611,19 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
     return fresh;
   }
-  
+
   public LinearConstraint getOriginalObjective() {
     return originalObjective;
   }
-  
+
   public boolean hasObjectiveFunction() {
     return objective != null;
   }
-  
+
   public boolean isMaximization() {
     return originalObjective instanceof MaximizingConstraint;
   }
-  
+
   public boolean isMinimization() {
     return originalObjective instanceof MinimizingConstraint;
   }

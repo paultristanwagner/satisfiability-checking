@@ -11,14 +11,14 @@ public class Rational implements Number {
   protected BigInteger denominator;
 
   public Rational(BigInteger numerator, BigInteger denominator) {
-    if(denominator.equals(BigInteger.ZERO)){
+    if (denominator.equals(BigInteger.ZERO)) {
       throw new ArithmeticException("Cannot divide by zero");
     }
 
     this.numerator = numerator;
     this.denominator = denominator;
 
-    if(denominator.compareTo(BigInteger.ZERO) < 0){
+    if (denominator.compareTo(BigInteger.ZERO) < 0) {
       this.numerator = this.numerator.negate();
       this.denominator = this.denominator.negate();
     }
@@ -118,13 +118,13 @@ public class Rational implements Number {
 
   @Override
   public Number ceil() {
-    if(isInteger()) {
+    if (isInteger()) {
       return new Rational(numerator, denominator);
     }
 
     BigInteger div = numerator.divide(denominator);
 
-    if(isNegative()) {
+    if (isNegative()) {
       return new Rational(div);
     }
 
@@ -133,13 +133,13 @@ public class Rational implements Number {
 
   @Override
   public Number floor() {
-    if(isInteger()) {
+    if (isInteger()) {
       return new Rational(numerator, denominator);
     }
 
     BigInteger div = numerator.divide(denominator);
 
-    if(isNegative()) {
+    if (isNegative()) {
       return new Rational(div.subtract(BigInteger.ONE));
     }
 
@@ -148,7 +148,7 @@ public class Rational implements Number {
 
   @Override
   public boolean lessThan(Number other) {
-    if(!(other instanceof Rational otherExact)){
+    if (!(other instanceof Rational otherExact)) {
       throw new IllegalArgumentException("Cannot compare " + other + " to " + this);
     }
 
@@ -188,7 +188,7 @@ public class Rational implements Number {
 
   @Override
   public String toString() {
-    if(isInteger()){
+    if (isInteger()) {
       return numerator.toString();
     }
 
@@ -196,7 +196,7 @@ public class Rational implements Number {
   }
 
   public static Rational parse(String value) {
-    if(value.contains(".")){
+    if (value.contains(".")) {
       return parseDecimal(value);
     }
 

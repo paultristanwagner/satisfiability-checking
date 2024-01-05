@@ -18,17 +18,17 @@ public class TseitinCommand extends Command {
         "Transforms a propositional logic formula into a satisfiability equivalent formula in CNF",
         "tseitin <formula>",
         """
-            Examples:
-              tseitin a -> b -> c
-              
-              tseitin ~(a <-> b | c)
-          """
+              Examples:
+                tseitin a -> b -> c
+                
+                tseitin ~(a <-> b | c)
+            """
     );
   }
 
   @Override
   public boolean execute(String label, String[] args) {
-    if(args.length == 0) {
+    if (args.length == 0) {
       return false;
     }
 
@@ -46,10 +46,10 @@ public class TseitinCommand extends Command {
       return true;
     }
 
-    CNF cnf = PropositionalLogicParser.tseitin( expression );
+    CNF cnf = PropositionalLogicParser.tseitin(expression);
 
     System.out.println(GREEN + "Tseitin's transformation:");
-    System.out.println( cnf );
+    System.out.println(cnf);
     System.out.println(RESET);
 
     return true;

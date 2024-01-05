@@ -12,9 +12,9 @@ public abstract class BitVectorBinaryConstraint extends BitVectorConstraint {
   protected final BitVectorTerm term2;
 
   protected BitVectorBinaryConstraint(BitVectorTerm term1, BitVectorTerm term2) {
-    if(term1.isSigned() != term2.isSigned()) {
+    if (term1.isSigned() != term2.isSigned()) {
       throw new IllegalArgumentException("BitVectorTerms must have the same signedness!");
-    } else if(term1.getLength() != term2.getLength()) {
+    } else if (term1.getLength() != term2.getLength()) {
       throw new IllegalArgumentException("BitVectorTerms must have the same length!");
     }
 

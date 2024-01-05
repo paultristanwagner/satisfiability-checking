@@ -20,7 +20,7 @@ public class Float implements Number {
 
   @Override
   public Float add(Number other) {
-    if(!(other instanceof Float otherFloat)){
+    if (!(other instanceof Float otherFloat)) {
       throw new IllegalArgumentException("Cannot add " + other + " to " + this);
     }
 
@@ -34,7 +34,7 @@ public class Float implements Number {
 
   @Override
   public Float multiply(Number other) {
-    if(!(other instanceof Float otherFloat)){
+    if (!(other instanceof Float otherFloat)) {
       throw new IllegalArgumentException("Cannot add " + other + " to " + this);
     }
 
@@ -43,7 +43,7 @@ public class Float implements Number {
 
   @Override
   public Float divide(Number other) {
-    if(!(other instanceof Float otherFloat)){
+    if (!(other instanceof Float otherFloat)) {
       throw new IllegalArgumentException("Cannot add " + other + " to " + this);
     }
 
@@ -87,7 +87,7 @@ public class Float implements Number {
 
   @Override
   public boolean lessThan(Number other) {
-    if(!(other instanceof Float otherFloat)){
+    if (!(other instanceof Float otherFloat)) {
       throw new IllegalArgumentException("Cannot compare " + other + " to " + this);
     }
 

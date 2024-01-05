@@ -18,7 +18,8 @@ public class ClearCommand extends Command {
   public boolean execute(String label, String[] args) {
     try {
       new LineReaderImpl(TERMINAL).clearScreen();
-    } catch (IOException ignored) { }
+    } catch (IOException ignored) {
+    }
 
     return true;
   }

@@ -8,7 +8,7 @@ public class BitVectorAbsoluteValue extends BitVectorTerm {
   private final BitVectorTerm term;
 
   private BitVectorAbsoluteValue(BitVectorTerm term) {
-    if(!term.isSigned()) {
+    if (!term.isSigned()) {
       throw new IllegalArgumentException("Cannot take absolute value of unsigned term!");
     }
 

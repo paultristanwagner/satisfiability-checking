@@ -279,7 +279,7 @@ public class BitVectorFlattener {
       termExpression = remainderExpression(remainder);
     } else if (term instanceof BitVectorLeftShift leftShift) {
       termExpression = leftShiftExpression(leftShift);
-    } else if(term instanceof BitVectorRightShift rightShift) {
+    } else if (term instanceof BitVectorRightShift rightShift) {
       termExpression = rightShiftExpression(rightShift);
     } else if (term instanceof BitVectorNegation negation) {
       termExpression = negationExpression(negation);
@@ -325,17 +325,17 @@ public class BitVectorFlattener {
 
     List<PropositionalLogicExpression> bitValueFormulas = new ArrayList<>();
 
-    if(extension.isSigned()) {
+    if (extension.isSigned()) {
       String signBitVariable = variableName + "_" + (term.getLength() - 1);
 
-      for(int i = 0; i < term.getLength() - 1; i++) {
+      for (int i = 0; i < term.getLength() - 1; i++) {
         String bitVariable = variableName + "_" + i;
         String bitResultVariable = variableName + "_" + i;
 
         bitValueFormulas.add(equivalence(variable(bitResultVariable), variable(bitVariable)));
       }
 
-      for(int i = term.getLength() - 1; i < extension.getLength() - 1; i++) {
+      for (int i = term.getLength() - 1; i < extension.getLength() - 1; i++) {
         String bitResultVariable = variableName + "_" + i;
 
         bitValueFormulas.add(equivalence(variable(bitResultVariable), variable(signBitVariable)));
@@ -656,7 +656,7 @@ public class BitVectorFlattener {
   }
 
   private PropositionalLogicExpression constantRightShiftExpression(BitVectorRightShift rightShift) {
-    if(!(rightShift.getTerm2() instanceof BitVectorConstant term2)) {
+    if (!(rightShift.getTerm2() instanceof BitVectorConstant term2)) {
       throw new IllegalArgumentException("BitVectorRightShift: term2 must be a constant!");
     }
 
@@ -667,12 +667,12 @@ public class BitVectorFlattener {
 
     List<PropositionalLogicExpression> expressions = new ArrayList<>();
 
-    for(int i = 0; i < rightShift.getLength(); i++) {
+    for (int i = 0; i < rightShift.getLength(); i++) {
       long shift = term2.getBitVector().asLong(); // todo: this might not be correct
 
       String bitVariableResult = resultVariable + "_" + i;
 
-      if(i >= rightShift.getLength() - shift) {
+      if (i >= rightShift.getLength() - shift) {
         expressions.add(negation(variable(bitVariableResult)));
       } else {
         String bitVariable1 = variable1 + "_" + (i + shift);

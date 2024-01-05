@@ -43,13 +43,13 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     LinearConstraint lc;
     boolean optimization = false;
 
-    if(lexer.canConsume(MIN)) {
+    if (lexer.canConsume(MIN)) {
       optimization = true;
       lexer.consume(MIN);
 
       lexer.consume(LPAREN);
       lc = new MinimizingConstraint();
-    } else if(lexer.canConsume(MAX)) {
+    } else if (lexer.canConsume(MAX)) {
       optimization = true;
       lexer.consume(MAX);
 
@@ -65,7 +65,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     String variable = variableToken.getValue();
     lc.setCoefficient(variable, coefficient);
 
-    while(lexer.canConsumeEither(PLUS, MINUS, FRACTION, DECIMAL)) {
+    while (lexer.canConsumeEither(PLUS, MINUS, FRACTION, DECIMAL)) {
       coefficient = OPTIONAL_SIGNS(lexer).multiply(OPTIONAL_RATIONAL(lexer));
       variableToken = lexer.getLookahead();
 
@@ -75,16 +75,16 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       lc.setCoefficient(variable, coefficient);
     }
 
-    if(optimization) {
+    if (optimization) {
       lexer.consume(RPAREN);
       return lc;
     }
 
     lexer.requireEither(EQUALS, LOWER_EQUALS, GREATER_EQUALS);
-    if(lexer.canConsume(EQUALS)) {
+    if (lexer.canConsume(EQUALS)) {
       lexer.consume(EQUALS);
       lc.setBound(EQUAL);
-    } else if(lexer.canConsume(LOWER_EQUALS)) {
+    } else if (lexer.canConsume(LOWER_EQUALS)) {
       lexer.consume(LOWER_EQUALS);
       lc.setBound(UPPER);
     } else {
@@ -99,7 +99,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   }
 
   private static Number OPTIONAL_SIGNS(Lexer lexer) {
-    if(lexer.canConsumeEither(PLUS, MINUS)) {
+    if (lexer.canConsumeEither(PLUS, MINUS)) {
       return SIGNS(lexer);
     } else {
       return ONE();
@@ -111,19 +111,19 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
 
     Number sign = ONE();
     do {
-      if(lexer.canConsume(PLUS)) {
+      if (lexer.canConsume(PLUS)) {
         lexer.consume(PLUS);
       } else {
         lexer.consume(MINUS);
         sign = sign.negate();
       }
-    } while(lexer.canConsumeEither(PLUS, MINUS));
+    } while (lexer.canConsumeEither(PLUS, MINUS));
 
     return sign;
   }
 
   private static Number OPTIONAL_RATIONAL(Lexer lexer) {
-    if(lexer.canConsumeEither(FRACTION, DECIMAL)) {
+    if (lexer.canConsumeEither(FRACTION, DECIMAL)) {
       return RATIONAL(lexer);
     }
 
@@ -133,7 +133,7 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   private static Number RATIONAL(Lexer lexer) {
     lexer.requireEither(FRACTION, DECIMAL);
 
-    if(lexer.canConsume(FRACTION)) {
+    if (lexer.canConsume(FRACTION)) {
       return FRACTION(lexer);
     } else {
       return DECIMAL(lexer);

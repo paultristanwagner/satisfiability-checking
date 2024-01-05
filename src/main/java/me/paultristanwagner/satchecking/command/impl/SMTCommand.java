@@ -24,28 +24,28 @@ public class SMTCommand extends Command {
         "Solves an SMT problem",
         "smt <theory> <cnf of theory constraints>",
         """
-          Available theories:
-            QF_LRA (Linear real arithmetic),
-            QF_LIA (Linear integer arithmetic),
-            QF_EQ (Equality logic),
-            QF_EQUF (Equality logic with uninterpreted functions)
-          
-          Examples:
-            smt QF_LRA (x <= 5) & (max(x))
-          
-            smt QF_LIA (x <= 3/2) & (max(x))
-          
-            smt QF_EQ (a=b) & (b=c) & (a!=c | c!=d)
-          
-            smt QF_EQUF (x=y) & (f(x) = y) & (f(f(x)) = y)
-        """
+              Available theories:
+                QF_LRA (Linear real arithmetic),
+                QF_LIA (Linear integer arithmetic),
+                QF_EQ (Equality logic),
+                QF_EQUF (Equality logic with uninterpreted functions)
+              
+              Examples:
+                smt QF_LRA (x <= 5) & (max(x))
+              
+                smt QF_LIA (x <= 3/2) & (max(x))
+              
+                smt QF_EQ (a=b) & (b=c) & (a!=c | c!=d)
+              
+                smt QF_EQUF (x=y) & (f(x) = y) & (f(f(x)) = y)
+            """
     );
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public boolean execute(String label, String[] args) {
-    if(args.length < 2) {
+    if (args.length < 2) {
       return false;
     }
 
@@ -58,7 +58,7 @@ public class SMTCommand extends Command {
     Theory theory;
     try {
       theory = Theory.get(theoryName);
-    } catch(IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) {
       System.out.println(RED);
       System.out.println("Unknown theory: " + theoryName);
       System.out.println(RESET);
@@ -82,7 +82,7 @@ public class SMTCommand extends Command {
       return true;
     }
 
-    if(!parseResult.complete()) {
+    if (!parseResult.complete()) {
       SyntaxError error = new SyntaxError("Unexpected token", cnfString, parseResult.charsRead());
       System.out.println(RED);
       error.printWithContext();

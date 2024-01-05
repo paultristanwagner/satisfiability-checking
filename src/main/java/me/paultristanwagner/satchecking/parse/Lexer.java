@@ -92,7 +92,7 @@ public abstract class Lexer {
 
     for (int i = 0; i < tokenTypes.length; i++) {
       TokenType tokenType = tokenTypes[i];
-      if(i != tokenTypes.length - 1) {
+      if (i != tokenTypes.length - 1) {
         builder.append("'").append(tokenType.getName()).append("', ");
       } else {
         builder.append(" or '").append(tokenType.getName()).append("'");
@@ -107,12 +107,12 @@ public abstract class Lexer {
   }
 
   public boolean canConsumeEither(TokenType... tokenTypes) {
-    if(lookahead == null) {
+    if (lookahead == null) {
       return false;
     }
 
     for (TokenType type : tokenTypes) {
-      if(lookahead.getType() == type) {
+      if (lookahead.getType() == type) {
         return true;
       }
     }

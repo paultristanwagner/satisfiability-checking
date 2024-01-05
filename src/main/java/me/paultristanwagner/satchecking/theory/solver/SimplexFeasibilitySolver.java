@@ -286,5 +286,6 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     System.out.println("---------------------");
   }
 
-  record Violation(String variable, boolean increase) {}
+  record Violation(String variable, boolean increase) {
+  }
 }

@@ -47,7 +47,7 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
     TheoryClause<T> clause = new TheoryClause<>(literals);
     clauses.add(clause);
 
-    while(lexer.canConsume(AND)) {
+    while (lexer.canConsume(AND)) {
       lexer.consume(AND);
       literals = CLAUSE(lexer);
       clause = new TheoryClause<>(literals);
@@ -63,7 +63,7 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
     List<T> constraints = new ArrayList<>();
     constraints.add(LITERAL(lexer));
 
-    while(lexer.canConsume(OR)) {
+    while (lexer.canConsume(OR)) {
       lexer.consume(OR);
       constraints.add(LITERAL(lexer));
     }
@@ -87,7 +87,7 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
       } else if (constraintClass == EqualityFunctionConstraint.class) {
         EqualityFunctionParser equalityFunctionParser = new EqualityFunctionParser();
         parseResult = (ParseResult<T>) equalityFunctionParser.parseWithRemaining(remaining);
-      } else if(constraintClass == BitVectorConstraint.class) {
+      } else if (constraintClass == BitVectorConstraint.class) {
         BitVectorConstraintParser bitVectorConstraintParser = new BitVectorConstraintParser();
         parseResult = (ParseResult<T>) bitVectorConstraintParser.parseWithRemaining(remaining);
       } else {

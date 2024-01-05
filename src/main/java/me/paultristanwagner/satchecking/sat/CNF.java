@@ -29,7 +29,7 @@ public class CNF {
 
     for (Clause clause : clauses) {
       for (Literal literal : clause.getLiterals()) {
-        if(!literals.contains(literal)) {
+        if (!literals.contains(literal)) {
           literals.add(literal);
           orderedLiterals.add(literal);
         }
@@ -119,7 +119,7 @@ public class CNF {
     } else {
       index.decrementAndGet();
     }
-    
+
     StringBuilder sb = new StringBuilder();
     while (true) {
       boolean hasNext = index.get() < string.length();

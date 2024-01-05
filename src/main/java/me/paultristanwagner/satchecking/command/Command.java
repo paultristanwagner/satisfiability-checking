@@ -25,7 +25,7 @@ public abstract class Command {
     this.usage = usage;
 
     this.aliases = new ArrayList<>();
-    for(String alias : aliases) {
+    for (String alias : aliases) {
       this.aliases.add(alias.toLowerCase());
     }
 

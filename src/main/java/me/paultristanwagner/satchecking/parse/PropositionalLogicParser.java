@@ -205,7 +205,7 @@ public class PropositionalLogicParser
     public PropositionalLogicAnd(List<PropositionalLogicExpression> expressions) {
       List<PropositionalLogicExpression> unpacked = new ArrayList<>();
       for (PropositionalLogicExpression expression : expressions) {
-        if(expression == null) continue;
+        if (expression == null) continue;
 
         if (expression instanceof PropositionalLogicAnd and) {
           unpacked.addAll(and.expressions);
@@ -251,7 +251,7 @@ public class PropositionalLogicParser
     public PropositionalLogicOr(List<PropositionalLogicExpression> expressions) {
       List<PropositionalLogicExpression> unpacked = new ArrayList<>();
       for (PropositionalLogicExpression expression : expressions) {
-        if(expression == null) continue;
+        if (expression == null) continue;
 
         if (expression instanceof PropositionalLogicOr or) {
           unpacked.addAll(or.expressions);
@@ -264,7 +264,7 @@ public class PropositionalLogicParser
     }
 
     public static PropositionalLogicExpression or(PropositionalLogicExpression... propositionalLogicExpressions) {
-      if(propositionalLogicExpressions.length == 0) {
+      if (propositionalLogicExpressions.length == 0) {
         throw new IllegalArgumentException("Cannot create an or expression with no expressions");
       } else if (propositionalLogicExpressions.length == 1) {
         return propositionalLogicExpressions[0];
@@ -398,7 +398,7 @@ public class PropositionalLogicParser
 
         return TseitinNode.inner(clauses, helperVariable);
       }
-    } else if(expression instanceof PropositionalLogicNary naryExpression) {
+    } else if (expression instanceof PropositionalLogicNary naryExpression) {
       List<TseitinNode> nodes = new ArrayList<>();
       List<Clause> clauses = new ArrayList<>();
       for (PropositionalLogicExpression e : naryExpression.expressions) {
@@ -407,7 +407,7 @@ public class PropositionalLogicParser
         clauses.addAll(node.clauses);
       }
 
-      if(expression instanceof PropositionalLogicAnd and) {
+      if (expression instanceof PropositionalLogicAnd and) {
         for (int i = 0; i < and.expressions.size(); i++) {
           Literal literal = new Literal(nodes.get(i).nodeName);
           Clause clause = new Clause(new ArrayList<>(List.of(notH, literal)));
@@ -415,13 +415,13 @@ public class PropositionalLogicParser
         }
 
         List<Literal> literals = new ArrayList<>();
-        for(int i = 0; i < and.expressions.size(); i++) {
+        for (int i = 0; i < and.expressions.size(); i++) {
           literals.add(new Literal(nodes.get(i).nodeName).not());
         }
         literals.add(h);
         Clause clause = new Clause(literals);
         clauses.add(clause);
-      } else if(expression instanceof PropositionalLogicOr or) {
+      } else if (expression instanceof PropositionalLogicOr or) {
         for (int i = 0; i < or.expressions.size(); i++) {
           Literal literal = new Literal(nodes.get(i).nodeName);
           Clause clause = new Clause(new ArrayList<>(List.of(h, literal.not())));
@@ -429,7 +429,7 @@ public class PropositionalLogicParser
         }
 
         List<Literal> literals = new ArrayList<>();
-        for(int i = 0; i < or.expressions.size(); i++) {
+        for (int i = 0; i < or.expressions.size(); i++) {
           literals.add(new Literal(nodes.get(i).nodeName));
         }
         literals.add(notH);

@@ -30,7 +30,7 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     lexer.requireEither(EQUALS, NOT_EQUALS);
     boolean equal = lexer.canConsume(EQUALS);
-    if(equal) {
+    if (equal) {
       lexer.consume(EQUALS);
     } else {
       lexer.consume(NOT_EQUALS);
@@ -54,15 +54,15 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     List<Function> parameters = new ArrayList<>();
 
-    if(!lexer.canConsume(LPAREN)) {
+    if (!lexer.canConsume(LPAREN)) {
       return Function.of(functionName, parameters);
     }
 
     lexer.consume(LPAREN);
 
-    while(true) {
+    while (true) {
       parameters.add(FUNCTION(lexer));
-      if(lexer.canConsume(RPAREN)) {
+      if (lexer.canConsume(RPAREN)) {
         break;
       }
 

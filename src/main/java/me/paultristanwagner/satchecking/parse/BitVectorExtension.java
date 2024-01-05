@@ -11,7 +11,7 @@ public class BitVectorExtension extends BitVectorTerm {
   private final int length;
 
   private BitVectorExtension(BitVectorTerm term, int length) {
-    if(term.getLength() >= length) {
+    if (term.getLength() >= length) {
       throw new IllegalArgumentException("BitVectorExtension: length must be greater than the length of the term!");
     }
 

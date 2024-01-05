@@ -20,16 +20,16 @@ public class SimplexCommand extends Command {
         "Applies the simplex algorithm to the specified constraints",
         "simplex <constraints> ...",
         """
-           Examples:
-             simplex x+y>=10 x-y<=5 1/2x-y<=0
-             
-             simplex min(x) x+y>=10 x-y<=5 1/2x-y<=0
-         """);
+              Examples:
+                simplex x+y>=10 x-y<=5 1/2x-y<=0
+                
+                simplex min(x) x+y>=10 x-y<=5 1/2x-y<=0
+            """);
   }
 
   @Override
   public boolean execute(String label, String[] args) {
-    if(args.length == 0) {
+    if (args.length == 0) {
       return false;
     }
 
