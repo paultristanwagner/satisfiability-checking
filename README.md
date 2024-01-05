@@ -5,12 +5,6 @@ The techniques used here are introduced in the RWTH University
 lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
 by Prof. Dr. Erika Ábrahám.
 
-TODO:
-- [ ] Implement a parser for SMT-LIB 2.6
-- [ ] Use TimedCommand class
-- [ ] Improve output on SMT solver: Functions, ILP, etc.
-- [ ] Implement exact rational arithmetic for Simplex
-
 # How to build and run the project
 Clone the git repository:  
 `git clone https://github.com/paultristanwagner/satisfiability-checking.git`  
@@ -61,8 +55,8 @@ uninterpreted functions (QF_EQUF).
 ```c++
 > smt QF_LRA (x<=-3 | x>=3) & (y=5) & (x+y>=12)
 SAT:
-x=7.0; y=5.0;
-Time: 4ms
+x=7; y=5;
+Time: 1ms
 ```
 ```c++
 > smt QF_LRA (x<=0 | x>=5) & (x+y=5/2) & (y=1)
@@ -74,13 +68,13 @@ Time: 1ms
 ```c++
 > smt QF_LIA (y+0.8x<=4) & (y-0.25x>=0) & (max(x))
 SAT:
-x=3.0; y=1.0;
+x=3; y=1;
 Time: 1ms
 ```
 ```c++
 > smt QF_LIA (y-x<=0) & (y+x<=1) & (y>=0.1)
 UNSAT
-Time: 0ms
+Time: 1ms
 ```
 
 ### QF_EQ
@@ -115,18 +109,19 @@ The program can check sets of weak linear constraints for satisfiability employi
 the [Simplex algorithm](https://en.wikipedia.org/wiki/Simplex_algorithm).  
 If the set of constraints is satisfiable, the program will print a satisfying assignment.
 Otherwise, an explanation for unsatisfiability is given in the form of an infeasible subset.
-Currently, the program supports decimal coefficients which will be handled via floating point arithmetic.
+Decimals, as well as fractions are supported which will be handled by exact rational arithmetic.
+This setting can be changed to use floating point arithmetic in the ``config.properties`` file.
 
 ### Examples
 ```c++
 > simplex a+3b+5c=30 a>=5 a<=10 b>=2 c>=1
 SAT!
-Solution: a=10.0; b=5.0; c=1.0; Time: 0ms
+Solution: a=10; b=5; c=1; Time: 0ms
 ```
 ```c++
 > simplex x+y=3 y=1 x<=1
 UNSAT!
-Explanation: y=1.0; x+y=3.0; x<=1.0; Time: 0ms
+Explanation: x<=1; y=1; x+y=3; Time: 0ms
 ```
 
 An optional objective function can be given to maximize or minimize the value of a linear expression.
@@ -134,12 +129,12 @@ An optional objective function can be given to maximize or minimize the value of
 ```c++
 > simplex min(-2x-3y-4z) 3x+2y+z<=10 2x+5y+3z<=15 x>=0 y>=0 z>=0
 SAT! (optimal)
-Solution: x=0.0; y=0.0; z=5.0; Optimum: -20.0
+Solution: x=0; y=0; z=5; Optimum: -20
 Time: 0ms
 ```
 ```c++
 > simplex max(x) x>=-1 x>=-1/2
 UNSAT! (feasible, but unbounded)
-Solution: x=-0.5;
-Time: 1ms
+Solution: x=-1/2;
+Time: 0ms
 ```
