@@ -61,7 +61,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
 
     for (String variable : assignment.getVariables()) {
       Number value = assignment.getAssignment(variable);
-      if (!value.isInteger()) { // todo: maybe add epsilon here
+      if (!value.isInteger()) {
         integral = false;
         firstNonIntegralVariable = variable;
         nonIntegralValue = value;

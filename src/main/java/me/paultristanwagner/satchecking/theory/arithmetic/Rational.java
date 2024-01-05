@@ -152,8 +152,6 @@ public class Rational implements Number {
       throw new IllegalArgumentException("Cannot compare " + other + " to " + this);
     }
 
-    // todo: check if we need a special case for negative numbers
-
     return numerator.multiply(otherExact.denominator).compareTo(otherExact.numerator.multiply(denominator)) < 0;
   }
 
