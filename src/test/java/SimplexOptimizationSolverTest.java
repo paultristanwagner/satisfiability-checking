@@ -2,8 +2,8 @@ import me.paultristanwagner.satchecking.parse.LinearConstraintParser;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
-import me.paultristanwagner.satchecking.theory.solver.SimplexOptimizationSolver;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+import me.paultristanwagner.satchecking.theory.solver.SimplexOptimizationSolver;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

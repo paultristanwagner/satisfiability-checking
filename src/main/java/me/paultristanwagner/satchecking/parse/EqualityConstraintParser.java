@@ -1,9 +1,8 @@
 package me.paultristanwagner.satchecking.parse;
 
-import static me.paultristanwagner.satchecking.parse.EqualityConstraintLexer.*;
-import static me.paultristanwagner.satchecking.parse.TokenType.*;
-
 import me.paultristanwagner.satchecking.theory.EqualityConstraint;
+
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 /**
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>

@@ -10,7 +10,6 @@ import me.paultristanwagner.satchecking.theory.solver.SimplexOptimizationSolver;
 import java.util.List;
 
 import static me.paultristanwagner.satchecking.AnsiColor.*;
-import static me.paultristanwagner.satchecking.AnsiColor.RESET;
 
 public class SimplexCommand extends Command {
 

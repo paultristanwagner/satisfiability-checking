@@ -1,15 +1,16 @@
 package me.paultristanwagner.satchecking.command.impl;
 
-import static me.paultristanwagner.satchecking.AnsiColor.RED;
-import static me.paultristanwagner.satchecking.AnsiColor.RESET;
-import static me.paultristanwagner.satchecking.Main.COMMAND_EXECUTOR;
+import me.paultristanwagner.satchecking.command.Command;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
-import me.paultristanwagner.satchecking.command.Command;
+
+import static me.paultristanwagner.satchecking.AnsiColor.RED;
+import static me.paultristanwagner.satchecking.AnsiColor.RESET;
+import static me.paultristanwagner.satchecking.Main.COMMAND_EXECUTOR;
 
 public class ReadCommand extends Command {
 

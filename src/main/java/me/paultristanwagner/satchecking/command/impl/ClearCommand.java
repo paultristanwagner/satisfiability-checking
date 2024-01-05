@@ -1,10 +1,10 @@
 package me.paultristanwagner.satchecking.command.impl;
 
-import java.io.IOException;
-import java.util.List;
-
 import me.paultristanwagner.satchecking.command.Command;
 import org.jline.reader.impl.LineReaderImpl;
+
+import java.io.IOException;
+import java.util.List;
 
 import static me.paultristanwagner.satchecking.Main.TERMINAL;
 

@@ -1,11 +1,12 @@
 package me.paultristanwagner.satchecking.parse;
 
-import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Function;
 
 import java.util.ArrayList;
 import java.util.List;
-import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
-import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Function;
+
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint> {
 

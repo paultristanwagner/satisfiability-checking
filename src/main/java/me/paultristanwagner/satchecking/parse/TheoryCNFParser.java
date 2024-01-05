@@ -2,7 +2,10 @@ package me.paultristanwagner.satchecking.parse;
 
 import me.paultristanwagner.satchecking.smt.TheoryCNF;
 import me.paultristanwagner.satchecking.smt.TheoryClause;
-import me.paultristanwagner.satchecking.theory.*;
+import me.paultristanwagner.satchecking.theory.Constraint;
+import me.paultristanwagner.satchecking.theory.EqualityConstraint;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
+import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorConstraint;
 
 import java.util.ArrayList;
