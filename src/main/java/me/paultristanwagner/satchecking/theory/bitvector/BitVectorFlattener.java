@@ -940,12 +940,12 @@ public class BitVectorFlattener {
       String signBitVariableTerm1 = bitVectorVariableToName.get(term1) + "_" + (term1.getLength() - 1);
       String signBitVariableRemainder = bitVectorVariableToName.get(remainder) + "_" + (remainder.getLength() - 1);
 
-      remainderRestriction = equivalence(
-          or(
-              and(zeroCase),
-              variable(signBitVariableRemainder)
-          ),
-          variable(signBitVariableTerm1)
+      remainderRestriction = or(
+          and(zeroCase),
+          equivalence(
+              variable(signBitVariableRemainder),
+              variable(signBitVariableTerm1)
+          )
       );
     }
 
