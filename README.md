@@ -46,9 +46,7 @@ Tseitin's transformation:
 ```
 
 # SMT solver
-An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (
-QF_EQ) and equality logic with
-uninterpreted functions (QF_EQUF).
+An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (QF_EQ), equality logic with uninterpreted functions (QF_EQUF) and bit vector arithmetic (QF_BV).
 
 ## Examples
 ### QF_LRA
