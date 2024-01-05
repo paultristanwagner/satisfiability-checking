@@ -23,18 +23,4 @@ public interface Parser<T> {
     index.incrementAndGet();
     return 0;
   }
-  
-  static char previousProperChar(String string, AtomicInteger index) {
-    while (index.get() >= 0) {
-      char character = string.charAt(index.get());
-      index.decrementAndGet();
-
-      if (character != ' ' && character != '\n') {
-        return character;
-      }
-    }
-
-    index.decrementAndGet();
-    return 0;
-  }
 }

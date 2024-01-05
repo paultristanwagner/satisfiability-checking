@@ -179,11 +179,11 @@ public class LinearConstraint implements Constraint {
 
     return sb.toString();
   }
-  
-  public Number evaluateTerm(VariableAssignment<Number> assignment ) {
+
+  public Number evaluateTerm(VariableAssignment<Number> assignment) {
     Number result = ZERO();
-    for ( String variable : variables ) {
-      Number summand = coefficients.get( variable ).multiply(assignment.getAssignment(variable));
+    for (String variable : variables) {
+      Number summand = coefficients.get(variable).multiply(assignment.getAssignment(variable));
       result = result.add(summand);
     }
     return result;

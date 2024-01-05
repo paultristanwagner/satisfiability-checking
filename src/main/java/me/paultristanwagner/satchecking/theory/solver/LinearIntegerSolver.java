@@ -3,7 +3,6 @@ package me.paultristanwagner.satchecking.theory.solver;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.TheoryResult;
-
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.HashSet;

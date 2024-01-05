@@ -23,7 +23,7 @@ public class CommandExecutor {
     System.arraycopy(rawArgs, 1, newArgs, 0, rawArgs.length - 1);
     boolean success = command.execute(commandName, newArgs);
 
-    if(!success) {
+    if (!success) {
       System.out.println(RED + "Syntax: " + command.getUsage() + RESET);
     }
   }

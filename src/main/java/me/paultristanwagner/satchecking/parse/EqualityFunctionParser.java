@@ -1,11 +1,12 @@
 package me.paultristanwagner.satchecking.parse;
 
-import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
+import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Function;
 
 import java.util.ArrayList;
 import java.util.List;
-import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
-import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Function;
+
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint> {
 
@@ -29,7 +30,7 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     lexer.requireEither(EQUALS, NOT_EQUALS);
     boolean equal = lexer.canConsume(EQUALS);
-    if(equal) {
+    if (equal) {
       lexer.consume(EQUALS);
     } else {
       lexer.consume(NOT_EQUALS);
@@ -53,15 +54,15 @@ public class EqualityFunctionParser implements Parser<EqualityFunctionConstraint
 
     List<Function> parameters = new ArrayList<>();
 
-    if(!lexer.canConsume(LPAREN)) {
+    if (!lexer.canConsume(LPAREN)) {
       return Function.of(functionName, parameters);
     }
 
     lexer.consume(LPAREN);
 
-    while(true) {
+    while (true) {
       parameters.add(FUNCTION(lexer));
-      if(lexer.canConsume(RPAREN)) {
+      if (lexer.canConsume(RPAREN)) {
         break;
       }
 

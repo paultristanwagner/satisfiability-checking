@@ -1,8 +1,9 @@
 package me.paultristanwagner.satchecking.command.impl;
 
-import java.util.List;
 import me.paultristanwagner.satchecking.Config;
 import me.paultristanwagner.satchecking.command.Command;
+
+import java.util.List;
 
 public class ReloadCommand extends Command {
 

@@ -5,9 +5,12 @@ import me.paultristanwagner.satchecking.sat.Clause;
 import me.paultristanwagner.satchecking.sat.Literal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicAnd.and;
+import static me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicOr.or;
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 public class PropositionalLogicParser
@@ -79,7 +82,7 @@ public class PropositionalLogicParser
     while (lexer.canConsume(OR)) {
       lexer.consume(OR);
       PropositionalLogicExpression next = I(lexer);
-      res = new PropositionalLogicOr(res, next);
+      res = or(res, next);
     }
 
     return res;
@@ -91,7 +94,7 @@ public class PropositionalLogicParser
     while (lexer.canConsume(AND)) {
       lexer.consume(AND);
       PropositionalLogicExpression next = C(lexer);
-      res = new PropositionalLogicAnd(res, next);
+      res = and(res, next);
     }
 
     return res;
@@ -136,17 +139,25 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicNegation extends PropositionalLogicExpression {
+  public static class PropositionalLogicNegation extends PropositionalLogicExpression {
     private final PropositionalLogicExpression expression;
 
     public PropositionalLogicNegation(PropositionalLogicExpression expression) {
       this.expression = expression;
     }
 
+    public static PropositionalLogicNegation negation(PropositionalLogicExpression expression) {
+      return new PropositionalLogicNegation(expression);
+    }
+
     @Override
     public String toString() {
       return "~" + expression;
     }
+  }
+
+  static abstract class PropositionalLogicNary extends PropositionalLogicExpression {
+    protected List<PropositionalLogicExpression> expressions;
   }
 
   static abstract class PropositionalLogicBinary extends PropositionalLogicExpression {
@@ -160,9 +171,13 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicImplication extends PropositionalLogicBinary {
+  public static class PropositionalLogicImplication extends PropositionalLogicBinary {
     public PropositionalLogicImplication(PropositionalLogicExpression left, PropositionalLogicExpression right) {
       super(left, right);
+    }
+
+    public static PropositionalLogicImplication implication(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      return new PropositionalLogicImplication(left, right);
     }
 
     @Override
@@ -171,44 +186,123 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicBiConditional extends PropositionalLogicBinary {
+  public static class PropositionalLogicBiConditional extends PropositionalLogicBinary {
     public PropositionalLogicBiConditional(PropositionalLogicExpression left, PropositionalLogicExpression right) {
       super(left, right);
     }
 
-    @Override
-    public String toString() {
-      return left + " <-> " + right;
-    }
-  }
-
-  static class PropositionalLogicAnd extends PropositionalLogicBinary {
-    public PropositionalLogicAnd(PropositionalLogicExpression left, PropositionalLogicExpression right) {
-      super(left, right);
+    public static PropositionalLogicBiConditional equivalence(PropositionalLogicExpression left, PropositionalLogicExpression right) {
+      return new PropositionalLogicBiConditional(left, right);
     }
 
     @Override
     public String toString() {
-      return left + " & " + right;
+      return "(" + left + " <-> " + right + ")";
     }
   }
 
-  static class PropositionalLogicOr extends PropositionalLogicBinary {
-    public PropositionalLogicOr(PropositionalLogicExpression left, PropositionalLogicExpression right) {
-      super(left, right);
+  public static class PropositionalLogicAnd extends PropositionalLogicNary {
+    public PropositionalLogicAnd(List<PropositionalLogicExpression> expressions) {
+      List<PropositionalLogicExpression> unpacked = new ArrayList<>();
+      for (PropositionalLogicExpression expression : expressions) {
+        if (expression == null) continue;
+
+        if (expression instanceof PropositionalLogicAnd and) {
+          unpacked.addAll(and.expressions);
+        } else {
+          unpacked.add(expression);
+        }
+      }
+
+      this.expressions = unpacked;
+    }
+
+    public static PropositionalLogicExpression and(PropositionalLogicExpression... propositionalLogicExpressions) {
+      if (propositionalLogicExpressions.length == 0) {
+        throw new IllegalArgumentException("Cannot create an and expression with no expressions");
+      } else if (propositionalLogicExpressions.length == 1) {
+        return propositionalLogicExpressions[0];
+      }
+      return and(Arrays.asList(propositionalLogicExpressions));
+    }
+
+    public static PropositionalLogicExpression and(List<PropositionalLogicExpression> propositionalLogicExpressions) {
+      if (propositionalLogicExpressions.isEmpty()) {
+        throw new IllegalArgumentException("Cannot create an and expression with no expressions");
+      } else if (propositionalLogicExpressions.size() == 1) {
+        return propositionalLogicExpressions.get(0);
+      }
+
+      return new PropositionalLogicAnd(propositionalLogicExpressions);
     }
 
     @Override
     public String toString() {
-      return left + " | " + right;
+      StringBuilder sb = new StringBuilder();
+      sb.append("(");
+      for (PropositionalLogicExpression expression : expressions) {
+        sb.append(expression).append(" & ");
+      }
+      return sb.substring(0, sb.length() - 3) + ")";
     }
   }
 
-  static class PropositionalLogicParenthesis extends PropositionalLogicExpression {
+  public static class PropositionalLogicOr extends PropositionalLogicNary {
+    public PropositionalLogicOr(List<PropositionalLogicExpression> expressions) {
+      List<PropositionalLogicExpression> unpacked = new ArrayList<>();
+      for (PropositionalLogicExpression expression : expressions) {
+        if (expression == null) continue;
+
+        if (expression instanceof PropositionalLogicOr or) {
+          unpacked.addAll(or.expressions);
+        } else {
+          unpacked.add(expression);
+        }
+      }
+
+      this.expressions = unpacked;
+    }
+
+    public static PropositionalLogicExpression or(PropositionalLogicExpression... propositionalLogicExpressions) {
+      if (propositionalLogicExpressions.length == 0) {
+        throw new IllegalArgumentException("Cannot create an or expression with no expressions");
+      } else if (propositionalLogicExpressions.length == 1) {
+        return propositionalLogicExpressions[0];
+      }
+
+      return or(Arrays.asList(propositionalLogicExpressions));
+    }
+
+    public static PropositionalLogicExpression or(List<PropositionalLogicExpression> propositionalLogicExpressions) {
+      if (propositionalLogicExpressions.isEmpty()) {
+        throw new IllegalArgumentException("Cannot create an or expression with no expressions");
+      } else if (propositionalLogicExpressions.size() == 1) {
+        return propositionalLogicExpressions.get(0);
+      }
+
+      return new PropositionalLogicOr(propositionalLogicExpressions);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder();
+      sb.append("(");
+      for (PropositionalLogicExpression expression : expressions) {
+        sb.append(expression).append(" | ");
+      }
+      return sb.substring(0, sb.length() - 3) + ")";
+    }
+  }
+
+  public static class PropositionalLogicParenthesis extends PropositionalLogicExpression {
     private final PropositionalLogicExpression expression;
 
     public PropositionalLogicParenthesis(PropositionalLogicExpression expression) {
       this.expression = expression;
+    }
+
+    public static PropositionalLogicParenthesis parenthesis(PropositionalLogicExpression expression) {
+      return new PropositionalLogicParenthesis(expression);
     }
 
     @Override
@@ -217,11 +311,15 @@ public class PropositionalLogicParser
     }
   }
 
-  static class PropositionalLogicVariable extends PropositionalLogicExpression {
+  public static class PropositionalLogicVariable extends PropositionalLogicExpression {
     private final String name;
 
     public PropositionalLogicVariable(String name) {
       this.name = name;
+    }
+
+    public static PropositionalLogicVariable variable(String name) {
+      return new PropositionalLogicVariable(name);
     }
 
     @Override
@@ -231,6 +329,7 @@ public class PropositionalLogicParser
   }
 
   // todo: just as a prototype
+  // todo: ensure that the helper variables are unique
   public static CNF tseitin(PropositionalLogicExpression expression) {
     TseitinNode result = tseitin(expression, new AtomicInteger(0));
     List<Clause> clauses = result.clauses;
@@ -276,27 +375,7 @@ public class PropositionalLogicParser
       Literal rightLiteral = new Literal(right.nodeName);
       Literal notRightLiteral = rightLiteral.not();
 
-      if (expression instanceof PropositionalLogicOr) {
-        Clause c0 = new Clause(new ArrayList<>(List.of(notH, leftLiteral, rightLiteral)));
-        Clause c1 = new Clause(new ArrayList<>(List.of(notLeftLiteral, h)));
-        Clause c2 = new Clause(new ArrayList<>(List.of(notRightLiteral, h)));
-
-        clauses.add(c0);
-        clauses.add(c1);
-        clauses.add(c2);
-
-        return TseitinNode.inner(clauses, helperVariable);
-      } else if (expression instanceof PropositionalLogicAnd) {
-        Clause c0 = new Clause(new ArrayList<>(List.of(notH, leftLiteral)));
-        Clause c1 = new Clause(new ArrayList<>(List.of(notH, rightLiteral)));
-        Clause c2 = new Clause(new ArrayList<>(List.of(notLeftLiteral, notRightLiteral, h)));
-
-        clauses.add(c0);
-        clauses.add(c1);
-        clauses.add(c2);
-
-        return TseitinNode.inner(clauses, helperVariable);
-      } else if (expression instanceof PropositionalLogicImplication) {
+      if (expression instanceof PropositionalLogicImplication) {
         Clause c0 = new Clause(new ArrayList<>(List.of(notH, notLeftLiteral, rightLiteral)));
         Clause c1 = new Clause(new ArrayList<>(List.of(leftLiteral, h)));
         Clause c2 = new Clause(new ArrayList<>(List.of(notRightLiteral, h)));
@@ -319,6 +398,46 @@ public class PropositionalLogicParser
 
         return TseitinNode.inner(clauses, helperVariable);
       }
+    } else if (expression instanceof PropositionalLogicNary naryExpression) {
+      List<TseitinNode> nodes = new ArrayList<>();
+      List<Clause> clauses = new ArrayList<>();
+      for (PropositionalLogicExpression e : naryExpression.expressions) {
+        TseitinNode node = tseitin(e, index);
+        nodes.add(node);
+        clauses.addAll(node.clauses);
+      }
+
+      if (expression instanceof PropositionalLogicAnd and) {
+        for (int i = 0; i < and.expressions.size(); i++) {
+          Literal literal = new Literal(nodes.get(i).nodeName);
+          Clause clause = new Clause(new ArrayList<>(List.of(notH, literal)));
+          clauses.add(clause);
+        }
+
+        List<Literal> literals = new ArrayList<>();
+        for (int i = 0; i < and.expressions.size(); i++) {
+          literals.add(new Literal(nodes.get(i).nodeName).not());
+        }
+        literals.add(h);
+        Clause clause = new Clause(literals);
+        clauses.add(clause);
+      } else if (expression instanceof PropositionalLogicOr or) {
+        for (int i = 0; i < or.expressions.size(); i++) {
+          Literal literal = new Literal(nodes.get(i).nodeName);
+          Clause clause = new Clause(new ArrayList<>(List.of(h, literal.not())));
+          clauses.add(clause);
+        }
+
+        List<Literal> literals = new ArrayList<>();
+        for (int i = 0; i < or.expressions.size(); i++) {
+          literals.add(new Literal(nodes.get(i).nodeName));
+        }
+        literals.add(notH);
+        Clause clause = new Clause(literals);
+        clauses.add(clause);
+      }
+
+      return TseitinNode.inner(clauses, helperVariable);
     } else if (expression instanceof PropositionalLogicParenthesis parenthesis) {
       index.decrementAndGet(); // parenthesis don't need to be counted as helper variables
       return tseitin(parenthesis.expression, index);

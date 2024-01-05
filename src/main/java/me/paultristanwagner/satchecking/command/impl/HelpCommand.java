@@ -19,7 +19,7 @@ public class HelpCommand extends Command {
 
   @Override
   public boolean execute(String label, String[] args) {
-    if(args.length == 1) {
+    if (args.length == 1) {
       String commandName = args[0];
       Command command = CommandRegistry.getInstance().getCommandByName(commandName);
 

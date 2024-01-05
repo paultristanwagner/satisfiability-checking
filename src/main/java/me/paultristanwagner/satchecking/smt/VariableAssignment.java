@@ -17,7 +17,7 @@ public class VariableAssignment<O> {
   public Set<String> getVariables() {
     return assignments.keySet();
   }
-  
+
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();

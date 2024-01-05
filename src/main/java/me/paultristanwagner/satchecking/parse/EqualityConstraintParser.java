@@ -1,9 +1,8 @@
 package me.paultristanwagner.satchecking.parse;
 
-import static me.paultristanwagner.satchecking.parse.EqualityConstraintLexer.*;
-import static me.paultristanwagner.satchecking.parse.TokenType.*;
-
 import me.paultristanwagner.satchecking.theory.EqualityConstraint;
+
+import static me.paultristanwagner.satchecking.parse.TokenType.*;
 
 /**
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
@@ -28,7 +27,7 @@ public class EqualityConstraintParser implements Parser<EqualityConstraint> {
 
     lexer.requireEither(EQUALS, NOT_EQUALS);
     boolean equal = lexer.canConsume(EQUALS);
-    if(equal) {
+    if (equal) {
       lexer.consume(EQUALS);
     } else {
       lexer.consume(NOT_EQUALS);

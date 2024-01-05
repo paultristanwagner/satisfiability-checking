@@ -7,7 +7,7 @@ import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.*;
 
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.*;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> {
@@ -286,5 +286,6 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     System.out.println("---------------------");
   }
 
-  record Violation(String variable, boolean increase) {}
+  record Violation(String variable, boolean increase) {
+  }
 }

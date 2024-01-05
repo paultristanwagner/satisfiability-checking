@@ -50,7 +50,7 @@ public class CommandRegistry {
   }
 
   public static CommandRegistry getInstance() {
-    if(instance == null) {
+    if (instance == null) {
       instance = new CommandRegistry();
     }
 

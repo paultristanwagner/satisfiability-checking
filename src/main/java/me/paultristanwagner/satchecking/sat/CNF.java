@@ -3,7 +3,9 @@ package me.paultristanwagner.satchecking.sat;
 import me.paultristanwagner.satchecking.parse.SyntaxError;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static me.paultristanwagner.satchecking.parse.Parser.nextProperChar;
@@ -16,17 +18,20 @@ public class CNF {
 
   private final List<Clause> initialClauses;
   private final List<Clause> clauses;
-  private final List<Literal> literals;
+  private final List<Literal> orderedLiterals;
+  private final Set<Literal> literals;
 
   public CNF(List<Clause> clauses) {
     this.initialClauses = new ArrayList<>(clauses);
     this.clauses = clauses;
-    this.literals = new ArrayList<>();
+    this.orderedLiterals = new ArrayList<>();
+    this.literals = new HashSet<>();
 
     for (Clause clause : clauses) {
       for (Literal literal : clause.getLiterals()) {
         if (!literals.contains(literal)) {
           literals.add(literal);
+          orderedLiterals.add(literal);
         }
       }
     }
@@ -36,8 +41,8 @@ public class CNF {
     clauses.add(clause);
 
     for (Literal literal : clause.getLiterals()) {
-      if (!literals.contains(literal)) {
-        literals.add(literal);
+      if (!orderedLiterals.contains(literal)) {
+        orderedLiterals.add(literal);
       }
     }
   }
@@ -47,7 +52,7 @@ public class CNF {
   }
 
   public List<Literal> getLiterals() {
-    return literals;
+    return orderedLiterals;
   }
 
   /*
@@ -114,13 +119,13 @@ public class CNF {
     } else {
       index.decrementAndGet();
     }
-    
+
     StringBuilder sb = new StringBuilder();
     while (true) {
       boolean hasNext = index.get() < string.length();
       char c = hasNext ? string.charAt(index.get()) : ' ';
       if ((c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '_') {
-        if (sb.length() == 0) {
+        if (sb.isEmpty()) {
           throw new SyntaxError("Literal expected, got '" + c + "' instead", string, index.get());
         }
         break;

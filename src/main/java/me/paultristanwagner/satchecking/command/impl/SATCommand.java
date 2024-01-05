@@ -20,11 +20,11 @@ public class SATCommand extends Command {
         "Checks the satisfiability of a given formula in conjunctive normal form",
         "sat <formula>",
         """
-          Examples:
-            sat (~a | b) & (a)
-            
-            sat (a | b) & (~a | b) & (a | ~b) & (~a | ~b)
-        """);
+              Examples:
+                sat (~a | b) & (a)
+                
+                sat (a | b) & (~a | b) & (a | ~b) & (~a | ~b)
+            """);
   }
 
   @Override

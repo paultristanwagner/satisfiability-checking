@@ -22,7 +22,7 @@ public class TseitinTransformationTest {
     solver.load(cnf);
 
     int models = 0;
-    while(solver.nextModel() != null) {
+    while (solver.nextModel() != null) {
       models++;
     }
 
