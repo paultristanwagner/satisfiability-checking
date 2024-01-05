@@ -1,5 +1,4 @@
 # Satisfiability checking
-
 Command line tool for SAT solving, SMT solving in various theories, and other algorithms related to satisfiability checking.
 
 The techniques used here are introduced in the RWTH University
@@ -7,7 +6,6 @@ lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-te
 by Prof. Dr. Erika Ábrahám.
 
 # How to build and run the project
-
 Clone the git repository:  
 `git clone https://github.com/paultristanwagner/satisfiability-checking.git`  
 Navigate into the created directory:  
@@ -19,46 +17,94 @@ Run the project:
 Now you should see the command prompt indicated by a `>` symbol.
 
 # Propositional logic
-
 A SAT solver is implemented that can
 employ [DPLL+CDCL](https://en.wikipedia.org/wiki/Conflict-driven_clause_learning), [DPLL](https://en.wikipedia.org/wiki/DPLL_algorithm)
 as well as simple enumeration to solve propositional logic problems.
 
 Input can be given in conjunctive normal form in the following way.
 
-<img src="images/cnf-input-sat.png" alt="How to input in CNF"/> <br>
-<img src="images/cnf-input-unsat.png" alt="How to input in CNF"/> <br>
+```c++
+> sat (a) & (~a | b) & (~b | ~c)
+SAT:
+a=1, b=1, c=0;
+1 model/s found in 0 ms
+```
+```c++
+> sat (a) & (~a | b) & (~b)
+UNSAT
+```
 
 # Tseitin's transformation
-
 The Tseitin transformation is implemented for propositional logic.
 It can be used to transform a formula into an equi-satisfiable formula in conjunctive normal form.
 The logical operators '~', '&', '|', '->', '<->' as well as parentheses are supported.
 
-<img src="images/tseitin.png" alt="Tseitin transformation for proving 'modus ponens'"/> <br>
+```c++
+> tseitin ~(a & (a -> b) -> b)
+Tseitin's transformation:
+(~h3 | ~a | b) & (a | h3) & (~b | h3) & (~h2 | a) & (~h2 | h3) & (~a | ~h3 | h2) & (~h1 | ~h2 | b) & (h2 | h1) & (~b | h1) & (~h0 | ~h1) & (h1 | h0) & (h0)
+```
 
 # SMT solver
-
 An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (
 QF_EQ) and equality logic with
 uninterpreted functions (QF_EQUF).
 
-<img src="images/smt-qflra-sat.png" alt="Satisfiable SMT example of linear real arithmetic"/> <br>
-<img src="images/smt-qflra-unsat.png" alt="Unsatisfiable SMT example of linear real arithmetic"/> <br>
+## Examples
+### QF_LRA
+```c++
+> smt QF_LRA (x<=-3 | x>=3) & (y=5) & (x+y>=12)
+SAT:
+x=7.0; y=5.0;
+Time: 4ms
+```
+```c++
+> smt QF_LRA (x<=0 | x>=5) & (x+y=5/2) & (y=1)
+UNSAT
+Time: 1ms
+```
 
-<img src="images/smt-qflia-sat.png" alt="Satisfiable SMT example of linear integer arithmetic"/> <br>
-<img src="images/smt-qflia-unsat.png" alt="Unsatisfiable SMT example of linear integer arithmetic"/> <br>
+### QF_LIA
+```c++
+> smt QF_LIA (y+0.8x<=4) & (y-0.25x>=0) & (max(x))
+SAT:
+x=3.0; y=1.0;
+Time: 1ms
+```
+```c++
+> smt QF_LIA (y-x<=0) & (y+x<=1) & (y>=0.1)
+UNSAT
+Time: 0ms
+```
 
-<img src="images/smt-qfeq-sat.png" alt="Satisfiable SMT example of equality logic"/> <br>
-<img src="images/smt-qfeq-unsat.png" alt="Unsatisfiable SMT example of equality logic"/> <br>
+### QF_EQ
+```c++
+> smt QF_EQ (a=b) & (c=d) & (a!=d)
+SAT:
+a=0.0; b=0.0; c=1.0; d=1.0;
+Time: 0ms
+```
+```c++
+> smt QF_EQ (a=b) & (b=c) & (c=d) & (a!=d)
+UNSAT
+Time: 0ms
+```
 
-<img src="images/smt-qfequf-sat.png" alt="Satisfiable SMT example of equality logic with uninterpreted functions"/> <br>
-<img src="images/smt-qfequf-unsat.png" alt="Unsatisfiable SMT example of equality logic with uninterpreted functions"/> <br>
+### QF_EQUF
+```c++
+> smt QF_EQUF (x1 = x2) & (x2 = x3) & (x4 = x5) & (f(x1) != f(x5))
+SAT:
+f(x1)=0.0; f(x5)=3.0; x1=2.0; x2=2.0; x3=2.0; x4=1.0; x5=1.0;
+Time: 0ms
+```
+```c++
+> smt QF_EQUF (f(f(y)) != x) & (x = f(y)) & (y = u) & (x = y)
+UNSAT
+Time: 0ms
+```
 
 # Theory solvers
-
 ## Linear real arithmetic (QF_LRA)
-
 The program can check sets of weak linear constraints for satisfiability employing
 the [Simplex algorithm](https://en.wikipedia.org/wiki/Simplex_algorithm).  
 If the set of constraints is satisfiable, the program will print a satisfying assignment.
@@ -66,11 +112,28 @@ Otherwise, an explanation for unsatisfiability is given in the form of an infeas
 Currently, the program supports decimal coefficients which will be handled via floating point arithmetic.
 
 ### Examples
-
-<img src="images/simplex-sat.png" alt="Satisfiable Simplex example"/> <br>
-<img src="images/simplex-unsat.png" alt="Unsatisfiable Simplex example"/> <br>
+```c++
+> simplex a+3b+5c=30 a>=5 a<=10 b>=2 c>=1
+SAT!
+Solution: a=10.0; b=5.0; c=1.0; Time: 0ms
+```
+```c++
+> simplex x+y=3 y=1 x<=1
+UNSAT!
+Explanation: y=1.0; x+y=3.0; x<=1.0; Time: 0ms
+```
 
 An optional objective function can be given to maximize or minimize the value of a linear expression.
 
-<img src="images/simplex-optimal.png" alt="Optimal Simplex example"/> <br>
-<img src="images/simplex-unbounded.png" alt="Unbounded Simplex example"/> <br>
+```c++
+> simplex min(-2x-3y-4z) 3x+2y+z<=10 2x+5y+3z<=15 x>=0 y>=0 z>=0
+SAT! (optimal)
+Solution: x=0.0; y=0.0; z=5.0; Optimum: -20.0
+Time: 0ms
+```
+```c++
+> simplex max(x) x>=-1 x>=-1/2
+UNSAT! (feasible, but unbounded)
+Solution: x=-0.5;
+Time: 1ms
+```
