@@ -42,6 +42,11 @@ public class Float implements Number {
   }
 
   @Override
+  public Float pow(int exponent) {
+    return new Float(Math.pow(value, exponent));
+  }
+
+  @Override
   public Float divide(Number other) {
     if (!(other instanceof Float otherFloat)) {
       throw new IllegalArgumentException("Cannot add " + other + " to " + this);

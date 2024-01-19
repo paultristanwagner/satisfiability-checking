@@ -77,6 +77,15 @@ public class Rational implements Number {
   }
 
   @Override
+  public Rational pow(int exponent) {
+    if (exponent < 0) {
+      return new Rational(denominator.pow(-exponent), numerator.pow(-exponent));
+    }
+
+    return new Rational(numerator.pow(exponent), denominator.pow(exponent));
+  }
+
+  @Override
   public Rational divide(Number other) {
     if (!(other instanceof Rational otherExact)) {
       throw new IllegalArgumentException("Cannot add " + other + " to " + this);

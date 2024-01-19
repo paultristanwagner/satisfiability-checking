@@ -28,7 +28,7 @@ public interface Number {
     }
   }
 
-  static Number of(long numerator, long denominator) {
+  static Number number(long numerator, long denominator) {
     if (Config.get().useFloats()) {
       return new Float((double) numerator / denominator);
     } else {
@@ -36,11 +36,17 @@ public interface Number {
     }
   }
 
+  static Number number(long numerator) {
+    return number(numerator, 1);
+  }
+
   Number add(Number other);
 
   Number subtract(Number other);
 
   Number multiply(Number other);
+
+  Number pow(int exponent);
 
   Number divide(Number other);
 

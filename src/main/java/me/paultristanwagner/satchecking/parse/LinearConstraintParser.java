@@ -156,6 +156,6 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     long numerator = Long.parseLong(parts[0]);
     long denominator = Long.parseLong(parts[1]);
 
-    return Number.of(numerator, denominator);
+    return Number.number(numerator, denominator);
   }
 }
