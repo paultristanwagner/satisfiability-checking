@@ -130,4 +130,14 @@ public class Float implements Number {
   public static Float parse(String string) {
     return new Float(Double.parseDouble(string));
   }
+
+  @Override
+  public float approximateAsFloat() {
+    return (float) value;
+  }
+
+  @Override
+  public double approximateAsDouble() {
+    return value;
+  }
 }

@@ -1,6 +1,8 @@
 package me.paultristanwagner.satchecking.theory.arithmetic;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.util.Objects;
 
 import static java.math.BigInteger.TEN;
@@ -247,5 +249,19 @@ public class Rational implements Number {
   @Override
   public int hashCode() {
     return Objects.hash(numerator, denominator);
+  }
+
+  @Override
+  public float approximateAsFloat() {
+    BigDecimal numeratorDecimal = new BigDecimal(numerator);
+    BigDecimal denominatorDecimal = new BigDecimal(denominator);
+    return numeratorDecimal.divide(denominatorDecimal, MathContext.DECIMAL32).floatValue();
+  }
+
+  @Override
+  public double approximateAsDouble() {
+    BigDecimal numeratorDecimal = new BigDecimal(numerator);
+    BigDecimal denominatorDecimal = new BigDecimal(denominator);
+    return numeratorDecimal.divide(denominatorDecimal, MathContext.DECIMAL64).doubleValue();
   }
 }

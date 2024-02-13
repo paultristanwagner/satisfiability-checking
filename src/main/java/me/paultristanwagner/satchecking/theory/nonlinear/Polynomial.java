@@ -7,8 +7,31 @@ import java.util.Arrays;
 import java.util.List;
 
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.*;
+import static me.paultristanwagner.satchecking.theory.nonlinear.RealAlgebraicNumber.realAlgebraicNumber;
 
 public class Polynomial {
+
+  public static void main(String[] args) {
+    // x^(4)-2 x^(2)+((1)/(2))
+
+    Polynomial p = polynomial(parse("1/2"), ZERO(), parse("-2"), ZERO(), ONE());
+    System.out.println("p = " + p);
+
+    System.out.println("Sturm Sequence:");
+    System.out.println(p.sturmSequence());
+
+    System.out.println("Cauchy Bound:");
+    System.out.println(p.cauchyBound());
+
+    System.out.println("Number of real roots:");
+    System.out.println(p.numberOfRealRoots());
+
+    System.out.println("Real roots:");
+    System.out.println(p.isolateRoots());
+
+    System.out.println("Real roots as doubles:");
+    System.out.println(p.isolateRootsAsDoubles());
+  }
 
   private final int degree;
   private final Number[] coefficients; // smallest degree first
@@ -201,6 +224,125 @@ public class Polynomial {
       result.add(P);
     }
 
+    return result;
+  }
+
+  public List<Polynomial> sturmSequence() {
+    List<Polynomial> sturmSequence = new ArrayList<>();
+    sturmSequence.add(this);
+    sturmSequence.add(this.getDerivative());
+    while(true) {
+      Polynomial p = sturmSequence.get(sturmSequence.size() - 2);
+      Polynomial q = sturmSequence.get(sturmSequence.size() - 1);
+      Polynomial negRem = p.divide(q).get(1).negate();
+
+      if(negRem.isZero()) {
+        break;
+      }
+
+      sturmSequence.add(negRem);
+    }
+
+    return sturmSequence;
+  }
+
+  private int sturmSequenceEvaluation(Number xi, List<Polynomial> sturmSequence) {
+    int signChanges = 0;
+    int sign = 0;
+
+    for (Polynomial p : sturmSequence) {
+      Number eval = p.evaluate(xi);
+      if(eval.isZero()) {
+        continue;
+      }
+
+      if(eval.isPositive() && sign == -1
+        || eval.isNegative() && sign == 1) {
+        signChanges++;
+      }
+
+      if(eval.isPositive()) {
+        sign = 1;
+      } else if(eval.isNegative()) {
+        sign = -1;
+      }
+    }
+
+    return signChanges;
+  }
+
+  public int numberOfRealRoots() {
+    Number cauchyBound = cauchyBound();
+
+    return numberOfRealRoots(cauchyBound.negate(), cauchyBound);
+  }
+
+  public int numberOfRealRoots(Number a, Number b) {
+    return numberOfRealRoots(a, b, sturmSequence());
+  }
+
+  public int numberOfRealRoots(Number a, Number b, List<Polynomial> sturmSequence) {
+    return sturmSequenceEvaluation(a, sturmSequence) - sturmSequenceEvaluation(b, sturmSequence);
+  }
+
+  public Number cauchyBound() {
+    Number highestRatio = Number.ZERO();
+
+    Number lcoeff = this.getLeadingCoefficient();
+    for (int i = 0; i < degree; i++) {
+      Number c = coefficients[i];
+      Number absRatio = c.divide(lcoeff).abs();
+
+      if(absRatio.greaterThan(highestRatio)) {
+        highestRatio = absRatio;
+      }
+    }
+
+    return ONE().add(highestRatio);
+  }
+
+  public List<RealAlgebraicNumber> isolateRoots() {
+    Number cauchyBound = cauchyBound();
+    return isolateRoots(cauchyBound.negate(), cauchyBound);
+  }
+
+  private List<RealAlgebraicNumber> isolateRoots(Number lowerBound, Number upperBound) {
+    int numberOfRealRoots = numberOfRealRoots(lowerBound, upperBound);
+
+    if(numberOfRealRoots == 0) {
+      return new ArrayList<>();
+    }
+
+    if(numberOfRealRoots == 1) {
+      Number eval = evaluate(upperBound);
+      if(eval.isZero()) {
+        return new ArrayList<>(List.of(
+            realAlgebraicNumber(upperBound)
+        ));
+      }
+
+      return new ArrayList<>(List.of(
+          realAlgebraicNumber(this, lowerBound, upperBound)
+      ));
+    }
+
+    Number mid = lowerBound.add(upperBound).divide(number(2));
+
+    List<RealAlgebraicNumber> leftRoots = isolateRoots(lowerBound, mid);
+    List<RealAlgebraicNumber> rightRoots = isolateRoots(mid, upperBound);
+    leftRoots.addAll(rightRoots);
+
+    return leftRoots;
+  }
+
+  public List<Double> isolateRootsAsDoubles() {
+    Number epsilon = number(2).pow(-54);
+
+    List<RealAlgebraicNumber> roots = isolateRoots();
+    List<Double> result = new ArrayList<>();
+    for (RealAlgebraicNumber root : roots) {
+      result.add(root.approximate(epsilon).approximateAsDouble());
+    }
     return result;
   }
 

@@ -89,4 +89,8 @@ public interface Number {
   default boolean isNonNegative() {
     return isZero() || isPositive();
   }
+
+  float approximateAsFloat();
+
+  double approximateAsDouble();
 }
