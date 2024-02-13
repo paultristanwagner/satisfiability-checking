@@ -16,21 +16,24 @@ public class CAD {
       variablesSet.addAll(polynomial.variables);
     }
     this.variables = new ArrayList<>(variablesSet);
+    System.out.println(this.variables);
 
     // phase 1: projection
     Map<Integer, Set<MultivariatePolynomial>> p = new HashMap<>();
     p.put(variables.size(), polynomials);
 
     for (int r = variables.size() - 1; r >= 1; r--) {
-      String variable = variables.get(r);
-
+      String variable = variables.get(r - 1);
+      System.out.println(p.get(r + 1));
       Set<MultivariatePolynomial> proj = mcCallumProjection(p.get(r + 1), variable);
       p.put(r, proj);
-      p.get(r + 1).stream().filter(poly -> !poly.highestVariable().equals(variable));
 
-      System.out.println(p.get(r + 1));
+      String previousVariable = variables.get(r);
+      p.get(r + 1).stream().filter(poly -> !poly.highestVariable().equals(previousVariable));
     }
+    System.out.println(p);
 
+    // phase 2: lifting
     // todo: use proper intervals
     List<List<List<List<RealAlgebraicNumber>>>> D = new ArrayList<>();
     D.add(new ArrayList<>());
