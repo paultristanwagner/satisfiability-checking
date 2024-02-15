@@ -56,6 +56,20 @@ public class Float implements Number {
   }
 
   @Override
+  public Float midpoint(Number other) {
+    if (!(other instanceof Float otherFloat)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    return new Float((value + otherFloat.value) / 2);
+  }
+
+  @Override
+  public Number mediant(Number other) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public Float negate() {
     return new Float(-value);
   }

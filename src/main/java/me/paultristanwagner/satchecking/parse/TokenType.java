@@ -23,6 +23,7 @@ public class TokenType {
   static final TokenType MINUS = TokenType.of("-", "^-");
   static final TokenType TIMES = TokenType.of("*", "^\\*");
   static final TokenType DIVIDE = TokenType.of("/", "^\\/");
+  static final TokenType POWER = TokenType.of("^", "^\\^");
   static final TokenType REMAINDER = TokenType.of("*", "^\\%");
   static final TokenType AND = TokenType.of("and", "^(&|&&|and|AND|∧)");
   static final TokenType OR = TokenType.of("or", "^(\\|\\||\\||or|OR|∨)");

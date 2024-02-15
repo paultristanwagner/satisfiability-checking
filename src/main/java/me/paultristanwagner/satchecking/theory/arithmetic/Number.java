@@ -50,6 +50,10 @@ public interface Number {
 
   Number divide(Number other);
 
+  Number midpoint(Number other);
+
+  Number mediant(Number other);
+
   Number negate();
 
   Number abs();

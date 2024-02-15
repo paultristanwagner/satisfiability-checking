@@ -103,6 +103,24 @@ public class Rational implements Number {
     return new Rational(num, den);
   }
 
+  public Rational midpoint(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    return this.add(other).divide(new Rational(2));
+  }
+
+  public Rational mediant(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    BigInteger num = numerator.add(otherExact.numerator);
+    BigInteger den = denominator.add(otherExact.denominator);
+    return new Rational(num, den);
+  }
+
   @Override
   public Rational negate() {
     return new Rational(numerator.negate(), denominator);
@@ -163,7 +181,10 @@ public class Rational implements Number {
       throw new IllegalArgumentException("Cannot compare " + other + " to " + this);
     }
 
-    return numerator.multiply(otherExact.denominator).compareTo(otherExact.numerator.multiply(denominator)) < 0;
+    return numerator
+            .multiply(otherExact.denominator)
+            .compareTo(otherExact.numerator.multiply(denominator))
+        < 0;
   }
 
   @Override

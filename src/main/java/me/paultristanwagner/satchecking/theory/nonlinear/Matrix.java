@@ -1,32 +1,13 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import me.paultristanwagner.satchecking.theory.arithmetic.Number;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.ZERO;
-import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.multivariatePolynomial;
 
 public class Matrix {
-
-  public static void main(String[] args) {
-    List<String> variables = new ArrayList<>();
-    int n = 3;
-    Map<List<Integer>, MultivariatePolynomial> entries = new HashMap<>(Map.of(
-        List.of(0, 1), multivariatePolynomial(Map.of(List.of(), Number.number(1)), variables),
-        List.of(0, 2), multivariatePolynomial(Map.of(List.of(), Number.number(2)), variables),
-        List.of(1, 0), multivariatePolynomial(Map.of(List.of(), Number.number(3)), variables),
-        List.of(1, 1), multivariatePolynomial(Map.of(List.of(), Number.number(2)), variables),
-        List.of(1, 2), multivariatePolynomial(Map.of(List.of(), Number.number(1)), variables),
-        List.of(2, 0), multivariatePolynomial(Map.of(List.of(), Number.number(1)), variables),
-        List.of(2, 1), multivariatePolynomial(Map.of(List.of(), Number.number(1)), variables)
-    ));
-    Matrix matrix = matrix(variables, n, n, entries);
-    System.out.println(matrix.determinant());
-  }
 
   private final List<String> variables;
   private final int m;
