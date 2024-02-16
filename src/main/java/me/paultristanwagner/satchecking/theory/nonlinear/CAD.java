@@ -80,6 +80,7 @@ public class CAD {
         System.out.println("p_" + i + " = " + p.get(i));
         for (MultivariatePolynomial polynomial : p.get(i)) {
           MultivariatePolynomial substituted = polynomial.substitute(s);
+          System.out.println(substituted);
           Polynomial univariate = substituted.toUnivariatePolynomial();
           roots.addAll(univariate.isolateRoots());
         }
@@ -128,7 +129,9 @@ public class CAD {
     List<Cell> result = D.get(variables.size());
     Set<Map<String, RealAlgebraicNumber>> samplePoints = new HashSet<>();
     for (Cell cell : result) {
-      samplePoints.add(cell.chooseSamplePoint());
+      Map<String, RealAlgebraicNumber> sample = cell.chooseSamplePoint();
+      samplePoints.add(sample);
+      System.out.println(sample + " from " + cell);
     }
     List<List<RealAlgebraicNumber>> samplePointsList = new ArrayList<>();
     for (Map<String, RealAlgebraicNumber> samplePoint : samplePoints) {
@@ -146,11 +149,11 @@ public class CAD {
     System.out.println();
 
     for (Map<String, RealAlgebraicNumber> samplePoint : samplePoints) {
+      System.out.println("sample point = " + samplePoint);
       boolean isCommonRoot = true;
       for (MultivariatePolynomial polynomial : polynomials) {
-        MultivariatePolynomial substituted = polynomial.substitute(samplePoint);
-        Polynomial univariate = substituted.toUnivariatePolynomial();
-        if(!univariate.isZero()) {
+        int sign = polynomial.evaluateSign(samplePoint);
+        if(sign != 0) {
           isCommonRoot = false;
           break;
         }

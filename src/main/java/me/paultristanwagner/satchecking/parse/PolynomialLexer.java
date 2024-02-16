@@ -10,8 +10,8 @@ public class PolynomialLexer extends Lexer {
     registerTokenTypes(
         PLUS,
         MINUS,
-        FRACTION,
         DECIMAL,
+        FRACTION,
         IDENTIFIER,
         TIMES,
         POWER);

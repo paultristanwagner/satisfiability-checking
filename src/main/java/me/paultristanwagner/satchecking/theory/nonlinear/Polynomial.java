@@ -1,15 +1,16 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.*;
-import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.exponent;
-import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.multivariatePolynomial;
-import static me.paultristanwagner.satchecking.theory.nonlinear.RealAlgebraicNumber.realAlgebraicNumber;
-
-import java.util.*;
-
 import me.paultristanwagner.satchecking.parse.Parser;
 import me.paultristanwagner.satchecking.parse.PolynomialParser;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+
+import java.util.*;
+
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.*;
+import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.exponent;
+import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.pointInterval;
+import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.multivariatePolynomial;
+import static me.paultristanwagner.satchecking.theory.nonlinear.RealAlgebraicNumber.realAlgebraicNumber;
 
 public class Polynomial {
 
@@ -72,6 +73,7 @@ public class Polynomial {
   }
 
   public Number evaluate(RealAlgebraicNumber realAlgebraicNumber) {
+    System.out.println("evaluating " + this + " at " + realAlgebraicNumber);
     if (realAlgebraicNumber.isNumeric()) {
       return evaluate(realAlgebraicNumber.numericValue());
     }
@@ -80,8 +82,8 @@ public class Polynomial {
     MultivariatePolynomial substituted = multivariatePolynomial.substitute(Map.of("x", realAlgebraicNumber));
     Polynomial univariate = substituted.toUnivariatePolynomial();
 
-    if(univariate.getDegree() != 0) {
-      throw new IllegalArgumentException("Univariate polynomial has degree != 0");
+    if (univariate.getDegree() != 0) {
+      return ZERO();
     }
 
     return univariate.getCoefficients()[0];
@@ -344,13 +346,13 @@ public class Polynomial {
   }
 
   public Set<RealAlgebraicNumber> isolateRoots(Number lowerBound, Number upperBound) {
-    if(isConstant()) {
+    if (isConstant()) {
       return Set.of();
     }
 
     List<Polynomial> squareFreeFactors = squareFreeFactorization();
 
-    if(squareFreeFactors.size() > 1) {
+    if (squareFreeFactors.size() > 1) {
       Set<RealAlgebraicNumber> roots = new HashSet<>();
       for (Polynomial squareFreeFactor : squareFreeFactors) {
         if (squareFreeFactor.isConstant()) {
@@ -364,17 +366,13 @@ public class Polynomial {
       return roots;
     }
 
-    System.out.println("isolating roots of " + this + " in interval " + lowerBound + " " + upperBound);
-    System.out.println("square free = " + isSquareFree());
     int numberOfRealRoots = numberOfRealRoots(lowerBound, upperBound);
-    System.out.println("no of roots = " + numberOfRealRoots);
 
     if (numberOfRealRoots == 0) {
       return Set.of();
     }
 
     if (numberOfRealRoots == 1) {
-      System.out.println("supposedly one root in interval " + lowerBound + " " + upperBound);
       return Set.of(realAlgebraicNumber(this, lowerBound, upperBound));
     }
 
@@ -460,7 +458,7 @@ public class Polynomial {
 
     for (int i = 1; !r_1.isZero(); i++) {
       Number[] coefficients_0 = r_0.getCoefficients();
-      Number[]  coefficients_1 = r_1.getCoefficients();
+      Number[] coefficients_1 = r_1.getCoefficients();
       int degree_0 = coefficients_0.length - 1;
       int degree_1 = coefficients_1.length - 1;
 
@@ -472,8 +470,8 @@ public class Polynomial {
 
       d = degree_0 - degree_1;
 
-      if(i == 1) {
-        if(d % 2 == 0) {
+      if (i == 1) {
+        if (d % 2 == 0) {
           beta = constant(ONE().negate());
         } else {
           beta = constant(ONE());
@@ -492,6 +490,30 @@ public class Polynomial {
     }
 
     return r_0;
+  }
+
+  public Interval evaluate(Interval interval) {
+    Interval current = null;
+    for (int i = 0; i < coefficients.length; i++) {
+      Number coefficient = coefficients[i];
+
+      Interval term;
+      if(i == 0) {
+        term = pointInterval(coefficient);
+      } else {
+        term = interval.pow(i).multiply(coefficient);
+      }
+
+      if (current == null) {
+        current = term;
+      } else {
+        current = current.add(term);
+      }
+    }
+
+    System.out.println(this + "(" + interval + ") = " + current);
+
+    return current;
   }
 
   @Override

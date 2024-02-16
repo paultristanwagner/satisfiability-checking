@@ -80,11 +80,31 @@ public class PolynomialParser implements Parser<MultivariatePolynomial> {
     return monomial1;
   }
 
+  private int parseSign(Lexer lexer) {
+    int sign = 1;
+    while(lexer.canConsumeEither(PLUS, MINUS)){
+      if (lexer.canConsume(PLUS)) {
+        lexer.consume(PLUS);
+      } else if (lexer.canConsume(MINUS)) {
+        lexer.consume(MINUS);
+        sign *= -1;
+      }
+    }
+
+    return sign;
+  }
+
   private MultivariatePolynomial parseFactor(Lexer lexer) {
+    int sign = parseSign(lexer);
     if (lexer.canConsumeEither(DECIMAL, FRACTION)) {
       String value = lexer.getLookahead().getValue();
       lexer.consumeEither(DECIMAL, FRACTION);
       Number number = Number.parse(value);
+
+      if(sign == -1){
+        number = number.negate();
+      }
+
       return constant(number);
     }
 
@@ -103,6 +123,6 @@ public class PolynomialParser implements Parser<MultivariatePolynomial> {
       return variable(variable);
     }
 
-    throw new SyntaxError("Expected either a decimal or an identifier", lexer.getCursor());
+    throw new SyntaxError("Expected either a decimal or an identifier", lexer.getInput(), lexer.getCursor());
   }
 }

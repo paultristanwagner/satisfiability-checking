@@ -94,6 +94,16 @@ public interface Number {
     return isZero() || isPositive();
   }
 
+  default int sign() {
+    if (isZero()) {
+      return 0;
+    } else if (isPositive()) {
+      return 1;
+    } else {
+      return -1;
+    }
+  }
+
   float approximateAsFloat();
 
   double approximateAsDouble();

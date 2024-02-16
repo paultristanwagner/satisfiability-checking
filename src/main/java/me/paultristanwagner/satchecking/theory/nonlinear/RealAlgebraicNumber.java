@@ -1,13 +1,13 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
 
 public class RealAlgebraicNumber {
 
@@ -18,7 +18,6 @@ public class RealAlgebraicNumber {
 
   private RealAlgebraicNumber(
       Number value, Polynomial polynomial, Number lowerBound, Number upperBound) {
-    System.out.println("defining ran: " + value + " " + polynomial + " " + lowerBound + " " + upperBound);
     this.value = value;
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
@@ -28,16 +27,14 @@ public class RealAlgebraicNumber {
     }
 
     // finding minimal polynomial
+    // todo: improve efficiency
     List<Polynomial> squareFreeFactors = polynomial.squareFreeFactorization();
     for (Polynomial squareFreeFactor : squareFreeFactors) {
       if (squareFreeFactor.isConstant()) {
         continue;
       }
 
-      System.out.println("factor = " + squareFreeFactor);
       int numberRoots = squareFreeFactor.numberOfRealRoots(lowerBound, upperBound);
-      System.out.println("number of roots = " + numberRoots);
-      System.out.println("interval: " + lowerBound + " " + upperBound);
       if (numberRoots > 0) {
         this.polynomial = squareFreeFactor;
         break;
@@ -94,13 +91,13 @@ public class RealAlgebraicNumber {
   }
 
   public void refine() {
-    if(isNumeric()) {
+    if (isNumeric()) {
       return;
     }
 
     Number mid = lowerBound.midpoint(upperBound);
 
-    if(this.polynomial.hasRealRootAt(mid)) {
+    if (this.polynomial.hasRealRootAt(mid)) {
       Number quarter = lowerBound.midpoint(mid);
       Number threeQuarters = mid.midpoint(upperBound);
       this.lowerBound = quarter;
@@ -118,11 +115,11 @@ public class RealAlgebraicNumber {
   }
 
   public void refine(Number epsilon) {
-    if(isNumeric()) {
+    if (isNumeric()) {
       return;
     }
 
-    while(getLength().greaterThanOrEqual(epsilon)) {
+    while (getLength().greaterThanOrEqual(epsilon)) {
       refine();
     }
   }
@@ -134,6 +131,47 @@ public class RealAlgebraicNumber {
 
     refine(epsilon);
     return lowerBound.add(upperBound).divide(number(2));
+  }
+
+  public boolean isZero() {
+    if (isNumeric()) {
+      return numericValue().isZero();
+    }
+
+    return ZERO().greaterThan(lowerBound) && ZERO().lessThan(upperBound) && this.polynomial.hasRealRootAt(ZERO());
+  }
+
+  public boolean isPositive() {
+    if(isZero()) {
+      return false;
+    } else if (isNumeric()) {
+      return numericValue().isPositive();
+    }
+
+    while(true) {
+      if (this.lowerBound.isPositive()) {
+        return true;
+      } else if (this.upperBound.isNegative()) {
+        return false;
+      }
+
+      this.refine();
+      System.out.println(this.lowerBound + " " + this.upperBound);
+    }
+  }
+
+  public boolean isNegative() {
+    return !isZero() && !isPositive();
+  }
+
+  public int sign() {
+    if (isZero()) {
+      return 0;
+    } else if (isPositive()) {
+      return 1;
+    } else {
+      return -1;
+    }
   }
 
   public double approximateAsDouble() {
@@ -149,33 +187,31 @@ public class RealAlgebraicNumber {
       return false;
     }
 
-    System.out.println("comparing " + this + " and " + other + " ...");
-
     if (this.isNumeric() && other.isNumeric()) {
       return this.numericValue().lessThan(other.numericValue());
     }
 
-    while(true) {
-      if(this.isNumeric() && !other.isNumeric()) {
-        if(this.numericValue().lessThanOrEqual(other.lowerBound)) {
+    while (true) {
+      if (this.isNumeric() && !other.isNumeric()) {
+        if (this.numericValue().lessThanOrEqual(other.lowerBound)) {
           return true;
-        } else if(this.numericValue().greaterThanOrEqual(other.upperBound)) {
+        } else if (this.numericValue().greaterThanOrEqual(other.upperBound)) {
           return false;
         }
 
         other.refine();
       } else if (!this.isNumeric() && other.isNumeric()) {
-        if(this.upperBound.lessThanOrEqual(other.numericValue())) {
+        if (this.upperBound.lessThanOrEqual(other.numericValue())) {
           return true;
-        } else if(this.lowerBound.greaterThanOrEqual(other.numericValue())) {
+        } else if (this.lowerBound.greaterThanOrEqual(other.numericValue())) {
           return false;
         }
 
         this.refine();
       } else {
-        if(this.upperBound.lessThanOrEqual(other.lowerBound)) {
+        if (this.upperBound.lessThanOrEqual(other.lowerBound)) {
           return true;
-        } else if(this.lowerBound.greaterThanOrEqual(other.upperBound)) {
+        } else if (this.lowerBound.greaterThanOrEqual(other.upperBound)) {
           return false;
         }
 
@@ -232,76 +268,62 @@ public class RealAlgebraicNumber {
 
   @Override
   public boolean equals(Object o) {
-    System.out.println();
-    System.out.println("checking " + this + " and " + o + " for equality...");
-
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     RealAlgebraicNumber other = (RealAlgebraicNumber) o;
 
-    if(Objects.equals(value, other.value) && Objects.equals(polynomial, other.polynomial) && Objects.equals(lowerBound, other.lowerBound) && Objects.equals(upperBound, other.upperBound)){
-      System.out.println("  identical");
+    if (Objects.equals(value, other.value) && Objects.equals(polynomial, other.polynomial) && Objects.equals(lowerBound, other.lowerBound) && Objects.equals(upperBound, other.upperBound)) {
       return true;
     }
 
     if (this.isNumeric() && other.isNumeric()) {
-      System.out.println("  both numeric: result = " + this.numericValue().equals(other.numericValue()));
       return this.numericValue().equals(other.numericValue());
     } else if (this.isNumeric() && !other.isNumeric()) {
-      System.out.println("  this numeric");
       Number numericValue = this.numericValue();
-      boolean result = numericValue.greaterThan(other.lowerBound)
+      return numericValue.greaterThan(other.lowerBound)
           && numericValue.lessThan(other.upperBound)
           && other.polynomial.hasRealRootAt(numericValue);
-      System.out.println("  result = " + result);
-      return result;
     } else if (!this.isNumeric() && other.isNumeric()) {
-      System.out.println("  other numeric");
       Number numericValue = other.numericValue();
-      boolean result = numericValue.greaterThan(this.lowerBound)
+      return numericValue.greaterThan(this.lowerBound)
           && numericValue.lessThan(this.upperBound)
           && this.polynomial.hasRealRootAt(numericValue);
-      System.out.println("  result = " + result);
-      return result;
     }
 
-    if(this.lowerBound.greaterThanOrEqual(other.upperBound) || this.upperBound.lessThanOrEqual(other.lowerBound)) {
-      System.out.println("  non overlapping bounds");
+    if (this.lowerBound.greaterThanOrEqual(other.upperBound) || this.upperBound.lessThanOrEqual(other.lowerBound)) {
       return false;
     }
 
-    System.out.println("  continue checking");
     Number innerLowerBound = this.lowerBound.greaterThan(other.lowerBound) ? this.lowerBound : other.lowerBound;
     Number innerUpperBound = this.upperBound.lessThan(other.upperBound) ? this.upperBound : other.upperBound;
-    System.out.println("  overlap = " + innerLowerBound + " " + innerUpperBound);
 
     int thisInnerRoots = this.polynomial.numberOfRealRoots(innerLowerBound, innerUpperBound);
     int otherInnerRoots = other.polynomial.numberOfRealRoots(innerLowerBound, innerUpperBound);
 
-    if(thisInnerRoots != otherInnerRoots) {
-      System.out.println("  different number of roots in overlap");
+    System.out.println("inner interval: " + innerLowerBound + " " + innerUpperBound);
+    System.out.println(thisInnerRoots + " " + otherInnerRoots);
+    this.polynomial.isolateRoots(innerLowerBound, innerUpperBound).forEach(System.out::println);
+    other.polynomial.isolateRoots(innerLowerBound, innerUpperBound).forEach(System.out::println);
+    if (thisInnerRoots != otherInnerRoots) {
+      System.out.println("Different number of roots");
       return false;
     }
 
-    if(this.polynomial.equals(other.polynomial)) {
-      System.out.println(  "  same number of roots in overlap and same polynomial");
+    if (this.polynomial.equals(other.polynomial)) {
       return true;
     }
 
-    // if the difference has a root in the interval, the polynomials have a common root // todo: test this
+    // check the difference to find
     Polynomial difference = this.polynomial.subtract(other.polynomial);
 
     Set<RealAlgebraicNumber> differenceRoots = difference.isolateRoots(innerLowerBound, innerUpperBound);
     for (RealAlgebraicNumber differenceRoot : differenceRoots) {
-      System.out.println("  difference root = " + differenceRoot);
-      Number evaluation = difference.evaluate(differenceRoot);
-      if(evaluation.isZero()) {
-        System.out.println("  difference root is a common root");
+      Number evaluation = this.polynomial.evaluate(differenceRoot);
+      if (evaluation.isZero()) {
         return true;
       }
     }
 
-    System.out.println("  no common root");
     return false;
   }
 

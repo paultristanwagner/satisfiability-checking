@@ -68,6 +68,20 @@ public class Exponent implements Comparable<Exponent> {
     return exponent(values);
   }
 
+  public boolean divides(Exponent other) {
+    if(this.values.size() != other.values.size()) {
+      throw new IllegalArgumentException("Exponent size does not match");
+    }
+
+    for (int i = 0; i < this.values.size(); i++) {
+      if(this.get(i) > other.get(i)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   public int get(int index) {
     if(index < 0) {
       throw new IllegalArgumentException("Cannot get negative exponent index");
@@ -85,7 +99,7 @@ public class Exponent implements Comparable<Exponent> {
       }
     }
 
-    throw new IllegalStateException("No non zero index");
+    return -1;
   }
 
   public boolean isConstantExponent() {
