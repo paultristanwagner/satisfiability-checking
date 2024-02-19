@@ -6,6 +6,7 @@ import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial;
 import java.util.Scanner;
 
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.constant;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.variable;
 
@@ -96,12 +97,13 @@ public class PolynomialParser implements Parser<MultivariatePolynomial> {
 
   private MultivariatePolynomial parseFactor(Lexer lexer) {
     int sign = parseSign(lexer);
+
     if (lexer.canConsumeEither(DECIMAL, FRACTION)) {
       String value = lexer.getLookahead().getValue();
       lexer.consumeEither(DECIMAL, FRACTION);
       Number number = Number.parse(value);
 
-      if(sign == -1){
+      if(sign == -1) {
         number = number.negate();
       }
 
@@ -117,10 +119,13 @@ public class PolynomialParser implements Parser<MultivariatePolynomial> {
         lexer.require(DECIMAL);
         String exponent = lexer.getLookahead().getValue();
         lexer.consume(DECIMAL);
-        return variable(variable).pow(Integer.parseInt(exponent));
+
+        MultivariatePolynomial monomial = variable(variable).pow(Integer.parseInt(exponent));
+
+        return monomial.multiply(constant(number(sign)));
       }
 
-      return variable(variable);
+      return variable(variable).multiply(constant(number(sign)));
     }
 
     throw new SyntaxError("Expected either a decimal or an identifier", lexer.getInput(), lexer.getCursor());

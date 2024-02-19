@@ -21,15 +21,21 @@ public class Exponent implements Comparable<Exponent> {
     return new Exponent(Arrays.asList(values));
   }
 
+  public static Exponent constantExponent(int length) {
+    Integer[] zeros = new Integer[length];
+    Arrays.fill(zeros, 0);
+    return exponent(zeros);
+  }
+
   @Override
   public int compareTo(Exponent o) {
-    if(this.values.size() != o.values.size()) {
+    if (this.values.size() != o.values.size()) {
       throw new IllegalStateException("Cannot compare exponents");
     }
 
     for (int r = values.size() - 1; r >= 0; r--) {
       int comparison = Integer.compare(this.values.get(r), o.values.get(r));
-      if(comparison != 0) {
+      if (comparison != 0) {
         return comparison;
       }
     }
@@ -38,7 +44,7 @@ public class Exponent implements Comparable<Exponent> {
   }
 
   public Exponent add(Exponent other) {
-    if(this.values.size() != other.values.size()) {
+    if (this.values.size() != other.values.size()) {
       throw new IllegalArgumentException("Exponent size does not match");
     }
 
@@ -51,14 +57,14 @@ public class Exponent implements Comparable<Exponent> {
   }
 
   public Exponent subtract(Exponent other) {
-    if(this.values.size() != other.values.size()) {
+    if (this.values.size() != other.values.size()) {
       throw new IllegalArgumentException("Exponent size does not match");
     }
 
     List<Integer> values = new ArrayList<>();
     for (int i = 0; i < this.values.size(); i++) {
       int result = this.get(i) - other.get(i);
-      if(result < 0) {
+      if (result < 0) {
         throw new IllegalArgumentException("Cannot subtract exponent if result would be negative");
       }
 
@@ -69,12 +75,12 @@ public class Exponent implements Comparable<Exponent> {
   }
 
   public boolean divides(Exponent other) {
-    if(this.values.size() != other.values.size()) {
+    if (this.values.size() != other.values.size()) {
       throw new IllegalArgumentException("Exponent size does not match");
     }
 
     for (int i = 0; i < this.values.size(); i++) {
-      if(this.get(i) > other.get(i)) {
+      if (this.get(i) > other.get(i)) {
         return false;
       }
     }
@@ -83,9 +89,9 @@ public class Exponent implements Comparable<Exponent> {
   }
 
   public int get(int index) {
-    if(index < 0) {
+    if (index < 0) {
       throw new IllegalArgumentException("Cannot get negative exponent index");
-    } else if(index >= values.size()) {
+    } else if (index >= values.size()) {
       throw new IllegalArgumentException("Invalid exponent index");
     }
 
@@ -94,7 +100,7 @@ public class Exponent implements Comparable<Exponent> {
 
   public int highestNonZeroIndex() {
     for (int r = values.size() - 1; r >= 0; r--) {
-      if(values.get(r) > 0) {
+      if (values.get(r) > 0) {
         return r;
       }
     }
@@ -104,7 +110,7 @@ public class Exponent implements Comparable<Exponent> {
 
   public boolean isConstantExponent() {
     for (Integer exponent : values) {
-      if(exponent != 0) {
+      if (exponent != 0) {
         return false;
       }
     }
@@ -112,14 +118,15 @@ public class Exponent implements Comparable<Exponent> {
     return true;
   }
 
-  public static Exponent project(Exponent from, List<String> originVariables, List<String> targetVariables) {
+  public static Exponent project(
+      Exponent from, List<String> originVariables, List<String> targetVariables) {
     Integer[] newExponentsArray = new Integer[targetVariables.size()];
     Arrays.fill(newExponentsArray, 0);
     for (int i = 0; i < from.values.size(); i++) {
       String variable = originVariables.get(i);
       int variableIndex = targetVariables.indexOf(variable); // todo: inefficient
 
-      if(variableIndex == -1) {
+      if (variableIndex == -1) {
         continue;
       }
 
