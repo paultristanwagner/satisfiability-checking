@@ -1,6 +1,8 @@
 package me.paultristanwagner.satchecking.theory.arithmetic;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.util.Objects;
 
 import static java.math.BigInteger.TEN;
@@ -77,6 +79,15 @@ public class Rational implements Number {
   }
 
   @Override
+  public Rational pow(int exponent) {
+    if (exponent < 0) {
+      return new Rational(denominator.pow(-exponent), numerator.pow(-exponent));
+    }
+
+    return new Rational(numerator.pow(exponent), denominator.pow(exponent));
+  }
+
+  @Override
   public Rational divide(Number other) {
     if (!(other instanceof Rational otherExact)) {
       throw new IllegalArgumentException("Cannot add " + other + " to " + this);
@@ -89,6 +100,24 @@ public class Rational implements Number {
     BigInteger num = numerator.multiply(otherExact.denominator);
     BigInteger den = denominator.multiply(otherExact.numerator);
 
+    return new Rational(num, den);
+  }
+
+  public Rational midpoint(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    return this.add(other).divide(new Rational(2));
+  }
+
+  public Rational mediant(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    BigInteger num = numerator.add(otherExact.numerator);
+    BigInteger den = denominator.add(otherExact.denominator);
     return new Rational(num, den);
   }
 
@@ -146,13 +175,41 @@ public class Rational implements Number {
     return new Rational(div);
   }
 
+  public Number gcd(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    if(!isInteger() || !otherExact.isInteger()) {
+      throw new IllegalArgumentException("Cannot calculate gcd of non-integer numbers");
+    }
+
+    return new Rational(numerator.gcd(otherExact.numerator));
+  }
+
+  @Override
+  public Number lcm(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    if(!isInteger() || !otherExact.isInteger()) {
+      throw new IllegalArgumentException("Cannot calculate lcm of non-integer numbers");
+    }
+
+    return new Rational(numerator.multiply(otherExact.numerator).divide(numerator.gcd(otherExact.numerator)));
+  }
+
   @Override
   public boolean lessThan(Number other) {
     if (!(other instanceof Rational otherExact)) {
       throw new IllegalArgumentException("Cannot compare " + other + " to " + this);
     }
 
-    return numerator.multiply(otherExact.denominator).compareTo(otherExact.numerator.multiply(denominator)) < 0;
+    return numerator
+            .multiply(otherExact.denominator)
+            .compareTo(otherExact.numerator.multiply(denominator))
+        < 0;
   }
 
   @Override
@@ -227,6 +284,16 @@ public class Rational implements Number {
   }
 
   @Override
+  public BigInteger getNumerator() {
+    return numerator;
+  }
+
+  @Override
+  public BigInteger getDenominator() {
+    return denominator;
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
@@ -238,5 +305,19 @@ public class Rational implements Number {
   @Override
   public int hashCode() {
     return Objects.hash(numerator, denominator);
+  }
+
+  @Override
+  public float approximateAsFloat() {
+    BigDecimal numeratorDecimal = new BigDecimal(numerator);
+    BigDecimal denominatorDecimal = new BigDecimal(denominator);
+    return numeratorDecimal.divide(denominatorDecimal, MathContext.DECIMAL32).floatValue();
+  }
+
+  @Override
+  public double approximateAsDouble() {
+    BigDecimal numeratorDecimal = new BigDecimal(numerator);
+    BigDecimal denominatorDecimal = new BigDecimal(denominator);
+    return numeratorDecimal.divide(denominatorDecimal, MathContext.DECIMAL64).doubleValue();
   }
 }

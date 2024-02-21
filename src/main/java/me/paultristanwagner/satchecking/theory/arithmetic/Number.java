@@ -2,6 +2,8 @@ package me.paultristanwagner.satchecking.theory.arithmetic;
 
 import me.paultristanwagner.satchecking.Config;
 
+import java.math.BigInteger;
+
 public interface Number {
 
   static Number ZERO() {
@@ -28,12 +30,16 @@ public interface Number {
     }
   }
 
-  static Number of(long numerator, long denominator) {
+  static Number number(long numerator, long denominator) {
     if (Config.get().useFloats()) {
       return new Float((double) numerator / denominator);
     } else {
       return new Rational(numerator, denominator);
     }
+  }
+
+  static Number number(long numerator) {
+    return number(numerator, 1);
   }
 
   Number add(Number other);
@@ -42,7 +48,13 @@ public interface Number {
 
   Number multiply(Number other);
 
+  Number pow(int exponent);
+
   Number divide(Number other);
+
+  Number midpoint(Number other);
+
+  Number mediant(Number other);
 
   Number negate();
 
@@ -57,6 +69,14 @@ public interface Number {
   Number ceil();
 
   Number floor();
+
+  Number gcd(Number other);
+
+  Number lcm(Number other);
+
+  BigInteger getNumerator();
+
+  BigInteger getDenominator();
 
   boolean lessThan(Number other);
 
@@ -83,4 +103,18 @@ public interface Number {
   default boolean isNonNegative() {
     return isZero() || isPositive();
   }
+
+  default int sign() {
+    if (isZero()) {
+      return 0;
+    } else if (isPositive()) {
+      return 1;
+    } else {
+      return -1;
+    }
+  }
+
+  float approximateAsFloat();
+
+  double approximateAsDouble();
 }

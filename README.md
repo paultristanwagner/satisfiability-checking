@@ -46,9 +46,21 @@ Tseitin's transformation:
 ```
 
 # SMT solver
-An SMT solver is implemented for linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (QF_EQ), equality logic with uninterpreted functions (QF_EQUF) and bit vector arithmetic (QF_BV).
+An SMT solver is implemented for non-linear real arithmetic (QF_NRA), linear real arithmetic (QF_LRA), linear integer arithmetic (QF_LIA), equality logic (QF_EQ), equality logic with uninterpreted functions (QF_EQUF) and bit vector arithmetic (QF_BV).
 
 ## Examples
+### QF_NRA (⚠️ highly experimental ⚠️)
+```c++
+> smt QF_NRA (x^2 + y^2 = 1) & (x^2 + y^3 = 1/2)
+SAT:
+x=(x^6-2x^4+2x^2-3/4, 3/4, 15/16) ≈ 0.8249554777467228; y=(x^9+1/2x^6+3/4x^3+1/8, -7/4, 7/4) ≈ -0.5651977173836394;
+Time: 456ms
+```
+```c++
+> smt QF_NRA (x*y > 0) & (y*z > 0) & (x*z > 0) & (x + y + z = 0)
+UNSAT
+Time: 7ms
+```
 ### QF_LRA
 ```c++
 > smt QF_LRA (x<=-3 | x>=3) & (y=5) & (x+y>=12)

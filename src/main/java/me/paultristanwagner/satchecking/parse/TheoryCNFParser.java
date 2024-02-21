@@ -7,6 +7,7 @@ import me.paultristanwagner.satchecking.theory.EqualityConstraint;
 import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorConstraint;
+import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,7 +79,10 @@ public class TheoryCNFParser<T extends Constraint> implements Parser<TheoryCNF<T
 
     ParseResult<T> parseResult;
     try {
-      if (constraintClass == LinearConstraint.class) {
+      if(constraintClass == MultivariatePolynomialConstraint.class) {
+        MultivariatePolynomialConstraintParser multivariatePolynomialConstraintParser = new MultivariatePolynomialConstraintParser();
+        parseResult = (ParseResult<T>) multivariatePolynomialConstraintParser.parseWithRemaining(remaining);
+      } else if (constraintClass == LinearConstraint.class) {
         LinearConstraintParser linearConstraintParser = new LinearConstraintParser();
         parseResult = (ParseResult<T>) linearConstraintParser.parseWithRemaining(remaining);
       } else if (constraintClass == EqualityConstraint.class) {
