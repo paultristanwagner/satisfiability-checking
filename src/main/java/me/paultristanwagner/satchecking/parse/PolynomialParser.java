@@ -40,6 +40,16 @@ public class PolynomialParser implements Parser<MultivariatePolynomial> {
    *             | IDENTIFIER POWER INTEGER
    */
 
+  public MultivariatePolynomial parse(String string) {
+    ParseResult<MultivariatePolynomial> result = parseWithRemaining(string);
+
+    if (!result.complete()) {
+      throw new SyntaxError("Expected end of input", string, result.charsRead());
+    }
+
+    return result.result();
+  }
+
   @Override
   public ParseResult<MultivariatePolynomial> parseWithRemaining(String string) {
     Lexer lexer = new PolynomialLexer(string);
@@ -72,8 +82,10 @@ public class PolynomialParser implements Parser<MultivariatePolynomial> {
   private MultivariatePolynomial parseMonomial(Lexer lexer) {
     MultivariatePolynomial monomial1 = parseFactor(lexer);
 
-    while (lexer.canConsume(TIMES)) {
-      lexer.consume(TIMES);
+    while (lexer.canConsumeEither(TIMES, IDENTIFIER)) {
+      if(lexer.canConsume(TIMES)) {
+        lexer.consume(TIMES);
+      }
       MultivariatePolynomial monomial2 = parseFactor(lexer);
       monomial1 = monomial1.multiply(monomial2);
     }

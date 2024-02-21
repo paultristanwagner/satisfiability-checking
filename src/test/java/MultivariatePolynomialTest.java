@@ -1,13 +1,20 @@
 import me.paultristanwagner.satchecking.parse.Parser;
 import me.paultristanwagner.satchecking.parse.PolynomialParser;
+import me.paultristanwagner.satchecking.theory.arithmetic.Rational;
+import me.paultristanwagner.satchecking.theory.nonlinear.Interval;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Rational.parse;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.exponent;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.IntervalBoundType.CLOSED;
+import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.interval;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MultivariatePolynomialTest {
 
@@ -101,15 +108,15 @@ public class MultivariatePolynomialTest {
     MultivariatePolynomial remainder = result.get(1);
 
     assertEquals(number(0), quotient.getCoefficient(exponent(0, 0)));
-    assertEquals(number(0), quotient.getCoefficient(exponent(1, 0)));
-    assertEquals(number(0), quotient.getCoefficient(exponent(0, 1)));
+    assertEquals(number(1, 2), quotient.getCoefficient(exponent(1, 0)));
+    assertEquals(number(1, 2), quotient.getCoefficient(exponent(0, 1)));
     assertEquals(number(0), quotient.getCoefficient(exponent(1, 1)));
     assertEquals(number(0), quotient.getCoefficient(exponent(0, 2)));
     assertEquals(number(0), quotient.getCoefficient(exponent(2, 0)));
     assertEquals(number(0), quotient.getCoefficient(exponent(2, 2)));
 
-    assertEquals(number(1), remainder.getCoefficient(exponent(0, 2)));
-    assertEquals(number(1), remainder.getCoefficient(exponent(2, 0)));
+    assertEquals(number(2), remainder.getCoefficient(exponent(0, 2)));
+    assertEquals(number(0), remainder.getCoefficient(exponent(2, 0)));
   }
 
   @Test
@@ -118,7 +125,6 @@ public class MultivariatePolynomialTest {
     MultivariatePolynomial q = parser.parse("z - x^7 + 1");
 
     MultivariatePolynomial result = p.resultant(q, "x");
-    System.out.println(result);
 
     assertEquals(number(3), result.getCoefficient(exponent(0, 0)));
     assertEquals(number(3), result.getCoefficient(exponent(0, 1)));
@@ -130,7 +136,6 @@ public class MultivariatePolynomialTest {
     q = parser.parse("-x*y^2 + x*z^2 - y^3");
 
     result = p.resultant(q, "z");
-    System.out.println(result);
 
     assertEquals(number(0), result.getCoefficient(exponent(0, 0, 0)));
     assertEquals(number(0), result.getCoefficient(exponent(0, 1, 0)));
@@ -142,5 +147,21 @@ public class MultivariatePolynomialTest {
     assertEquals(number(0), result.getCoefficient(exponent(1, 2, 0)));
     assertEquals(number(-1), result.getCoefficient(exponent(2, 2, 0))); // todo: investigate why the sign is wrong
 
+  }
+
+  @Test
+  public void testIntervalEvaluation() {
+    Interval xInterval = interval(parse("118888613829676491/144115188075855872"), parse("59444306914838247/72057594037927936"), CLOSED, CLOSED);
+    Interval yInterval = interval(parse("10181696917598453/18014398509481984"), parse("10181696917598453/18014398509481984"), CLOSED, CLOSED);
+
+    MultivariatePolynomial p = parser.parse("x^2 + y^3 - 1/2" );
+
+    Map<String, Interval> intervalMap = Map.of("x", xInterval, "y", yInterval);
+    Interval result = p.evaluate(intervalMap);
+
+    System.out.println(result);
+
+    assertFalse(result.containsZero());
+    assertEquals(1, result.sign());
   }
 }

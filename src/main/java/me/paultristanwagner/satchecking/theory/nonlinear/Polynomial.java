@@ -3,7 +3,9 @@ package me.paultristanwagner.satchecking.theory.nonlinear;
 import me.paultristanwagner.satchecking.parse.Parser;
 import me.paultristanwagner.satchecking.parse.PolynomialParser;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+import me.paultristanwagner.satchecking.theory.arithmetic.Rational;
 
+import java.math.BigInteger;
 import java.util.*;
 
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.*;
@@ -16,13 +18,12 @@ public class Polynomial {
 
   public static void main(String[] args) {
     Parser<MultivariatePolynomial> parser = new PolynomialParser();
-    System.out.println(parser.parse("x^8+x^6-3*x^4-3*x^3+8*x^2+2*x-5"));
-    Polynomial p = parser.parse("x^8+x^6-3*x^4-3*x^3+8*x^2+2*x-5").toUnivariatePolynomial();
-    Polynomial q = parser.parse("3*x^6+5*x^4-4*x^2-9*x+21").toUnivariatePolynomial();
+    Polynomial p = parser.parse("x^5+x^4+x^2+x+2").toUnivariatePolynomial();
+    Polynomial q = parser.parse("3x^5-7x^3+3x^2").toUnivariatePolynomial();
 
     System.out.println(p);
     System.out.println(q);
-    System.out.println(p.add(q));
+    System.out.println(p.pow(100).squareFreeFactorization());
   }
 
   private final int degree;
@@ -73,7 +74,6 @@ public class Polynomial {
   }
 
   public Number evaluate(RealAlgebraicNumber realAlgebraicNumber) {
-    System.out.println("evaluating " + this + " at " + realAlgebraicNumber);
     if (realAlgebraicNumber.isNumeric()) {
       return evaluate(realAlgebraicNumber.numericValue());
     }
@@ -170,6 +170,52 @@ public class Polynomial {
     return degree == 0;
   }
 
+  public Polynomial toIntegerPolynomial() {
+    BigInteger lcm = coefficients[0].getDenominator();
+    for (int i = 1; i < coefficients.length; i++) {
+      BigInteger gcd = lcm.gcd(coefficients[i].getDenominator());
+      lcm = lcm.multiply(coefficients[i].getDenominator()).divide(gcd);
+    }
+
+    Number[] newCoefficients = new Number[coefficients.length];
+    for (int i = 0; i < coefficients.length; i++) {
+      newCoefficients[i] = coefficients[i].multiply(new Rational(lcm));
+    }
+    return new Polynomial(newCoefficients);
+  }
+
+  public Number content() {
+    Number content = null;
+
+    for (Number coefficient : coefficients) {
+      if (coefficient.isZero()) {
+        continue;
+      }
+
+      if (!coefficient.isInteger()) {
+        throw new IllegalArgumentException("Cannot calculate content of non-integer coefficients");
+      }
+
+      if (content == null) {
+        content = coefficient;
+      } else {
+        content = content.gcd(coefficient);
+      }
+    }
+
+    return content;
+  }
+
+  public List<Polynomial> pseudoDivision(Polynomial other) {
+    int a = degree;
+    int b = other.degree;
+
+    Number bLC = other.getLeadingCoefficient();
+    Number pow = bLC.pow(a - b + 1);
+
+    return polynomial(pow).multiply(this).divide(other);
+  }
+
   public List<Polynomial> divide(Polynomial other) {
     if (other.isZero()) {
       throw new ArithmeticException("Cannot divide by zero");
@@ -183,7 +229,8 @@ public class Polynomial {
       Number c = r.getLeadingCoefficient().divide(other.getLeadingCoefficient());
       Polynomial s = xToThePowerOf(r.degree - d).multiply(polynomial(c));
       q = q.add(s);
-      r = r.subtract(s.multiply(other));
+      Polynomial v = s.multiply(other);
+      r = r.subtract(v);
     }
 
     return List.of(q, r);
@@ -193,17 +240,44 @@ public class Polynomial {
     return divide(other).get(1);
   }
 
+  // todo: this can be done more efficiently
   public Polynomial gcd(Polynomial other) {
-    Polynomial nonNormalizedGcd = nonNormalizedGcd(other);
+    if(this.isZero()) {
+      return other;
+    } else if(other.isZero()) {
+      return this;
+    }
+
+    Polynomial thisInteger = toIntegerPolynomial();
+    Polynomial otherInteger = other.toIntegerPolynomial();
+    Polynomial nonNormalizedGcd = thisInteger.nonNormalizedGcd(otherInteger);
 
     return nonNormalizedGcd.divide(constant(nonNormalizedGcd.getLeadingCoefficient())).get(0);
   }
 
-  public Polynomial nonNormalizedGcd(Polynomial other) {
+  public Polynomial nonNormalizedGcdOld(Polynomial other) {
     Polynomial a = this;
     Polynomial b = other;
     while (!b.isZero()) {
       Polynomial r = a.mod(b);
+      a = b;
+      b = r;
+    }
+
+    return a;
+  }
+
+  public Polynomial nonNormalizedGcd(Polynomial other) {
+    Polynomial a = this.toIntegerPolynomial();
+    Polynomial b = other.toIntegerPolynomial();
+    while (!b.isZero()) {
+      Polynomial r = a.pseudoDivision(b).get(1).toIntegerPolynomial();
+      if (r.isZero()) {
+        return b;
+      }
+
+      Number content = r.content();
+      r = r.divide(constant(content)).get(0);
       a = b;
       b = r;
     }
@@ -231,8 +305,9 @@ public class Polynomial {
     Polynomial C = P.divide(G).get(0);
     Polynomial D = P.getDerivative().divide(G).get(0).subtract(C.getDerivative());
 
-    for (int i = 1; !C.isConstant(); i++) {
+    for (int i = 1; !C.isOne(); i++) {
       P = C.gcd(D);
+
       C = C.divide(P).get(0);
       D = D.divide(P).get(0).subtract(C.getDerivative());
 
@@ -376,14 +451,19 @@ public class Polynomial {
       return Set.of(realAlgebraicNumber(this, lowerBound, upperBound));
     }
 
-    Number mid = lowerBound.midpoint(upperBound);
+    Number split;
+    if (lowerBound.isNegative() && upperBound.isPositive() || lowerBound.isPositive() && upperBound.isNegative()) {
+      split = ZERO();
+    } else {
+      split = lowerBound.midpoint(upperBound);
+    }
 
-    Set<RealAlgebraicNumber> leftRoots = new HashSet<>(isolateRoots(lowerBound, mid));
-    Set<RealAlgebraicNumber> rightRoots = isolateRoots(mid, upperBound);
+    Set<RealAlgebraicNumber> leftRoots = new HashSet<>(isolateRoots(lowerBound, split));
+    Set<RealAlgebraicNumber> rightRoots = isolateRoots(split, upperBound);
     leftRoots.addAll(rightRoots);
 
-    if (hasRealRootAt(mid)) {
-      leftRoots.add(realAlgebraicNumber(mid));
+    if (hasRealRootAt(split)) {
+      leftRoots.add(realAlgebraicNumber(split));
     }
 
     return leftRoots;
@@ -448,57 +528,13 @@ public class Polynomial {
     return builder.toString();
   }
 
-  public Polynomial subresultant(Polynomial other) {
-    Polynomial r_0 = this;
-    Polynomial r_1 = other;
-    Number gamma = null;
-    Polynomial beta = null;
-    Polynomial phi = null;
-    int d = 0;
-
-    for (int i = 1; !r_1.isZero(); i++) {
-      Number[] coefficients_0 = r_0.getCoefficients();
-      Number[] coefficients_1 = r_1.getCoefficients();
-      int degree_0 = coefficients_0.length - 1;
-      int degree_1 = coefficients_1.length - 1;
-
-      if (i != 1) {
-        System.out.println("remainder: " + constant(gamma).negate().pow(d).divide(phi.pow(d - 1)).get(1));
-        phi = constant(gamma).negate().pow(d).divide(phi.pow(d - 1)).get(0);
-        beta = constant(gamma).multiply(phi.pow(degree_0 - degree_1)).negate();
-      }
-
-      d = degree_0 - degree_1;
-
-      if (i == 1) {
-        if (d % 2 == 0) {
-          beta = constant(ONE().negate());
-        } else {
-          beta = constant(ONE());
-        }
-        phi = constant(ONE().negate());
-      }
-
-      gamma = coefficients_1[degree_1];
-      Polynomial temp = r_1;
-      System.out.println("remainder: " +
-          constant(gamma.pow(d + 1)).multiply(r_0).divide(r_1).get(1).divide(beta).get(1));
-      r_1 = constant(gamma.pow(d + 1)).multiply(r_0).divide(r_1).get(1).divide(beta).get(0);
-      r_0 = temp;
-
-      System.out.println(r_1);
-    }
-
-    return r_0;
-  }
-
   public Interval evaluate(Interval interval) {
     Interval current = null;
     for (int i = 0; i < coefficients.length; i++) {
       Number coefficient = coefficients[i];
 
       Interval term;
-      if(i == 0) {
+      if (i == 0) {
         term = pointInterval(coefficient);
       } else {
         term = interval.pow(i).multiply(coefficient);
@@ -510,8 +546,6 @@ public class Polynomial {
         current = current.add(term);
       }
     }
-
-    System.out.println(this + "(" + interval + ") = " + current);
 
     return current;
   }

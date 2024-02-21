@@ -3,6 +3,7 @@ package me.paultristanwagner.satchecking.theory.nonlinear;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -156,7 +157,6 @@ public class RealAlgebraicNumber {
       }
 
       this.refine();
-      System.out.println(this.lowerBound + " " + this.upperBound);
     }
   }
 
@@ -262,7 +262,7 @@ public class RealAlgebraicNumber {
     if (value != null) {
       return value.toString();
     } else {
-      return "(" + polynomial.toString() + ", " + lowerBound + ", " + upperBound + ")";
+      return "(" + polynomial.toString() + ", " + lowerBound + ", " + upperBound + ") ≈ " + approximateAsDouble();
     }
   }
 
@@ -300,12 +300,7 @@ public class RealAlgebraicNumber {
     int thisInnerRoots = this.polynomial.numberOfRealRoots(innerLowerBound, innerUpperBound);
     int otherInnerRoots = other.polynomial.numberOfRealRoots(innerLowerBound, innerUpperBound);
 
-    System.out.println("inner interval: " + innerLowerBound + " " + innerUpperBound);
-    System.out.println(thisInnerRoots + " " + otherInnerRoots);
-    this.polynomial.isolateRoots(innerLowerBound, innerUpperBound).forEach(System.out::println);
-    other.polynomial.isolateRoots(innerLowerBound, innerUpperBound).forEach(System.out::println);
     if (thisInnerRoots != otherInnerRoots) {
-      System.out.println("Different number of roots");
       return false;
     }
 
@@ -313,18 +308,9 @@ public class RealAlgebraicNumber {
       return true;
     }
 
-    // check the difference to find
-    Polynomial difference = this.polynomial.subtract(other.polynomial);
-
-    Set<RealAlgebraicNumber> differenceRoots = difference.isolateRoots(innerLowerBound, innerUpperBound);
-    for (RealAlgebraicNumber differenceRoot : differenceRoots) {
-      Number evaluation = this.polynomial.evaluate(differenceRoot);
-      if (evaluation.isZero()) {
-        return true;
-      }
-    }
-
-    return false;
+    Polynomial gcd = this.polynomial.gcd(other.polynomial);
+    // todo: we can potentially also evaluate the gcd at the interval bounds
+    return gcd.numberOfRealRoots(innerLowerBound, innerUpperBound) > 0;
   }
 
   @Override

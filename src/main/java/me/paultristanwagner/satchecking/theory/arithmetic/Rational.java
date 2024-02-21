@@ -175,6 +175,31 @@ public class Rational implements Number {
     return new Rational(div);
   }
 
+  public Number gcd(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    if(!isInteger() || !otherExact.isInteger()) {
+      throw new IllegalArgumentException("Cannot calculate gcd of non-integer numbers");
+    }
+
+    return new Rational(numerator.gcd(otherExact.numerator));
+  }
+
+  @Override
+  public Number lcm(Number other) {
+    if (!(other instanceof Rational otherExact)) {
+      throw new IllegalArgumentException("Cannot add " + other + " to " + this);
+    }
+
+    if(!isInteger() || !otherExact.isInteger()) {
+      throw new IllegalArgumentException("Cannot calculate lcm of non-integer numbers");
+    }
+
+    return new Rational(numerator.multiply(otherExact.numerator).divide(numerator.gcd(otherExact.numerator)));
+  }
+
   @Override
   public boolean lessThan(Number other) {
     if (!(other instanceof Rational otherExact)) {
@@ -256,6 +281,16 @@ public class Rational implements Number {
     String denominator = parts.length > 1 ? parts[1] : "1";
 
     return new Rational(new BigInteger(numerator), new BigInteger(denominator));
+  }
+
+  @Override
+  public BigInteger getNumerator() {
+    return numerator;
+  }
+
+  @Override
+  public BigInteger getDenominator() {
+    return denominator;
   }
 
   @Override

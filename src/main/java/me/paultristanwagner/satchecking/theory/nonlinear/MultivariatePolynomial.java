@@ -1,5 +1,12 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
+import me.paultristanwagner.satchecking.parse.Parser;
+import me.paultristanwagner.satchecking.parse.PolynomialParser;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.constantExponent;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.exponent;
@@ -9,25 +16,22 @@ import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.pointIn
 import static me.paultristanwagner.satchecking.theory.nonlinear.Matrix.matrix;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Polynomial.polynomial;
 
-import java.util.*;
-import java.util.stream.Collectors;
-import me.paultristanwagner.satchecking.parse.Parser;
-import me.paultristanwagner.satchecking.parse.PolynomialParser;
-import me.paultristanwagner.satchecking.theory.arithmetic.Number;
-
 public class MultivariatePolynomial {
 
   public static void main(String[] args) {
     Parser<MultivariatePolynomial> parser = new PolynomialParser();
     Scanner scanner = new Scanner(System.in);
     System.out.print("p: ");
-    MultivariatePolynomial p = parser.parse(scanner.nextLine());
+    MultivariatePolynomial p = parser.parse("t - y^5 - x^5 + x"); // parser.parse(scanner.nextLine());
+    System.out.print("q: ");
+    MultivariatePolynomial q = parser.parse("x^6-1/2*x^4+2*x^2-1/2"); // parser.parse(scanner.nextLine());
     System.out.print("var: ");
     String var = scanner.nextLine();
 
     System.out.println("p = " + p);
-    System.out.println("lm(p) = " + p.getLeadMonomial());
-    System.out.println("lm(p, " + var + ") = " + p.getLeadMonomial(var));
+    System.out.println("q = " + q);
+
+    System.out.println("Resultant[p, q, " + var + "] = " + p.resultant(q, var));
   }
 
   public Map<Exponent, Number> coefficients;
@@ -60,7 +64,7 @@ public class MultivariatePolynomial {
   }
 
   public String highestVariable() {
-    if(this.variables.isEmpty()) {
+    if (this.variables.isEmpty()) {
       throw new IllegalStateException("There are no variables");
     }
 
@@ -93,8 +97,13 @@ public class MultivariatePolynomial {
     return highestExponent;
   }
 
-  public MultivariatePolynomial leadingCoefficient(String variable) {
-    List<MultivariatePolynomial> coefficients = this.getCoefficients(variable);
+  public Number leadingCoefficientNumber(String variable) {
+    Exponent leadMonomial = getLeadMonomial(variable);
+    return coefficients.getOrDefault(leadMonomial, Number.ZERO());
+  }
+
+  public MultivariatePolynomial leadingCoefficientInVariable(String variable) {
+    List<MultivariatePolynomial> coefficients = getCoefficients(variable);
     return coefficients.get(coefficients.size() - 1);
   }
 
@@ -203,7 +212,7 @@ public class MultivariatePolynomial {
   }
 
   public Exponent getLeadMonomial() {
-    if(this.variables.isEmpty()) {
+    if (this.variables.isEmpty()) {
       return constantExponent(0);
     }
 
@@ -220,7 +229,7 @@ public class MultivariatePolynomial {
         continue;
       }
 
-      if(variableIndex == -1) {
+      if (variableIndex == -1) {
         if (leadMonomial == null || exponent.compareTo(leadMonomial) > 0) {
           leadMonomial = exponent;
         }
@@ -230,7 +239,7 @@ public class MultivariatePolynomial {
       if (leadMonomial == null
           || leadMonomial.get(variableIndex) < exponent.get(variableIndex)
           || leadMonomial.get(variableIndex) == exponent.get(variableIndex)
-              && leadMonomial.compareTo(exponent) < 0) {
+          && leadMonomial.compareTo(exponent) < 0) {
         leadMonomial = exponent;
       }
     }
@@ -255,10 +264,9 @@ public class MultivariatePolynomial {
     int a = this.degree(variable);
     int b = divisor.degree(variable);
 
-    List<MultivariatePolynomial> bCoefficients = divisor.getCoefficients(variable);
-    MultivariatePolynomial bLeadCoefficient = bCoefficients.get(b);
+    MultivariatePolynomial bLeadCoefficientInVariable = divisor.leadingCoefficientInVariable(variable);
 
-    MultivariatePolynomial dividend = bLeadCoefficient.pow(a - b + 1).multiply(this);
+    MultivariatePolynomial dividend = bLeadCoefficientInVariable.pow(a - b + 1).multiply(this);
 
     return dividend.divide(divisor, variable);
   }
@@ -277,7 +285,7 @@ public class MultivariatePolynomial {
     }
 
     Exponent divisorLM = divisor.getLeadMonomial(variable);
-    Number leadingCoefficient = divisor.coefficients.get(divisorLM);
+    Number divisorLC = divisor.leadingCoefficientNumber(variable);
 
     Set<String> variablesSet = new HashSet<>(this.variables);
     variablesSet.addAll(divisor.variables);
@@ -296,16 +304,13 @@ public class MultivariatePolynomial {
         break;
       }
 
-      Number highestCoefficient = remainder.coefficients.get(remainderLM);
+      Number remainderLC = remainder.leadingCoefficientNumber(variable);
 
       MultivariatePolynomial monomial =
           monomial(
               projectedRemainderLM.subtract(projectedDivisorLM), new ArrayList<>(this.variables));
 
-      Number highestCoefficientDivided = highestCoefficient.divide(leadingCoefficient);
-      if (!highestCoefficientDivided.isInteger()) {
-        break;
-      }
+      Number highestCoefficientDivided = remainderLC.divide(divisorLC);
 
       MultivariatePolynomial factor = monomial.multiply(constant(highestCoefficientDivided));
 
@@ -316,10 +321,28 @@ public class MultivariatePolynomial {
     return List.of(quotient, remainder);
   }
 
+  // todo: for testing
+  public boolean actuallyContainsVariable(String variable) {
+    if (!variables.contains(variable)) {
+      return false;
+    }
+
+    for (Exponent exponent : coefficients.keySet()) {
+      if (coefficients.get(exponent).isZero()) {
+        continue;
+      }
+
+      if (exponent.get(variables.indexOf(variable)) != 0) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   // todo: clean this up
+  // using pseudo-remainder sequence à la https://github.com/sympy/sympy
   public MultivariatePolynomial resultant(MultivariatePolynomial other, String variable) {
-    System.out.println(
-        "computing resultant of " + this + " and " + other + " with respect to " + variable);
     int n = this.degree(variable);
     int m = other.degree(variable);
 
@@ -341,8 +364,7 @@ public class MultivariatePolynomial {
     MultivariatePolynomial h = this.pseudoDivision(other, variable).get(1);
     h = h.multiply(b);
 
-    List<MultivariatePolynomial> coefficients = other.getCoefficients(variable);
-    MultivariatePolynomial leadCoefficient = coefficients.get(coefficients.size() - 1);
+    MultivariatePolynomial leadCoefficient = other.leadingCoefficientInVariable(variable);
 
     MultivariatePolynomial c = leadCoefficient.pow(d);
 
@@ -350,6 +372,7 @@ public class MultivariatePolynomial {
 
     MultivariatePolynomial f = this;
     MultivariatePolynomial g = other;
+
     while (!h.isZero()) {
       int k = h.degree(variable);
 
@@ -361,27 +384,14 @@ public class MultivariatePolynomial {
       m = k;
       d = temp - k;
 
-      System.out.println("f = " + f);
-      System.out.println("g = " + g);
-      System.out.println("m = " + m);
-      System.out.println("d = " + d);
-
-      System.out.println("c = " + c);
-      System.out.println("c ^ d = " + c.pow(d));
-
       b = leadCoefficient.negate().multiply(c.pow(d));
 
-      System.out.println("b = " + b);
-
       h = f.pseudoDivision(g, variable).get(1);
-      System.out.println("pseudo remainder = " + h);
       h = h.divide(b, variable).get(0);
-      System.out.println("h = " + h);
 
-      List<MultivariatePolynomial> hCoefficients = h.getCoefficients(variable);
-      leadCoefficient = hCoefficients.get(hCoefficients.size() - 1);
+      leadCoefficient = g.leadingCoefficientInVariable(variable);
 
-      if (d > 0) {
+      if (d > 1) {
         MultivariatePolynomial p = leadCoefficient.negate().pow(d);
         MultivariatePolynomial q = c.pow(d - 1);
         c = p.divide(q, variable).get(0);
@@ -390,7 +400,10 @@ public class MultivariatePolynomial {
       }
     }
 
-    System.out.println("DONE");
+    MultivariatePolynomial resultant = R.get(R.size() - 1);
+    if (resultant.actuallyContainsVariable(variable)) {
+      return ZERO();
+    }
 
     return R.get(R.size() - 1);
   }
@@ -609,26 +622,19 @@ public class MultivariatePolynomial {
     String firstVariable = iterator.next();
     String freshVariable = firstVariable + "'"; // todo: make sure this is fresh
 
-    System.out.println("current = " + current);
+    Map<String, Interval> intervalSubstitution = constructIntervalSubstitution(substitution);
+    Interval res_I = this.evaluate(intervalSubstitution);
+    if(!res_I.containsZero()) {
+      return res_I.sign();
+    }
+
     RealAlgebraicNumber firstSubstitution = algebraicSubstitutions.get(firstVariable);
-    System.out.println("firstSubstitution = " + firstSubstitution);
-    System.out.println(
-        "Resultant["
-            + freshVariable
-            + " - ("
-            + current
-            + "), "
-            + firstSubstitution.getPolynomial().toMultivariatePolynomial(firstVariable)
-            + ", "
-            + firstVariable
-            + "] = ");
     current =
         variable(freshVariable)
             .subtract(current)
             .resultant(
                 firstSubstitution.getPolynomial().toMultivariatePolynomial(firstVariable),
                 firstVariable);
-    System.out.println(current);
 
     while (iterator.hasNext()) {
       String variable = iterator.next();
@@ -637,43 +643,46 @@ public class MultivariatePolynomial {
     }
 
     Polynomial univariate = current.toUnivariatePolynomial();
-    System.out.println("this = " + this);
-    System.out.println("substitution = " + substitution);
-    System.out.println("univariate = " + univariate);
 
     while (true) {
-      Map<String, Interval> intervalSubstitution = new HashMap<>();
-      for (String variable : substitution.keySet()) {
-        RealAlgebraicNumber ran = substitution.get(variable);
-
-        if (ran.isNumeric()) {
-          intervalSubstitution.put(variable, pointInterval(ran.numericValue()));
-        } else {
-          intervalSubstitution.put(
-              variable, interval(ran.getLowerBound(), ran.getUpperBound(), CLOSED, CLOSED));
-        }
-      }
-
-      Interval res_I = this.evaluate(intervalSubstitution);
-      System.out.println("this = " + this);
-      System.out.println("intervalSubstitution = " + intervalSubstitution);
-      System.out.println("res_I = " + res_I);
-
-      if (!res_I.containsZero()) {
-        return res_I.getLowerBound().numericValue().sign();
-      }
-
       Set<RealAlgebraicNumber> testRoots =
           univariate.isolateRoots(
               res_I.getLowerBound().numericValue(), res_I.getUpperBound().numericValue());
-      System.out.println("testRoots = " + testRoots);
+
+      if (testRoots.isEmpty()) {
+        throw new IllegalStateException("There must be a root in the interval");
+      }
+
       if (testRoots.size() == 1) {
         RealAlgebraicNumber root = testRoots.iterator().next();
         return root.sign();
       }
 
       algebraicSubstitutions.values().forEach(RealAlgebraicNumber::refine);
+
+      intervalSubstitution = constructIntervalSubstitution(substitution);
+      res_I = this.evaluate(intervalSubstitution);
+      if(!res_I.containsZero()) {
+        return res_I.sign();
+      }
     }
+  }
+
+  private Map<String, Interval> constructIntervalSubstitution(Map<String, RealAlgebraicNumber> substitution) {
+    Map<String, Interval> intervalSubstitution = new HashMap<>();
+
+    for (String variable : substitution.keySet()) {
+      RealAlgebraicNumber ran = substitution.get(variable);
+
+      if (ran.isNumeric()) {
+        intervalSubstitution.put(variable, pointInterval(ran.numericValue()));
+      } else {
+        intervalSubstitution.put(
+            variable, interval(ran.getLowerBound(), ran.getUpperBound(), CLOSED, CLOSED));
+      }
+    }
+
+    return intervalSubstitution;
   }
 
   public void prune() {
@@ -694,7 +703,6 @@ public class MultivariatePolynomial {
         continue;
       }
 
-      System.out.println("exponent = " + exponent);
       Exponent newExponent = Exponent.project(exponent, variables, newVariables);
       newCoefficients.put(newExponent, coefficients.get(exponent));
     }
@@ -704,6 +712,7 @@ public class MultivariatePolynomial {
   }
 
   public Polynomial toUnivariatePolynomial() {
+    // todo: this is a hack
     prune();
 
     if (this.variables.size() > 1) {
@@ -740,7 +749,6 @@ public class MultivariatePolynomial {
     monomials.removeIf(monomial -> coefficients.get(monomial).isZero());
     monomials.sort(Comparator.reverseOrder());
 
-    System.out.println(coefficients);
     for (int j = 0; j < monomials.size(); j++) {
       Exponent exponent = monomials.get(j);
       Number coefficient = coefficients.get(exponent);
@@ -751,7 +759,7 @@ public class MultivariatePolynomial {
         sb.append(" - ");
       }
 
-      if (!coefficient.abs().isOne()) {
+      if (exponent.isConstantExponent() || !coefficient.abs().isOne()) {
         sb.append(coefficient.abs());
 
         if (!exponent.isConstantExponent()) {
@@ -787,6 +795,11 @@ public class MultivariatePolynomial {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     MultivariatePolynomial that = (MultivariatePolynomial) o;
+
+    // todo: this is a hack
+    this.prune();
+    that.prune();
+
     return Objects.equals(coefficients, that.coefficients)
         && Objects.equals(variables, that.variables);
   }

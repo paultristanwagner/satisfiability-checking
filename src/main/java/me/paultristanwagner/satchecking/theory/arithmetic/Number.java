@@ -2,6 +2,8 @@ package me.paultristanwagner.satchecking.theory.arithmetic;
 
 import me.paultristanwagner.satchecking.Config;
 
+import java.math.BigInteger;
+
 public interface Number {
 
   static Number ZERO() {
@@ -67,6 +69,14 @@ public interface Number {
   Number ceil();
 
   Number floor();
+
+  Number gcd(Number other);
+
+  Number lcm(Number other);
+
+  BigInteger getNumerator();
+
+  BigInteger getDenominator();
 
   boolean lessThan(Number other);
 

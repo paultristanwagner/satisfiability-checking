@@ -25,6 +25,7 @@ public class SMTCommand extends Command {
         "smt <theory> <cnf of theory constraints>",
         """
               Available theories:
+                QF_NRA (Non-linear real arithmetic) (! highly experimental !),
                 QF_LRA (Linear real arithmetic),
                 QF_LIA (Linear integer arithmetic),
                 QF_EQ (Equality logic),
@@ -32,6 +33,8 @@ public class SMTCommand extends Command {
                 QF_BV (Bitvector arithmetic)
               
               Examples:
+                smt QF_NRA (x^2 + y^2 = 1) & (x^2 + y^3 = 1/2)
+              
                 smt QF_LRA (x <= 5) & (max(x))
               
                 smt QF_LIA (x <= 3/2) & (max(x))

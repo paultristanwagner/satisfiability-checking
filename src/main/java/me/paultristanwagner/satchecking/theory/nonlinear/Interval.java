@@ -251,7 +251,7 @@ public class Interval {
       result = result.multiply(this);
     }
 
-    if(exponent % 2 == 0) {
+    if (exponent % 2 == 0 && lowerBound.isNegative()) {
       result = interval(number(0), result.getUpperBound().numericValue(), CLOSED, CLOSED);
     }
 
@@ -261,21 +261,17 @@ public class Interval {
   public boolean contains(RealAlgebraicNumber number) {
     if (lowerBoundType == UNBOUNDED && upperBoundType == UNBOUNDED) {
       return true;
-    }
-
-    if (lowerBoundType == CLOSED && lowerBound.lessThanOrEqual(number)) {
-      return true;
-    }
-
-    if (upperBoundType == CLOSED && upperBound.greaterThanOrEqual(number)) {
-      return true;
-    }
-
-    if (lowerBoundType == OPEN && lowerBound.greaterThan(number)) {
+    } else if(lowerBoundType == OPEN && number.lessThanOrEqual(lowerBound)) {
+      return false;
+    } else if(upperBoundType == OPEN && number.greaterThanOrEqual(upperBound)) {
+      return false;
+    } else if(lowerBoundType == CLOSED && number.lessThan(lowerBound)) {
+      return false;
+    } else if(upperBoundType == CLOSED && number.greaterThan(upperBound)) {
       return false;
     }
 
-    return upperBoundType != OPEN || upperBound.greaterThanOrEqual(number);
+    return true;
   }
 
   public boolean contains(Number number) {
@@ -284,6 +280,22 @@ public class Interval {
 
   public boolean containsZero() {
     return contains(ZERO());
+  }
+
+  public int sign() {
+    if (lowerBound.isZero() && upperBound.isZero()) {
+      return 0;
+    }
+
+    if (containsZero()) {
+      throw new IllegalArgumentException("The interval has no unique sign");
+    }
+
+    if (lowerBound.isZero()) {
+      return upperBound.sign();
+    }
+
+    return lowerBound.sign();
   }
 
   public IntervalBoundType getLowerBoundType() {
