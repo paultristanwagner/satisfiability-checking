@@ -1,13 +1,7 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import me.paultristanwagner.satchecking.parse.Parser;
-import me.paultristanwagner.satchecking.parse.PolynomialParser;
-import me.paultristanwagner.satchecking.theory.arithmetic.Number;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.constantExponent;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.exponent;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.IntervalBoundType.CLOSED;
@@ -16,15 +10,23 @@ import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.pointIn
 import static me.paultristanwagner.satchecking.theory.nonlinear.Matrix.matrix;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Polynomial.polynomial;
 
+import java.util.*;
+import java.util.stream.Collectors;
+import me.paultristanwagner.satchecking.parse.Parser;
+import me.paultristanwagner.satchecking.parse.PolynomialParser;
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+
 public class MultivariatePolynomial {
 
   public static void main(String[] args) {
     Parser<MultivariatePolynomial> parser = new PolynomialParser();
     Scanner scanner = new Scanner(System.in);
     System.out.print("p: ");
-    MultivariatePolynomial p = parser.parse("t - y^5 - x^5 + x"); // parser.parse(scanner.nextLine());
+    MultivariatePolynomial p =
+        parser.parse("t - y^5 - x^5 + x"); // parser.parse(scanner.nextLine());
     System.out.print("q: ");
-    MultivariatePolynomial q = parser.parse("x^6-1/2*x^4+2*x^2-1/2"); // parser.parse(scanner.nextLine());
+    MultivariatePolynomial q =
+        parser.parse("x^6-1/2*x^4+2*x^2-1/2"); // parser.parse(scanner.nextLine());
     System.out.print("var: ");
     String var = scanner.nextLine();
 
@@ -239,7 +241,7 @@ public class MultivariatePolynomial {
       if (leadMonomial == null
           || leadMonomial.get(variableIndex) < exponent.get(variableIndex)
           || leadMonomial.get(variableIndex) == exponent.get(variableIndex)
-          && leadMonomial.compareTo(exponent) < 0) {
+              && leadMonomial.compareTo(exponent) < 0) {
         leadMonomial = exponent;
       }
     }
@@ -264,7 +266,8 @@ public class MultivariatePolynomial {
     int a = this.degree(variable);
     int b = divisor.degree(variable);
 
-    MultivariatePolynomial bLeadCoefficientInVariable = divisor.leadingCoefficientInVariable(variable);
+    MultivariatePolynomial bLeadCoefficientInVariable =
+        divisor.leadingCoefficientInVariable(variable);
 
     MultivariatePolynomial dividend = bLeadCoefficientInVariable.pow(a - b + 1).multiply(this);
 
@@ -451,11 +454,14 @@ public class MultivariatePolynomial {
         continue;
       }
 
+      int exponentValue = exponent.get(variableIndex);
+
       List<Integer> exponentValues = new ArrayList<>(exponent.getValues());
       exponentValues.set(variableIndex, exponent.get(variableIndex) - 1);
       Exponent newExponent = exponent(exponentValues);
 
-      coefficients.put(newExponent, this.coefficients.get(exponent));
+      Number newCoefficient = this.coefficients.get(exponent).multiply(number(exponentValue));
+      coefficients.put(newExponent, newCoefficient);
     }
 
     return multivariatePolynomial(coefficients, newVariables);
@@ -624,7 +630,7 @@ public class MultivariatePolynomial {
 
     Map<String, Interval> intervalSubstitution = constructIntervalSubstitution(substitution);
     Interval res_I = this.evaluate(intervalSubstitution);
-    if(!res_I.containsZero()) {
+    if (!res_I.containsZero()) {
       return res_I.sign();
     }
 
@@ -662,13 +668,14 @@ public class MultivariatePolynomial {
 
       intervalSubstitution = constructIntervalSubstitution(substitution);
       res_I = this.evaluate(intervalSubstitution);
-      if(!res_I.containsZero()) {
+      if (!res_I.containsZero()) {
         return res_I.sign();
       }
     }
   }
 
-  private Map<String, Interval> constructIntervalSubstitution(Map<String, RealAlgebraicNumber> substitution) {
+  private Map<String, Interval> constructIntervalSubstitution(
+      Map<String, RealAlgebraicNumber> substitution) {
     Map<String, Interval> intervalSubstitution = new HashMap<>();
 
     for (String variable : substitution.keySet()) {
