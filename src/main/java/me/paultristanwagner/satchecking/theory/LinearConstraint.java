@@ -12,54 +12,43 @@ import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class LinearConstraint implements Constraint {
 
-  protected final Set<String> variables;
-  protected final Map<String, Number> coefficients;
-  private Bound bound;
-  private Number value;
+  protected final LinearTerm lhs;
+  protected final LinearTerm rhs;
+  protected final LinearTerm difference;
+  protected final Bound bound;
 
   private LinearConstraint derivedFrom;
 
   public LinearConstraint() {
-    this.variables = new HashSet<>();
-    this.coefficients = new HashMap<>();
-    this.value = ZERO();
+    this.lhs = new LinearTerm();
+    this.rhs = new LinearTerm();
+    this.difference = new LinearTerm();
+    this.bound = Bound.EQUAL;
   }
 
   public LinearConstraint(LinearConstraint constraint) {
-    this.variables = new HashSet<>(constraint.variables);
-    this.coefficients = new HashMap<>(constraint.coefficients);
+    this.lhs = new LinearTerm(constraint.lhs);
+    this.rhs = new LinearTerm(constraint.rhs);
+    this.difference = new LinearTerm(constraint.difference);
     this.bound = constraint.bound;
-    this.value = constraint.value;
     this.derivedFrom = constraint;
   }
 
-  public void setCoefficient(String variable, Number coefficient) {
-    variables.add(variable);
-    coefficients.put(variable, coefficient);
+  public LinearConstraint(LinearTerm lhs, LinearTerm rhs, Bound bound) {
+    this.lhs = lhs;
+    this.rhs = rhs;
+    this.difference = lhs.subtract(rhs);
+    this.bound = bound;
   }
 
   public Set<String> getVariables() {
+    Set<String> variables = new HashSet<>(lhs.getVariables());
+    variables.addAll(rhs.getVariables());
     return variables;
-  }
-
-  public Map<String, Number> getCoefficients() {
-    return coefficients;
   }
 
   public Bound getBound() {
     return bound;
-  }
-
-  public Number getValue() {
-    return value;
-  }
-
-  public void setBound(Bound bound) {
-    this.bound = bound;
-  }
-
-  public void setValue(Number value) {
-    this.value = value;
   }
 
   public void setDerivedFrom(LinearConstraint derivedFrom) {
@@ -67,17 +56,19 @@ public class LinearConstraint implements Constraint {
   }
 
   public Number getBoundOn(String variable) {
+    Set<String> variables = getVariables();
+
     if (variables.size() != 1) {
       throw new IllegalStateException("Constraint does not have exactly one variable");
     }
 
-    if (!variables.contains(variable)) {
+    if (!getVariables().contains(variable)) {
       throw new IllegalArgumentException("Variable is not in constraint");
     }
 
-    Number coefficient = coefficients.get(variable);
+    Number coefficient = difference.coefficients.get(variable);
 
-    return value.divide(coefficient);
+    return difference.getConstant().divide(coefficient);
   }
 
   public LinearConstraint getRoot() {
@@ -89,33 +80,26 @@ public class LinearConstraint implements Constraint {
 
   public LinearConstraint offset(String variable, String substitute, Number offset) {
     LinearConstraint constraint = new LinearConstraint(this);
-    if (!coefficients.containsKey(variable)) {
-      return this;
-    }
-
-    Number coeff = coefficients.get(variable);
-    constraint.variables.remove(variable);
-    constraint.coefficients.remove(variable);
-    constraint.setCoefficient(substitute, coeff);
-
-    constraint.value = value.subtract(
-        coeff.multiply(offset)
-    );
+    constraint.lhs.offset(variable, substitute, offset);
+    constraint.rhs.offset(variable, substitute, offset);
+    constraint.difference.offset(variable, substitute, offset);
 
     return constraint;
   }
 
   public LinearConstraint positiveNegativeSubstitute(
       String variable, String positive, String negative) {
-    Number coeff = coefficients.get(variable);
 
     LinearConstraint constraint = new LinearConstraint(this);
-    constraint.variables.remove(variable);
-    constraint.coefficients.remove(variable);
-    constraint.setCoefficient(positive, coeff);
-    constraint.setCoefficient(negative, coeff.negate());
+    constraint.lhs.positiveNegativeSubstitute(variable, positive, negative);
+    constraint.rhs.positiveNegativeSubstitute(variable, positive, negative);
+    constraint.difference.positiveNegativeSubstitute(variable, positive, negative);
 
     return constraint;
+  }
+
+  public LinearTerm getDifference() {
+    return difference;
   }
 
   public enum Bound {
@@ -127,7 +111,8 @@ public class LinearConstraint implements Constraint {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(serializeTerm(coefficients));
+
+    sb.append(lhs);
 
     if (bound == Bound.EQUAL) {
       sb.append("=");
@@ -136,67 +121,54 @@ public class LinearConstraint implements Constraint {
     } else {
       sb.append("<=");
     }
-    sb.append(value);
+
+    sb.append(rhs);
 
     return sb.toString();
   }
 
   public static class MaximizingConstraint extends LinearConstraint {
 
+    public MaximizingConstraint(LinearTerm term) {
+      super(term, new LinearTerm(), Bound.EQUAL);
+    }
+
+    public LinearTerm getTerm() {
+      return lhs;
+    }
+
     @Override
     public String toString() {
-      return "max(" + serializeTerm(coefficients) + ")";
+      return "max(" + lhs + ")";
     }
   }
 
   public static class MinimizingConstraint extends LinearConstraint {
 
+    public MinimizingConstraint(LinearTerm term) {
+      super(new LinearTerm(), term, Bound.EQUAL);
+    }
+
+    public LinearTerm getTerm() {
+      return rhs;
+    }
+
     @Override
     public String toString() {
-      return "min(" + serializeTerm(coefficients) + ")";
+      return "min(" + lhs + ")";
     }
-  }
-
-  private static String serializeTerm(Map<String, Number> coefficients) {
-    StringBuilder sb = new StringBuilder();
-    coefficients.forEach(
-        (variable, coefficient) -> {
-          if (coefficient.isNonNegative()) {
-            if (!sb.isEmpty()) {
-              sb.append("+");
-            }
-          } else {
-            sb.append("-");
-          }
-
-          Number absolute = coefficient.abs();
-          if (!absolute.isOne()) {
-            sb.append(absolute);
-          }
-
-          sb.append(variable);
-        });
-
-    return sb.toString();
-  }
-
-  public Number evaluateTerm(VariableAssignment<Number> assignment) {
-    Number result = ZERO();
-    for (String variable : variables) {
-      Number summand = coefficients.get(variable).multiply(assignment.getAssignment(variable));
-      result = result.add(summand);
-    }
-    return result;
   }
 
   public boolean evaluate(VariableAssignment<Number> assignment) {
-    Number result = evaluateTerm(assignment);
+    Number lhsValue = lhs.evaluate(assignment);
+    Number rhsValue = rhs.evaluate(assignment);
+
     if (bound == Bound.EQUAL) {
-      return result.equals(value);
+      return lhsValue.equals(rhsValue);
     } else if (bound == Bound.LOWER) {
-      return result.greaterThanOrEqual(value);
+      return lhsValue.greaterThanOrEqual(rhsValue);
     } else {
-      return result.lessThanOrEqual(value);
+      return lhsValue.lessThanOrEqual(rhsValue);
     }
   }
 }

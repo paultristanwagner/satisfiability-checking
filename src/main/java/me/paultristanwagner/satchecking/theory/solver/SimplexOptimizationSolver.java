@@ -578,6 +578,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     if (constraint.getBound() == LinearConstraint.Bound.EQUAL) {
       LinearConstraint first = new LinearConstraint();
       LinearConstraint second = new LinearConstraint();
+
       first.setDerivedFrom(constraint);
       second.setDerivedFrom(constraint);
 
