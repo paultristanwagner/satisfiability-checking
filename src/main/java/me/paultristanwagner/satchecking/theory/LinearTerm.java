@@ -78,11 +78,15 @@ public class LinearTerm {
     return result;
   }
 
-  public LinearTerm subtract(LinearTerm term) {
-    LinearTerm result = new LinearTerm(this);
-    term.coefficients.forEach((variable, coefficient) -> result.addCoefficient(variable, coefficient.negate()));
-    result.addConstant(term.constant.negate());
+  public LinearTerm negate() {
+    LinearTerm result = new LinearTerm();
+    this.coefficients.forEach((variable, coefficient) -> result.addCoefficient(variable, coefficient.negate()));
+    result.addConstant(this.constant.negate());
     return result;
+  }
+
+  public LinearTerm subtract(LinearTerm term) {
+    return this.add(term.negate());
   }
 
   public LinearTerm offset(String variable, String substitute, Number offset) {
@@ -96,7 +100,7 @@ public class LinearTerm {
     term.coefficients.remove(variable);
     term.setCoefficient(substitute, coeff);
 
-    term.constant = constant.subtract(
+    term.constant = constant.add(
         coeff.multiply(offset)
     );
 
@@ -105,6 +109,10 @@ public class LinearTerm {
 
   public LinearTerm positiveNegativeSubstitute(
       String variable, String positive, String negative) {
+    if(!coefficients.containsKey(variable) || coefficients.get(variable).equals(ZERO())) {
+      return this;
+    }
+
     Number coeff = coefficients.get(variable);
 
     LinearTerm term = new LinearTerm(this);
@@ -122,6 +130,7 @@ public class LinearTerm {
       Number summand = coefficients.get(variable).multiply(assignment.getAssignment(variable));
       result = result.add(summand);
     }
+    result = result.add(constant);
     return result;
   }
 
@@ -145,6 +154,18 @@ public class LinearTerm {
 
           sb.append(variable);
         });
+
+    if (!constant.equals(ZERO())) {
+      if (constant.isNonNegative()) {
+        if (!sb.isEmpty()) {
+          sb.append("+");
+        }
+      } else {
+        sb.append("-");
+      }
+
+      sb.append(constant.abs());
+    }
 
     if(sb.isEmpty()) {
       sb.append("0");

@@ -31,7 +31,7 @@ public class LinearTermParser implements Parser<LinearTerm> {
       value = value.multiply(OPTIONAL_RATIONAL(lexer));
     }
 
-    if(!explicitValue) {
+    if(!explicitValue || lexer.canConsume(IDENTIFIER)) {
       lexer.require(IDENTIFIER);
       String identifier = lexer.getLookahead().getValue();
       lexer.consume(IDENTIFIER);
@@ -50,7 +50,7 @@ public class LinearTermParser implements Parser<LinearTerm> {
         value = value.multiply(OPTIONAL_RATIONAL(lexer));
       }
 
-      if(!explicitValue) {
+      if(!explicitValue || lexer.canConsume(IDENTIFIER)) {
         lexer.require(IDENTIFIER);
         String identifier = lexer.getLookahead().getValue();
         lexer.consume(IDENTIFIER);

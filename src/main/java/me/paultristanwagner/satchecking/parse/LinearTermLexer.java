@@ -8,11 +8,11 @@ public class LinearTermLexer extends Lexer {
     super(input);
 
     registerTokenTypes(
+        PLUS,
+        MINUS,
         FRACTION,
         DECIMAL,
-        IDENTIFIER,
-        PLUS,
-        MINUS
+        IDENTIFIER
     );
 
     initialize(input);

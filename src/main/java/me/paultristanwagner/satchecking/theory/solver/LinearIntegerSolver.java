@@ -38,7 +38,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
 
   @Override
   public TheoryResult<LinearConstraint> solve() {
-    if (depth > MAXIMUM_BRANCH_DEPTH) {
+    /* if (depth > MAXIMUM_BRANCH_DEPTH) {
       return TheoryResult.unknown();
     }
 
@@ -142,6 +142,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
       return TheoryResult.unknown();
     }
 
-    return TheoryResult.unsatisfiable(constraints);
+    return TheoryResult.unsatisfiable(constraints); */
+    return null;
   }
 }

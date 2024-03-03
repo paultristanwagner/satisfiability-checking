@@ -145,7 +145,7 @@ public class MultivariatePolynomialTest {
     assertEquals(number(0), result.getCoefficient(exponent(1, 0, 0)));
     assertEquals(number(0), result.getCoefficient(exponent(1, 1, 0)));
     assertEquals(number(0), result.getCoefficient(exponent(1, 2, 0)));
-    assertEquals(number(-1), result.getCoefficient(exponent(2, 2, 0))); // todo: investigate why the sign is wrong
+    assertEquals(number(-1), result.getCoefficient(exponent(2, 2, 0)));
 
   }
 
@@ -158,8 +158,6 @@ public class MultivariatePolynomialTest {
 
     Map<String, Interval> intervalMap = Map.of("x", xInterval, "y", yInterval);
     Interval result = p.evaluate(intervalMap);
-
-    System.out.println(result);
 
     assertFalse(result.containsZero());
     assertEquals(1, result.sign());

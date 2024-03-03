@@ -5,13 +5,12 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint.Bound;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
 import me.paultristanwagner.satchecking.theory.LinearTerm;
-import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.Scanner;
 
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
+import static me.paultristanwagner.satchecking.parse.TokenType.GREATER_EQUALS;
 import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 
 public class LinearConstraintParser implements Parser<LinearConstraint> {
 
@@ -24,6 +23,10 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       try {
         LinearConstraint constraint = parser.parse(line);
         System.out.println(constraint);
+        System.out.println("lhs = " + constraint.getLeftHandSide());
+        System.out.println("rhs = " + constraint.getRightHandSide());
+        System.out.println("bound = " + constraint.getBound());
+        System.out.println("lhs - rhs = " + constraint.getDifference());
       } catch (SyntaxError e) {
         e.printWithContext();
         e.printStackTrace();
@@ -43,8 +46,6 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   @Override
   public ParseResult<LinearConstraint> parseWithRemaining(String string) {
     Lexer lexer = new LinearConstraintLexer(string);
-
-    lexer.requireNextToken();
 
     boolean optimization = false;
     boolean minimization = false;
@@ -89,6 +90,8 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
     LinearTermParser parser = new LinearTermParser();
     ParseResult<LinearTerm> result = parser.parseWithRemaining(lexer.getRemaining());
 
+    lexer.skip(result.charsRead());
+
     return result.result();
   }
 
@@ -99,10 +102,10 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
       return EQUAL;
     } else if (lexer.canConsume(LOWER_EQUALS)) {
       lexer.consume(LOWER_EQUALS);
-      return UPPER;
+      return LESS_EQUALS;
     } else {
       lexer.consume(GREATER_EQUALS);
-      return LOWER;
+      return Bound.GREATER_EQUALS;
     }
   }
 }

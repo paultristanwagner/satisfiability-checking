@@ -3,11 +3,10 @@ package me.paultristanwagner.satchecking.theory;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class LinearConstraint implements Constraint {
@@ -23,7 +22,7 @@ public class LinearConstraint implements Constraint {
     this.lhs = new LinearTerm();
     this.rhs = new LinearTerm();
     this.difference = new LinearTerm();
-    this.bound = Bound.EQUAL;
+    this.bound = EQUAL;
   }
 
   public LinearConstraint(LinearConstraint constraint) {
@@ -41,6 +40,18 @@ public class LinearConstraint implements Constraint {
     this.bound = bound;
   }
 
+  public static LinearConstraint equal(LinearTerm lhs, LinearTerm rhs) {
+    return new LinearConstraint(lhs, rhs, EQUAL);
+  }
+
+  public static LinearConstraint lessThanOrEqual(LinearTerm lhs, LinearTerm rhs) {
+    return new LinearConstraint(lhs, rhs, GREATER_EQUALS);
+  }
+
+  public static LinearConstraint greaterThanOrEqual(LinearTerm lhs, LinearTerm rhs) {
+    return new LinearConstraint(lhs, rhs, LESS_EQUALS);
+  }
+
   public Set<String> getVariables() {
     Set<String> variables = new HashSet<>(lhs.getVariables());
     variables.addAll(rhs.getVariables());
@@ -53,6 +64,10 @@ public class LinearConstraint implements Constraint {
 
   public void setDerivedFrom(LinearConstraint derivedFrom) {
     this.derivedFrom = derivedFrom;
+  }
+
+  public boolean constrainsVariable(String variable) {
+    return difference.getCoefficients().getOrDefault(variable, ZERO()).isNonZero();
   }
 
   public Number getBoundOn(String variable) {
@@ -68,7 +83,7 @@ public class LinearConstraint implements Constraint {
 
     Number coefficient = difference.coefficients.get(variable);
 
-    return difference.getConstant().divide(coefficient);
+    return difference.getConstant().negate().divide(coefficient);
   }
 
   public LinearConstraint getRoot() {
@@ -79,23 +94,27 @@ public class LinearConstraint implements Constraint {
   }
 
   public LinearConstraint offset(String variable, String substitute, Number offset) {
-    LinearConstraint constraint = new LinearConstraint(this);
-    constraint.lhs.offset(variable, substitute, offset);
-    constraint.rhs.offset(variable, substitute, offset);
-    constraint.difference.offset(variable, substitute, offset);
+    LinearTerm lhs = this.lhs.offset(variable, substitute, offset);
+    LinearTerm rhs = this.rhs.offset(variable, substitute, offset);
 
-    return constraint;
+    return new LinearConstraint(lhs, rhs, this.bound);
   }
 
   public LinearConstraint positiveNegativeSubstitute(
       String variable, String positive, String negative) {
 
-    LinearConstraint constraint = new LinearConstraint(this);
-    constraint.lhs.positiveNegativeSubstitute(variable, positive, negative);
-    constraint.rhs.positiveNegativeSubstitute(variable, positive, negative);
-    constraint.difference.positiveNegativeSubstitute(variable, positive, negative);
+    LinearTerm lhs = this.lhs.positiveNegativeSubstitute(variable, positive, negative);
+    LinearTerm rhs = this.rhs.positiveNegativeSubstitute(variable, positive, negative);
 
-    return constraint;
+    return new LinearConstraint(lhs, rhs, this.bound);
+  }
+
+  public LinearTerm getLeftHandSide() {
+    return lhs;
+  }
+
+  public LinearTerm getRightHandSide() {
+    return rhs;
   }
 
   public LinearTerm getDifference() {
@@ -103,8 +122,8 @@ public class LinearConstraint implements Constraint {
   }
 
   public enum Bound {
-    LOWER,
-    UPPER,
+    GREATER_EQUALS,
+    LESS_EQUALS,
     EQUAL
   }
 
@@ -114,9 +133,9 @@ public class LinearConstraint implements Constraint {
 
     sb.append(lhs);
 
-    if (bound == Bound.EQUAL) {
+    if (bound == EQUAL) {
       sb.append("=");
-    } else if (bound == Bound.LOWER) {
+    } else if (bound == GREATER_EQUALS) {
       sb.append(">=");
     } else {
       sb.append("<=");
@@ -130,7 +149,7 @@ public class LinearConstraint implements Constraint {
   public static class MaximizingConstraint extends LinearConstraint {
 
     public MaximizingConstraint(LinearTerm term) {
-      super(term, new LinearTerm(), Bound.EQUAL);
+      super(term, new LinearTerm(), EQUAL);
     }
 
     public LinearTerm getTerm() {
@@ -146,11 +165,11 @@ public class LinearConstraint implements Constraint {
   public static class MinimizingConstraint extends LinearConstraint {
 
     public MinimizingConstraint(LinearTerm term) {
-      super(new LinearTerm(), term, Bound.EQUAL);
+      super(term, new LinearTerm(), EQUAL);
     }
 
     public LinearTerm getTerm() {
-      return rhs;
+      return lhs;
     }
 
     @Override
@@ -163,9 +182,9 @@ public class LinearConstraint implements Constraint {
     Number lhsValue = lhs.evaluate(assignment);
     Number rhsValue = rhs.evaluate(assignment);
 
-    if (bound == Bound.EQUAL) {
+    if (bound == EQUAL) {
       return lhsValue.equals(rhsValue);
-    } else if (bound == Bound.LOWER) {
+    } else if (bound == GREATER_EQUALS) {
       return lhsValue.greaterThanOrEqual(rhsValue);
     } else {
       return lhsValue.lessThanOrEqual(rhsValue);

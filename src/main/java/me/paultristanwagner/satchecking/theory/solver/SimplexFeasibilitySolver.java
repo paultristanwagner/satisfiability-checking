@@ -7,6 +7,7 @@ import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.*;
 
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
@@ -70,16 +71,16 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
       for (int j = 0; j < variableSet.size(); j++) {
         String variable = variables.get(j);
-        tableau[i][j] = constraint.getCoefficients().getOrDefault(variable, ZERO());
+        tableau[i][j] = constraint.getDifference().getCoefficients().getOrDefault(variable, ZERO());
       }
 
-      if (constraint.getBound() == LinearConstraint.Bound.EQUAL) {
-        lowerBounds.put(slackName, constraint.getValue());
-        upperBounds.put(slackName, constraint.getValue());
-      } else if (constraint.getBound() == LinearConstraint.Bound.UPPER) {
-        upperBounds.put(slackName, constraint.getValue());
-      } else if (constraint.getBound() == LinearConstraint.Bound.LOWER) {
-        lowerBounds.put(slackName, constraint.getValue());
+      if (constraint.getBound() == EQUAL) {
+        lowerBounds.put(slackName, constraint.getDifference().getConstant().negate());
+        upperBounds.put(slackName, constraint.getDifference().getConstant().negate());
+      } else if (constraint.getBound() == LESS_EQUALS) {
+        upperBounds.put(slackName, constraint.getDifference().getConstant().negate());
+      } else if (constraint.getBound() == GREATER_EQUALS) {
+        lowerBounds.put(slackName, constraint.getDifference().getConstant().negate());
       }
     }
 
