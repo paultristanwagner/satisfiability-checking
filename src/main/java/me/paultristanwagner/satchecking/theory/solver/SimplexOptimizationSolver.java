@@ -1,20 +1,24 @@
 package me.paultristanwagner.satchecking.theory.solver;
 
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.EQUAL;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.LESS_EQUALS;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.greaterThanOrEqual;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.lessThanOrEqual;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
+
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import java.util.*;
+import java.util.Map.Entry;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
+import me.paultristanwagner.satchecking.theory.LinearTerm;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import org.apache.commons.lang3.tuple.Pair;
-
-import java.util.*;
-import java.util.Map.Entry;
-
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint> {
 
@@ -34,8 +38,12 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   private int columns;
   private Number[][] tableau;
 
-  private final List<LinearConstraint> originalConstraints;
+  private List<LinearConstraint> originalConstraints;
   private List<LinearConstraint> constraints;
+
+  private List<LinearTerm> differences;
+  private Map<LinearTerm, LinearConstraint> origin;
+
   private LinearConstraint originalObjective;
   private LinearConstraint objective;
 
@@ -50,6 +58,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
     this.originalConstraints = new ArrayList<>();
     this.constraints = new ArrayList<>();
+    this.differences = new ArrayList<>();
+    this.origin = new HashMap<>();
 
     this.substitutions = HashBiMap.create();
     this.offsets = new HashMap<>();
@@ -58,7 +68,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   }
 
   public void maximize(LinearConstraint f) {
-    if (!(f instanceof MaximizingConstraint)) {
+    if (!(f instanceof MaximizingConstraint maximizingConstraint)) {
       throw new IllegalArgumentException("The objective function must be a maximizing constraint.");
     }
 
@@ -66,12 +76,12 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       throw new IllegalStateException("The objective function has already been set.");
     }
 
-    this.originalObjective = f;
-    this.objective = f;
+    this.originalObjective = maximizingConstraint;
+    this.objective = originalObjective;
   }
 
   public void minimize(LinearConstraint f) {
-    if (!(f instanceof MinimizingConstraint)) {
+    if (!(f instanceof MinimizingConstraint minimizingConstraint)) {
       throw new IllegalArgumentException("The objective function must be a minimizing constraint.");
     }
 
@@ -79,12 +89,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       throw new IllegalStateException("The objective function has already been set.");
     }
 
-    this.originalObjective = f;
-    this.objective = new LinearConstraint(f);
-
-    for (String variable : objective.getVariables()) {
-      objective.setCoefficient(variable, objective.getCoefficients().get(variable).negate());
-    }
+    this.originalObjective = minimizingConstraint;
+    this.objective = new MaximizingConstraint(minimizingConstraint.getTerm().negate());
   }
 
   @Override
@@ -99,6 +105,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
     this.originalConstraints.clear();
     this.constraints.clear();
+    this.origin.clear();
+    this.differences.clear();
 
     this.substitutions.clear();
     this.offsets.clear();
@@ -124,19 +132,18 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     allVariables.addAll(tempSet);
 
     // Infer bounds
-    Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferedBounds =
-        inferBounds();
+    Pair<Map<String, LinearConstraint>, Map<String, LinearConstraint>> inferredBounds = inferBounds();
 
-    SimplexResult result = checkBoundsConsistency(inferedBounds);
+    SimplexResult result = checkBoundsConsistency(inferredBounds);
     if (result != null && !result.isFeasible()) {
       return result;
     }
 
     List<String> withoutLowerBounds = new ArrayList<>(allVariables);
-    withoutLowerBounds.removeAll(inferedBounds.getLeft().keySet());
+    withoutLowerBounds.removeAll(inferredBounds.getLeft().keySet());
 
     // Transform constraints, where a single variable has a bound other than zero
-    transformOffsetVariables(inferedBounds);
+    transformOffsetVariables(inferredBounds);
 
     // Replace unbounded variables
     replaceUnboundedVariables(withoutLowerBounds);
@@ -290,28 +297,36 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       Iterator<LinearConstraint> iterator = constraints.iterator();
       while (iterator.hasNext()) {
         LinearConstraint constraint = iterator.next();
-        if (constraint.getCoefficients().size() != 1) {
+        // only evaluate bounds for constraints over a single variable
+        if (constraint.getVariables().size() != 1) {
           iterator.remove();
           keptConstraints.add(constraint);
           continue;
         }
 
+        // get the variable that is constrained
         String constraintVariable = constraint.getVariables().iterator().next();
         if (!variable.equals(constraintVariable)) continue;
 
+        // the bound on the
         Number bound = constraint.getBoundOn(constraintVariable);
+        boolean isUpperBound =
+            constraint.getBound()
+                == LESS_EQUALS
+                == constraint
+                    .getDifference()
+                    .getCoefficients()
+                    .get(constraintVariable)
+                    .greaterThanOrEqual(ZERO());
 
-        if (constraint.getBound()
-            != LinearConstraint.Bound.UPPER
-            == constraint.getCoefficients().get(constraintVariable).greaterThan(ZERO())) {
-          if (!lowerBounds.containsKey(variable)
-              || lowerBounds.get(variable).getBoundOn(variable).lessThan(ZERO())) {
-            lowerBounds.put(variable, constraint);
+        // tightening bounds
+        if(isUpperBound) {
+          if(!upperBounds.containsKey(constraintVariable) || bound.lessThan(upperBounds.get(constraintVariable).getBoundOn(constraintVariable))) {
+            upperBounds.put(constraintVariable, constraint);
           }
         } else {
-          if (!upperBounds.containsKey(variable)
-              || upperBounds.get(variable).getBoundOn(variable).greaterThan(bound)) {
-            upperBounds.put(variable, constraint);
+          if(!lowerBounds.containsKey(constraintVariable) || bound.greaterThan(lowerBounds.get(constraintVariable).getBoundOn(constraintVariable))) {
+            lowerBounds.put(constraintVariable, constraint);
           }
         }
       }
@@ -374,7 +389,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
       for (int i = 0; i < constraints.size(); i++) {
         LinearConstraint linearConstraint = constraints.get(i);
-        if (linearConstraint.getCoefficients().containsKey(variable)) {
+        if (linearConstraint.constrainsVariable(variable)) {
           LinearConstraint offsetConstraint = linearConstraint.offset(variable, substitute, bound);
           constraints.set(i, offsetConstraint);
         }
@@ -402,7 +417,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
       for (int i = 0; i < constraints.size(); i++) {
         LinearConstraint linearConstraint = constraints.get(i);
-        if (linearConstraint.getCoefficients().containsKey(unboundedVariable)) {
+        if (linearConstraint.constrainsVariable(unboundedVariable)) {
           LinearConstraint positiveNegative =
               linearConstraint.positiveNegativeSubstitute(unboundedVariable, positive, negative);
           constraints.set(i, positiveNegative);
@@ -410,7 +425,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       }
 
       if (objective != null) {
-        if (objective.getCoefficients().containsKey(unboundedVariable)) {
+        if(objective.constrainsVariable(unboundedVariable)) {
           objective = objective.positiveNegativeSubstitute(unboundedVariable, positive, negative);
         }
       }
@@ -434,25 +449,26 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     if (objective != null) {
       for (int i = 0; i < allVariables.size(); i++) {
         String variable = allVariables.get(i);
-        tableau[0][i] = objective.getCoefficients().getOrDefault(variable, ZERO()).negate();
+        // todo: abstract Minimizing and Maximizing Constraint into OptimizingConstraint
+        tableau[0][i] = objective.getLeftHandSide().getCoefficients().getOrDefault(variable, ZERO()).negate();
       }
     }
 
     for (int i = 0; i < constraints.size(); i++) {
       LinearConstraint constraint = constraints.get(i);
 
-      if (constraint.getBound() == LinearConstraint.Bound.LOWER) {
+      if (constraint.getBound() == LinearConstraint.Bound.GREATER_EQUALS) {
         for (int j = 0; j < allVariables.size(); j++) {
           String variable = allVariables.get(j);
-          tableau[i + 1][j] = constraint.getCoefficients().getOrDefault(variable, ZERO()).negate();
+          tableau[i + 1][j] = constraint.getDifference().getCoefficients().getOrDefault(variable, ZERO()).negate();
         }
-        tableau[i + 1][allVariables.size()] = constraint.getValue().negate();
+        tableau[i + 1][allVariables.size()] = constraint.getDifference().getConstant();
       } else {
         for (int j = 0; j < allVariables.size(); j++) {
           String variable = allVariables.get(j);
-          tableau[i + 1][j] = constraint.getCoefficients().getOrDefault(variable, ZERO());
+          tableau[i + 1][j] = constraint.getDifference().getCoefficients().getOrDefault(variable, ZERO());
         }
-        tableau[i + 1][allVariables.size()] = constraint.getValue();
+        tableau[i + 1][allVariables.size()] = constraint.getDifference().getConstant().negate();
       }
       tableau[i + 1][nonBasicVariables.size() + i] = ONE();
     }
@@ -498,7 +514,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   private Number calculateObjectiveValue() {
     Number objectiveValue = ZERO();
 
-    for (Entry<String, Number> pair : originalObjective.getCoefficients().entrySet()) {
+    // todo: also access the optimizing constraint here properly
+    for (Entry<String, Number> pair : originalObjective.getLeftHandSide().getCoefficients().entrySet()) {
       Number value = getValue(pair.getKey());
       objectiveValue = objectiveValue.add(pair.getValue().multiply(value));
     }
@@ -524,10 +541,10 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       } else {
         String actual = substitutions.inverse().getOrDefault(variable, variable);
         for (LinearConstraint originalConstraint : originalConstraints) {
-          if (originalConstraint.getBound() == LinearConstraint.Bound.UPPER) continue;
+          if (originalConstraint.getBound() == LESS_EQUALS) continue;
           // if (originalConstraint.getCoefficients().size() != 1) continue;
 
-          String onlyVariable = originalConstraint.getCoefficients().keySet().iterator().next();
+          String onlyVariable = originalConstraint.getDifference().getCoefficients().keySet().iterator().next();
           if (onlyVariable.equals(actual)) {
             explanation.add(originalConstraint.getRoot());
           }
@@ -575,24 +592,12 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       return;
     }
 
-    if (constraint.getBound() == LinearConstraint.Bound.EQUAL) {
-      LinearConstraint first = new LinearConstraint();
-      LinearConstraint second = new LinearConstraint();
+    if (constraint.getBound() == EQUAL) {
+      LinearConstraint first = lessThanOrEqual(constraint.getLeftHandSide(), constraint.getRightHandSide());
+      LinearConstraint second = greaterThanOrEqual(constraint.getLeftHandSide(), constraint.getRightHandSide());
+
       first.setDerivedFrom(constraint);
       second.setDerivedFrom(constraint);
-
-      first.setBound(LinearConstraint.Bound.UPPER);
-      second.setBound(LinearConstraint.Bound.LOWER);
-
-      constraint
-          .getCoefficients()
-          .forEach(
-              (variable, coefficient) -> {
-                first.setCoefficient(variable, coefficient);
-                second.setCoefficient(variable, coefficient);
-              });
-      first.setValue(constraint.getValue());
-      second.setValue(constraint.getValue());
 
       constraints.add(first);
       constraints.add(second);
