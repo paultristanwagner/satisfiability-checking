@@ -251,7 +251,7 @@ public class Interval {
       result = result.multiply(this);
     }
 
-    if (exponent % 2 == 0 && lowerBound.isNegative()) {
+    if (exponent % 2 == 0 && result.lowerBound.isNegative()) {
       result = interval(number(0), result.getUpperBound().numericValue(), CLOSED, CLOSED);
     }
 
