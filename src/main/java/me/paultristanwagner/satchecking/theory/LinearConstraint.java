@@ -45,11 +45,11 @@ public class LinearConstraint implements Constraint {
   }
 
   public static LinearConstraint lessThanOrEqual(LinearTerm lhs, LinearTerm rhs) {
-    return new LinearConstraint(lhs, rhs, GREATER_EQUALS);
+    return new LinearConstraint(lhs, rhs, LESS_EQUALS);
   }
 
   public static LinearConstraint greaterThanOrEqual(LinearTerm lhs, LinearTerm rhs) {
-    return new LinearConstraint(lhs, rhs, LESS_EQUALS);
+    return new LinearConstraint(lhs, rhs, GREATER_EQUALS);
   }
 
   public Set<String> getVariables() {

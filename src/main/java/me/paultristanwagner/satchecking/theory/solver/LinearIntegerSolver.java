@@ -2,12 +2,15 @@ package me.paultristanwagner.satchecking.theory.solver;
 
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
+import me.paultristanwagner.satchecking.theory.LinearTerm;
 import me.paultristanwagner.satchecking.theory.TheoryResult;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.HashSet;
 import java.util.Set;
 
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.greaterThanOrEqual;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.lessThanOrEqual;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 
 public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
@@ -38,7 +41,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
 
   @Override
   public TheoryResult<LinearConstraint> solve() {
-    /* if (depth > MAXIMUM_BRANCH_DEPTH) {
+    if (depth > MAXIMUM_BRANCH_DEPTH) {
       return TheoryResult.unknown();
     }
 
@@ -72,10 +75,10 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
       return result;
     }
 
-    LinearConstraint upperBound = new LinearConstraint();
-    upperBound.setCoefficient(firstNonIntegralVariable, Number.ONE());
-    upperBound.setValue(nonIntegralValue.floor());
-    upperBound.setBound(LinearConstraint.Bound.UPPER);
+    LinearTerm term = new LinearTerm();
+    term.setCoefficient(firstNonIntegralVariable, ONE());
+    term.setConstant(nonIntegralValue.floor().negate());
+    LinearConstraint upperBound = lessThanOrEqual(term, new LinearTerm());
 
     LinearIntegerSolver solverA = new LinearIntegerSolver(depth + 1);
     solverA.load(constraints);
@@ -86,7 +89,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     boolean isMinimizationProblem = simplexSolver.isMinimization();
 
     Number localOptimum = null;
-    LinearConstraint objective = simplexSolver.getOriginalObjective();
+    LinearTerm objective = simplexSolver.getOriginalObjective().getLeftHandSide();
 
     TheoryResult<LinearConstraint> aResult = solverA.solve();
     if (aResult.isUnknown()) {
@@ -98,13 +101,13 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
         return aResult;
       }
 
-      localOptimum = objective.evaluateTerm(aResult.getSolution());
+      localOptimum = objective.evaluate(aResult.getSolution());
     }
 
-    LinearConstraint lowerBound = new LinearConstraint();
-    lowerBound.setCoefficient(firstNonIntegralVariable, ONE());
-    lowerBound.setValue(nonIntegralValue.ceil());
-    lowerBound.setBound(LinearConstraint.Bound.LOWER);
+    LinearTerm termB = new LinearTerm();
+    termB.setCoefficient(firstNonIntegralVariable, ONE());
+    termB.setConstant(nonIntegralValue.ceil().negate());
+    LinearConstraint lowerBound = greaterThanOrEqual(termB, new LinearTerm());
 
     LinearIntegerSolver solverB = new LinearIntegerSolver(depth + 1);
     solverB.load(constraints);
@@ -120,7 +123,7 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
         return bResult;
       }
 
-      Number value = objective.evaluateTerm(bResult.getSolution());
+      Number value = objective.evaluate(bResult.getSolution());
       if (isMaximizationProblem) {
         if (localOptimum == null || value.greaterThan(localOptimum)) {
           return bResult;
@@ -142,7 +145,6 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
       return TheoryResult.unknown();
     }
 
-    return TheoryResult.unsatisfiable(constraints); */
-    return null;
+    return TheoryResult.unsatisfiable(constraints);
   }
 }
