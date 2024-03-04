@@ -29,6 +29,8 @@ public class Polynomial {
   private final int degree;
   private final Number[] coefficients; // smallest degree first
 
+  private List<Polynomial> sturmSequence;
+
   private Polynomial(Number[] coefficients) {
     int degree = 0;
     for (int i = 0; i < coefficients.length; i++) {
@@ -329,8 +331,14 @@ public class Polynomial {
   }
 
   public List<Polynomial> sturmSequence() {
+    if(sturmSequence != null) {
+      return sturmSequence;
+    }
+
     if (isConstant()) {
-      return List.of(this);
+      List<Polynomial> result = List.of(this);
+      sturmSequence = result;
+      return result;
     }
 
     List<Polynomial> sturmSequence = new ArrayList<>();
@@ -348,6 +356,7 @@ public class Polynomial {
       sturmSequence.add(negRem);
     }
 
+    this.sturmSequence = sturmSequence;
     return sturmSequence;
   }
 
