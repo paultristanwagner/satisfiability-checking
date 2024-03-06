@@ -14,26 +14,6 @@ import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
 
 public class LinearConstraintParser implements Parser<LinearConstraint> {
 
-  public static void main(String[] args) {
-    LinearConstraintParser parser = new LinearConstraintParser();
-
-    Scanner scanner = new Scanner(System.in);
-    String line;
-    while ((line = scanner.nextLine()) != null) {
-      try {
-        LinearConstraint constraint = parser.parse(line);
-        System.out.println(constraint);
-        System.out.println("lhs = " + constraint.getLeftHandSide());
-        System.out.println("rhs = " + constraint.getRightHandSide());
-        System.out.println("bound = " + constraint.getBound());
-        System.out.println("lhs - rhs = " + constraint.getDifference());
-      } catch (SyntaxError e) {
-        e.printWithContext();
-        e.printStackTrace();
-      }
-    }
-  }
-
   /*
    *  Grammar for Linear constraints:
    *    <S> ::= <TERM> '=' <TERM>

@@ -3,25 +3,12 @@ package me.paultristanwagner.satchecking.parse;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial;
 
-import java.util.Scanner;
-
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.constant;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.variable;
 
 public class PolynomialParser implements Parser<MultivariatePolynomial> {
-
-  public static void main(String[] args){
-    Scanner scanner = new Scanner(System.in);
-    PolynomialParser parser = new PolynomialParser();
-
-    String line;
-    while ((line = scanner.nextLine()) != null) {
-      MultivariatePolynomial polynomial = parser.parse(line);
-      System.out.println(polynomial);
-    }
-  }
 
   /*
    * Grammar for polynomial constraints:

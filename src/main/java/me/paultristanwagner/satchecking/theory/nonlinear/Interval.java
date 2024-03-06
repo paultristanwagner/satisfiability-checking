@@ -1,7 +1,8 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import me.paultristanwagner.satchecking.parse.PolynomialParser;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+
+import java.util.Comparator;
 
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
@@ -9,13 +10,6 @@ import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.Interva
 import static me.paultristanwagner.satchecking.theory.nonlinear.RealAlgebraicNumber.realAlgebraicNumber;
 
 public class Interval {
-
-  public static void main(String[] args) {
-    PolynomialParser parser = new PolynomialParser();
-    Polynomial p = parser.parse("x^2").toUnivariatePolynomial();
-    Interval interval = interval(number(-1), number(5), CLOSED, CLOSED);
-    System.out.println(p.evaluate(interval));
-  }
 
   public enum IntervalBoundType {
     UNBOUNDED,
@@ -93,15 +87,15 @@ public class Interval {
 
   // todo: improve return values when rational numbers are possible
   public RealAlgebraicNumber chooseSample() {
-    if (lowerBoundType == UNBOUNDED && upperBoundType == UNBOUNDED) {
+    if (lowerBoundType == UNBOUNDED && upperBoundType == UNBOUNDED) { // (-oo, oo)
       return realAlgebraicNumber(ZERO());
-    } else if (lowerBoundType == CLOSED) {
+    } else if (lowerBoundType == CLOSED) { // [a, ??
       return lowerBound; // todo: here we might be able to return a rational number
-    } else if (upperBoundType == CLOSED) {
+    } else if (upperBoundType == CLOSED) { // ??, b]
       return upperBound; // todo: here we might be able to return a rational number
     }
 
-    if (lowerBoundType == UNBOUNDED && upperBoundType == OPEN) {
+    if (lowerBoundType == UNBOUNDED && upperBoundType == OPEN) { // (-oo, b)
       if (upperBound.isNumeric()) {
         return realAlgebraicNumber(upperBound.numericValue().subtract(number(1)));
       } else {
@@ -109,7 +103,7 @@ public class Interval {
       }
     }
 
-    if (lowerBoundType == OPEN && upperBoundType == UNBOUNDED) {
+    if (lowerBoundType == OPEN && upperBoundType == UNBOUNDED) { // (a, oo)
       if (lowerBound.isNumeric()) {
         return realAlgebraicNumber(lowerBound.numericValue().add(number(1)));
       } else {
@@ -117,26 +111,29 @@ public class Interval {
       }
     }
 
-    if (lowerBound.isNumeric() && upperBound.isNumeric()) {
-      Number rationalMidpoint =
-          lowerBound.numericValue().add(upperBound.numericValue()).divide(number(2));
+    if (lowerBound.isNumeric() && upperBound.isNumeric()) { // (q, r)
+      Number rationalMidpoint = lowerBound.numericValue().midpoint(upperBound.numericValue());
       return realAlgebraicNumber(rationalMidpoint);
     }
 
-    if (!upperBound.isNumeric() && lowerBound.isNumeric()) {
-      if (upperBound.getLowerBound().equals(lowerBound.numericValue())) {
+    if (!upperBound.isNumeric() && lowerBound.isNumeric()) { // (q, b)
+      while (upperBound.getLowerBound().lessThanOrEqual(lowerBound.numericValue())) {
         upperBound.refine();
       }
 
       return realAlgebraicNumber(upperBound.getLowerBound());
-    } else if (!lowerBound.isNumeric() && upperBound.isNumeric()) {
-      if (lowerBound.getUpperBound().equals(upperBound.numericValue())) {
+    } else if (!lowerBound.isNumeric() && upperBound.isNumeric()) { // (a, r)
+      while (lowerBound.getUpperBound().greaterThanOrEqual(upperBound.numericValue())) {
         lowerBound.refine();
       }
 
       return realAlgebraicNumber(lowerBound.getUpperBound());
     }
 
+    while (lowerBound.getUpperBound().greaterThanOrEqual(upperBound.getLowerBound())) { // (a, b)
+      lowerBound.refine();
+      upperBound.refine();
+    }
     return realAlgebraicNumber(lowerBound.getUpperBound());
   }
 
@@ -332,5 +329,59 @@ public class Interval {
     }
 
     return sb.toString();
+  }
+
+  public static class LowerBoundIntervalComparator implements Comparator<Interval> {
+
+    @Override
+    public int compare(Interval a, Interval b) {
+      if(a.lowerBoundType == UNBOUNDED) { // (-oo vs. ??
+        if(b.lowerBoundType == UNBOUNDED) { // (-oo vs. (-oo
+          return 0;
+        }
+
+        // (-oo vs. ?a
+        return -1;
+      }
+
+      if(b.lowerBoundType == UNBOUNDED) { // ?a vs. (-oo
+        return 1;
+      }
+
+      if(a.lowerBoundType == CLOSED) { // [a vs. ??
+        if(b.lowerBoundType == CLOSED) { // [a vs. [a
+          if(a.lowerBound.equals(b.lowerBound)) {
+            return 0;
+          } else if(a.lowerBound.lessThan(b.lowerBound)) {
+            return -1;
+          } else {
+            return 1;
+          }
+        } else { // [a vs. (b
+          if(a.lowerBound.lessThanOrEqual(b.lowerBound)) {
+            return -1;
+          } else {
+            return 1;
+          }
+        }
+      }
+
+      if(b.lowerBoundType == CLOSED) { // (a vs. [b
+        if(a.lowerBound.lessThan(b.lowerBound)) {
+          return -1;
+        } else {
+          return 1;
+        }
+      }
+
+      // (a vs. (b
+      if(a.lowerBound.lessThan(b.lowerBound)) {
+        return -1;
+      } else if (a.lowerBound.equals(b.lowerBound)) {
+        return 0;
+      } else {
+        return 1;
+      }
+    }
   }
 }
