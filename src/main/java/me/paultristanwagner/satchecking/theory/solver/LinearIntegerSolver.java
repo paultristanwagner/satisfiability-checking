@@ -89,7 +89,10 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     boolean isMinimizationProblem = simplexSolver.isMinimization();
 
     Number localOptimum = null;
-    LinearTerm objective = simplexSolver.getOriginalObjective().getLeftHandSide();
+    LinearTerm objective = null;
+    if (isOptimizationProblem) {
+      objective = simplexSolver.getOriginalObjective().getLeftHandSide();
+    }
 
     TheoryResult<LinearConstraint> aResult = solverA.solve();
     if (aResult.isUnknown()) {
