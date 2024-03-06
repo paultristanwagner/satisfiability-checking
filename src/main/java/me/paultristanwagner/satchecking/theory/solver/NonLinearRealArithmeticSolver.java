@@ -4,6 +4,7 @@ import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.TheoryResult;
 import me.paultristanwagner.satchecking.theory.nonlinear.*;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.MultivariateMaximizationConstraint;
+import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.MultivariateMinimizationConstraint;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.MultivariateOptimizationConstraint;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -11,7 +12,6 @@ import java.util.*;
 
 import static me.paultristanwagner.satchecking.theory.TheoryResult.satisfiable;
 import static me.paultristanwagner.satchecking.theory.TheoryResult.unsatisfiable;
-import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.IntervalBoundType.CLOSED;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial.variable;
 
 public class NonLinearRealArithmeticSolver implements TheorySolver<MultivariatePolynomialConstraint> {
@@ -59,7 +59,7 @@ public class NonLinearRealArithmeticSolver implements TheorySolver<MultivariateP
     // if we have an optimization objective, we need to add a fresh variable and fix the variable ordering
     List<String> variableOrdering = null;
     String freshVariableName = null;
-    if(objective != null) {
+    if (objective != null) {
       freshVariableName = freshVariableName(variablesSet);
       MultivariatePolynomial freshVariable = variable(freshVariableName);
       MultivariatePolynomialConstraint helper = MultivariatePolynomialConstraint.equals(freshVariable, objective.getObjective());
@@ -85,7 +85,7 @@ public class NonLinearRealArithmeticSolver implements TheorySolver<MultivariateP
     if (objective != null) {
       Comparator<Interval> comparator;
 
-      if(objective instanceof MultivariateMaximizationConstraint) {
+      if (objective instanceof MultivariateMaximizationConstraint) {
         comparator = new Interval.LowerBoundIntervalComparator().reversed();
       } else {
         comparator = new Interval.LowerBoundIntervalComparator();
@@ -113,7 +113,12 @@ public class NonLinearRealArithmeticSolver implements TheorySolver<MultivariateP
           variableAssignment.remove(freshVariableName);
 
           Interval targetInterval = cell.getIntervals().get(0);
-          if (targetInterval.getLowerBoundType() != CLOSED) {
+
+          boolean unboundedInDirection =
+              (objective instanceof MultivariateMaximizationConstraint && targetInterval.getUpperBoundType() != Interval.IntervalBoundType.CLOSED) ||
+                  (objective instanceof MultivariateMinimizationConstraint && targetInterval.getLowerBoundType() != Interval.IntervalBoundType.CLOSED);
+
+          if (unboundedInDirection) {
             return unsatisfiable(constraints);
           } else {
             return satisfiable(new VariableAssignment(variableAssignment));

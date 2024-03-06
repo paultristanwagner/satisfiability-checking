@@ -44,7 +44,8 @@ public class CAD {
       String previousVariable = variableOrdering.get(r);
 
       // todo: highestVariable could cause errors
-      p.get(r + 1).removeIf(poly -> !poly.highestVariable().equals(previousVariable));
+      List<String> finalVariableOrdering = variableOrdering;
+      p.get(r + 1).removeIf(poly -> !poly.highestVariable(finalVariableOrdering).equals(previousVariable));
     }
 
     // phase 2: lifting

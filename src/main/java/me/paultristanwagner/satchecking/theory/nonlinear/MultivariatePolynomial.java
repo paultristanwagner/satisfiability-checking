@@ -45,18 +45,32 @@ public class MultivariatePolynomial {
     return multivariatePolynomial(new HashMap<>(), new ArrayList<>());
   }
 
-  public String highestVariable() {
+  public String highestVariable(List<String> variableOrdering) {
     if (this.variables.isEmpty()) {
       throw new IllegalStateException("There are no variables");
     }
 
-    int highestVariableIndex = 0;
+    int highestVariableOrderingIndex = -1;
     for (Exponent exponent : coefficients.keySet()) {
-      int variableIndex = exponent.highestNonZeroIndex();
-      highestVariableIndex = Math.max(highestVariableIndex, variableIndex);
+      if (coefficients.get(exponent).isZero()) {
+        continue;
+      }
+
+      for (int r = variableOrdering.size() - 1; r >= 0; r--) {
+        String variable = variableOrdering.get(r);
+        int variableIndex = this.variables.indexOf(variable);
+
+        if (variableIndex == -1) {
+          continue;
+        }
+
+        if (exponent.get(variableIndex) != 0 && (highestVariableOrderingIndex == -1 || r > highestVariableOrderingIndex)) {
+          highestVariableOrderingIndex = r;
+        }
+      }
     }
 
-    return variables.get(highestVariableIndex);
+    return variables.get(variables.indexOf(variableOrdering.get(highestVariableOrderingIndex)));
   }
 
   public int degree(String variable) {
@@ -174,7 +188,8 @@ public class MultivariatePolynomial {
   public MultivariatePolynomial pow(int exponent) {
     if (exponent < 0) {
       if (this.isConstant()) {
-        Number c = this.coefficients.getOrDefault(getLeadMonomial(), Number.ZERO());
+        Exponent constantExponent = constantExponent(variables.size());
+        Number c = this.coefficients.getOrDefault(constantExponent, Number.ZERO());
         return constant(c.pow(-exponent));
       }
 
@@ -193,12 +208,12 @@ public class MultivariatePolynomial {
     return result;
   }
 
-  public Exponent getLeadMonomial() {
+  public Exponent getLeadMonomial(List<String> variableOrdering) {
     if (this.variables.isEmpty()) {
       return constantExponent(0);
     }
 
-    return getLeadMonomial(highestVariable());
+    return getLeadMonomial(highestVariable(variableOrdering));
   }
 
   public Exponent getLeadMonomial(String variable) {
