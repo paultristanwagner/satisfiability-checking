@@ -1,7 +1,5 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import me.paultristanwagner.satchecking.parse.Parser;
-import me.paultristanwagner.satchecking.parse.PolynomialParser;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import me.paultristanwagner.satchecking.theory.arithmetic.Rational;
 
@@ -15,16 +13,6 @@ import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePoly
 import static me.paultristanwagner.satchecking.theory.nonlinear.RealAlgebraicNumber.realAlgebraicNumber;
 
 public class Polynomial {
-
-  public static void main(String[] args) {
-    Parser<MultivariatePolynomial> parser = new PolynomialParser();
-    Polynomial p = parser.parse("x^5+x^4+x^2+x+2").toUnivariatePolynomial();
-    Polynomial q = parser.parse("3x^5-7x^3+3x^2").toUnivariatePolynomial();
-
-    System.out.println(p);
-    System.out.println(q);
-    System.out.println(p.pow(100).squareFreeFactorization());
-  }
 
   private final int degree;
   private final Number[] coefficients; // smallest degree first
@@ -205,7 +193,7 @@ public class Polynomial {
       }
     }
 
-    return content;
+    return content.abs();
   }
 
   public List<Polynomial> pseudoDivision(Polynomial other) {
@@ -213,6 +201,17 @@ public class Polynomial {
     int b = other.degree;
 
     Number bLC = other.getLeadingCoefficient();
+    Number pow = bLC.pow(a - b + 1);
+
+    return polynomial(pow).multiply(this).divide(other);
+  }
+
+  // pseudo division with absolute leading coefficient
+  public List<Polynomial> pseudoDivision2(Polynomial other) {
+    int a = degree;
+    int b = other.degree;
+
+    Number bLC = other.getLeadingCoefficient().abs(); // critical difference
     Number pow = bLC.pow(a - b + 1);
 
     return polynomial(pow).multiply(this).divide(other);
@@ -342,16 +341,18 @@ public class Polynomial {
     }
 
     List<Polynomial> sturmSequence = new ArrayList<>();
-    sturmSequence.add(this);
-    sturmSequence.add(this.getDerivative());
+    sturmSequence.add(this.toIntegerPolynomial());
+    sturmSequence.add(this.getDerivative().toIntegerPolynomial());
     while (true) {
       Polynomial p = sturmSequence.get(sturmSequence.size() - 2);
       Polynomial q = sturmSequence.get(sturmSequence.size() - 1);
-      Polynomial negRem = p.divide(q).get(1).negate();
+      Polynomial negRem = p.pseudoDivision2(q).get(1).negate();
 
       if (negRem.isZero()) {
         break;
       }
+
+      negRem = negRem.divide(constant(negRem.content())).get(0);
 
       sturmSequence.add(negRem);
     }
@@ -403,6 +404,10 @@ public class Polynomial {
         sturmSequenceEvaluation(a, sturmSequence) - sturmSequenceEvaluation(b, sturmSequence);
     if (hasRealRootAt(b)) {
       roots--;
+    }
+
+    if(roots < 0) {
+      throw new IllegalStateException("Number of roots cannot be negative");
     }
 
     return roots;
@@ -468,12 +473,17 @@ public class Polynomial {
     }
 
     Set<RealAlgebraicNumber> leftRoots = new HashSet<>(isolateRoots(lowerBound, split));
-    Set<RealAlgebraicNumber> rightRoots = isolateRoots(split, upperBound);
-    leftRoots.addAll(rightRoots);
 
     if (hasRealRootAt(split)) {
       leftRoots.add(realAlgebraicNumber(split));
     }
+
+    if(leftRoots.size() == numberOfRealRoots) {
+      return leftRoots;
+    }
+
+    Set<RealAlgebraicNumber> rightRoots = isolateRoots(split, upperBound);
+    leftRoots.addAll(rightRoots);
 
     return leftRoots;
   }

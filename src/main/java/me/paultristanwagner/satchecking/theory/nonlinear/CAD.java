@@ -1,92 +1,59 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
-import me.paultristanwagner.satchecking.parse.Parser;
-import me.paultristanwagner.satchecking.parse.PolynomialParser;
-import me.paultristanwagner.satchecking.smt.VariableAssignment;
-import me.paultristanwagner.satchecking.theory.arithmetic.Rational;
-
 import java.util.*;
 
 import static me.paultristanwagner.satchecking.theory.nonlinear.Cell.emptyCell;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.IntervalBoundType.OPEN;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.*;
-import static me.paultristanwagner.satchecking.theory.nonlinear.RealAlgebraicNumber.realAlgebraicNumber;
 
 public class CAD {
 
-  public static void main(String[] args) {
-    Parser<MultivariatePolynomial> parser = new PolynomialParser();
-    MultivariatePolynomial p = parser.parse("x^2 + y^2 - 1");
-    MultivariatePolynomial q = parser.parse("x^2 + y^3 - 1/2");
-
-    RealAlgebraicNumber x = realAlgebraicNumber(parser.parse("x^6-2x^4+2x^2-3/4").toUnivariatePolynomial(), Rational.parse("105/128"), Rational.parse("27/32"));
-    RealAlgebraicNumber y = realAlgebraicNumber(parser.parse("x^6-1x^4+x^2-1/4").toUnivariatePolynomial(), Rational.parse("1/2"), Rational.parse("3/4"));
-
-    System.out.println(p);
-    System.out.println(q);
-    System.out.println(x);
-    System.out.println(y);
-
-
-
-  }
-
-  private List<String> variables;
-  private Set<MultivariatePolynomial> polynomials;
-
-  public CAD(Set<MultivariatePolynomial> polynomials) {
-    this.polynomials = polynomials;
-
-    Set<String> variablesSet = new HashSet<>();
-    for (MultivariatePolynomial polynomial : polynomials) {
-      variablesSet.addAll(polynomial.variables);
-    }
-    this.variables = new ArrayList<>(variablesSet);
-
-
-  }
-
-  public Set<VariableAssignment<RealAlgebraicNumber>> compute(
+  public Set<Cell> compute(
       Set<MultivariatePolynomialConstraint> constraints
   ) {
-    return compute(constraints, false);
+    return compute(constraints, null);
   }
 
-  public Set<VariableAssignment<RealAlgebraicNumber>> compute(
+  public Set<Cell> compute(
       Set<MultivariatePolynomialConstraint> constraints,
-      boolean onlyEqualities
+      List<String> variableOrdering
   ) {
-    this.polynomials = new HashSet<>();
+    Set<MultivariatePolynomial> polynomials = new HashSet<>();
     for (MultivariatePolynomialConstraint constraint : constraints) {
-      this.polynomials.add(constraint.getPolynomial());
+      polynomials.add(constraint.getPolynomial());
     }
 
-    Set<String> variablesSet = new HashSet<>();
-    for (MultivariatePolynomial polynomial : polynomials) {
-      variablesSet.addAll(polynomial.variables);
+    if(variableOrdering == null) {
+      Set<String> variablesSet = new HashSet<>();
+      for (MultivariatePolynomial polynomial : polynomials) {
+        variablesSet.addAll(polynomial.variables);
+      }
+      variableOrdering = new ArrayList<>(variablesSet);
     }
-    this.variables = new ArrayList<>(variablesSet);
 
     // phase 1: projection
     Map<Integer, Set<MultivariatePolynomial>> p = new HashMap<>();
-    p.put(variables.size(), polynomials);
+    p.put(variableOrdering.size(), polynomials);
 
-    for (int r = variables.size() - 1; r >= 1; r--) {
-      String variable = variables.get(r);
+    for (int r = variableOrdering.size() - 1; r >= 1; r--) {
+      String variable = variableOrdering.get(r);
+
       Set<MultivariatePolynomial> proj = mcCallumProjection(p.get(r + 1), variable);
       p.put(r, proj);
 
-      String previousVariable = variables.get(r);
-      p.get(r + 1).stream().filter(poly -> !poly.highestVariable().equals(previousVariable));
+      String previousVariable = variableOrdering.get(r);
+
+      // todo: highestVariable could cause errors
+      p.get(r + 1).removeIf(poly -> !poly.highestVariable().equals(previousVariable));
     }
 
     // phase 2: lifting
     List<List<Cell>> D = new ArrayList<>();
     D.add(List.of(emptyCell()));
 
-    for (int i = 1; i <= variables.size(); i++) {
+    for (int i = 1; i <= variableOrdering.size(); i++) {
       List<Cell> D_i = new ArrayList<>();
-      String variable = variables.get(i - 1);
+      String variable = variableOrdering.get(i - 1);
 
       for (Cell R : D.get(i - 1)) {
         Map<String, RealAlgebraicNumber> s = R.chooseSamplePoint();
@@ -114,40 +81,26 @@ public class CAD {
         }
 
         if (sortedRoots.isEmpty()) {
-          if (!onlyEqualities) {
-            D_i.add(R.extend(variable, unboundedInterval()));
-          }
+          D_i.add(R.extend(variable, unboundedInterval()));
         } else {
-          if (!onlyEqualities) {
-            D_i.add(R.extend(variable, intervalLowerUnbounded(sortedRoots.get(0), OPEN)));
-            D_i.add(R.extend(variable, intervalUpperUnbounded(sortedRoots.get(sortedRoots.size() - 1), OPEN)));
-
-          }
-          D_i.add(R.extend(variable, pointInterval(sortedRoots.get(sortedRoots.size() - 1))));
+          D_i.add(R.extend(variable, intervalLowerUnbounded(sortedRoots.get(0).copy(), OPEN)));
+          D_i.add(R.extend(variable, intervalUpperUnbounded(sortedRoots.get(sortedRoots.size() - 1).copy(), OPEN)));
+          D_i.add(R.extend(variable, pointInterval(sortedRoots.get(sortedRoots.size() - 1).copy())));
         }
 
         for (int j = 0; j < sortedRoots.size() - 1; j++) {
           RealAlgebraicNumber a = sortedRoots.get(j);
           RealAlgebraicNumber b = sortedRoots.get(j + 1);
 
-          D_i.add(R.extend(variable, pointInterval(a)));
-          if (!onlyEqualities) {
-            D_i.add(R.extend(variable, interval(a, b, OPEN, OPEN)));
-          }
+          D_i.add(R.extend(variable, pointInterval(a.copy())));
+          D_i.add(R.extend(variable, interval(a.copy(), b.copy(), OPEN, OPEN)));
         }
       }
 
       D.add(D_i);
     }
 
-    List<Cell> result = D.get(variables.size());
-    Set<VariableAssignment<RealAlgebraicNumber>> assignments = new HashSet<>();
-    for (Cell cell : result) {
-      VariableAssignment<RealAlgebraicNumber> assignment = new VariableAssignment<>(cell.chooseSamplePoint());
-      assignments.add(assignment);
-    }
-
-    return assignments;
+    return new HashSet<>(D.get(variableOrdering.size()));
   }
 
   public Set<MultivariatePolynomial> mcCallumProjection(

@@ -102,4 +102,57 @@ public class MultivariatePolynomialConstraint implements Constraint {
   public Comparison getComparison() {
     return comparison;
   }
+
+  @Override
+  public String toString() {
+    return polynomial + " " + comparison + " 0";
+  }
+
+  public static abstract class MultivariateOptimizationConstraint extends MultivariatePolynomialConstraint {
+
+    protected final MultivariatePolynomial objective;
+
+    private MultivariateOptimizationConstraint(MultivariatePolynomial objective) {
+      super(objective, null);
+
+      this.objective = objective;
+    }
+
+    public MultivariatePolynomial getObjective() {
+      return objective;
+    }
+  }
+
+  public static class MultivariateMinimizationConstraint extends MultivariateOptimizationConstraint {
+
+    private MultivariateMinimizationConstraint(MultivariatePolynomial objective) {
+      super(objective);
+    }
+
+    public static MultivariateMinimizationConstraint minimize(MultivariatePolynomial objective) {
+      return new MultivariateMinimizationConstraint(objective);
+    }
+
+    @Override
+    public String toString() {
+      return "min(" + objective + ")";
+    }
+  }
+
+  public static class MultivariateMaximizationConstraint extends MultivariateOptimizationConstraint {
+
+
+    private MultivariateMaximizationConstraint(MultivariatePolynomial objective) {
+      super(objective);
+    }
+
+    public static MultivariateMaximizationConstraint maximize(MultivariatePolynomial objective) {
+      return new MultivariateMaximizationConstraint(objective);
+    }
+
+    @Override
+    public String toString() {
+      return "max(" + objective + ")";
+    }
+  }
 }

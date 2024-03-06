@@ -36,4 +36,18 @@ public class VariableAssignment<O> extends HashMap<String, O> {
 
     return builder.toString();
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    VariableAssignment<?> that = (VariableAssignment<?>) o;
+    return Objects.equals(this.keySet(), that.keySet()) &&
+        this.keySet().stream().allMatch(key -> Objects.equals(this.get(key), that.get(key)));
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.keySet().stream().map(key -> Objects.hash(key, this.get(key))).toArray());
+  }
 }

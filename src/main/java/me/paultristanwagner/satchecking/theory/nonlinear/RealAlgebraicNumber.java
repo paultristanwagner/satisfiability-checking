@@ -3,9 +3,7 @@ package me.paultristanwagner.satchecking.theory.nonlinear;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
@@ -17,13 +15,17 @@ public class RealAlgebraicNumber {
   private Number lowerBound;
   private Number upperBound;
 
-  private RealAlgebraicNumber(
-      Number value, Polynomial polynomial, Number lowerBound, Number upperBound) {
+  private RealAlgebraicNumber(Number value, Polynomial polynomial, Number lowerBound, Number upperBound, boolean minimal) {
     this.value = value;
     this.lowerBound = lowerBound;
     this.upperBound = upperBound;
 
     if (polynomial == null) {
+      return;
+    }
+
+    if(minimal) {
+      this.polynomial = polynomial;
       return;
     }
 
@@ -59,12 +61,16 @@ public class RealAlgebraicNumber {
   }
 
   public static RealAlgebraicNumber realAlgebraicNumber(Number value) {
-    return new RealAlgebraicNumber(value, null, value, value);
+    return new RealAlgebraicNumber(value, null, value, value, true);
   }
 
   public static RealAlgebraicNumber realAlgebraicNumber(
       Polynomial polynomial, Number lowerBound, Number upperBound) {
-    return new RealAlgebraicNumber(null, polynomial, lowerBound, upperBound);
+    return new RealAlgebraicNumber(null, polynomial, lowerBound, upperBound, false);
+  }
+
+  public RealAlgebraicNumber copy() {
+    return new RealAlgebraicNumber(value, polynomial, lowerBound, upperBound, true);
   }
 
   public boolean isNumeric() {
@@ -130,8 +136,10 @@ public class RealAlgebraicNumber {
       return numericValue();
     }
 
-    refine(epsilon);
-    return lowerBound.add(upperBound).divide(number(2));
+    RealAlgebraicNumber copy = copy();
+
+    copy.refine(epsilon);
+    return copy.lowerBound.add(copy.upperBound).divide(number(2));
   }
 
   public boolean isZero() {

@@ -12,29 +12,9 @@ import static me.paultristanwagner.satchecking.theory.nonlinear.Polynomial.polyn
 
 import java.util.*;
 import java.util.stream.Collectors;
-import me.paultristanwagner.satchecking.parse.Parser;
-import me.paultristanwagner.satchecking.parse.PolynomialParser;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 public class MultivariatePolynomial {
-
-  public static void main(String[] args) {
-    Parser<MultivariatePolynomial> parser = new PolynomialParser();
-    Scanner scanner = new Scanner(System.in);
-    System.out.print("p: ");
-    MultivariatePolynomial p =
-        parser.parse("t - y^5 - x^5 + x"); // parser.parse(scanner.nextLine());
-    System.out.print("q: ");
-    MultivariatePolynomial q =
-        parser.parse("x^6-1/2*x^4+2*x^2-1/2"); // parser.parse(scanner.nextLine());
-    System.out.print("var: ");
-    String var = scanner.nextLine();
-
-    System.out.println("p = " + p);
-    System.out.println("q = " + q);
-
-    System.out.println("Resultant[p, q, " + var + "] = " + p.resultant(q, var));
-  }
 
   public Map<Exponent, Number> coefficients;
   public List<String> variables;
