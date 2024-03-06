@@ -15,7 +15,6 @@ import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
-import me.paultristanwagner.satchecking.theory.LinearTerm;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import org.apache.commons.lang3.tuple.Pair;
@@ -38,11 +37,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
   private int columns;
   private Number[][] tableau;
 
-  private List<LinearConstraint> originalConstraints;
+  private final List<LinearConstraint> originalConstraints;
   private List<LinearConstraint> constraints;
-
-  private List<LinearTerm> differences;
-  private Map<LinearTerm, LinearConstraint> origin;
 
   private LinearConstraint originalObjective;
   private LinearConstraint objective;
@@ -58,8 +54,6 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
     this.originalConstraints = new ArrayList<>();
     this.constraints = new ArrayList<>();
-    this.differences = new ArrayList<>();
-    this.origin = new HashMap<>();
 
     this.substitutions = HashBiMap.create();
     this.offsets = new HashMap<>();
@@ -105,8 +99,6 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
 
     this.originalConstraints.clear();
     this.constraints.clear();
-    this.origin.clear();
-    this.differences.clear();
 
     this.substitutions.clear();
     this.offsets.clear();
@@ -185,7 +177,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       }
 
       if (violatingRow == -1) {
-        VariableAssignment solution = calculateSolution();
+        VariableAssignment<Number> solution = calculateSolution();
         result = SimplexResult.feasible(solution);
         break;
       }
@@ -228,7 +220,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       }
 
       if (pivotColumn == -1) {
-        VariableAssignment solution = calculateSolution();
+        VariableAssignment<Number> solution = calculateSolution();
 
         Number optimum = calculateObjectiveValue();
 
@@ -253,7 +245,7 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
       }
 
       if (pivotRow == -1) {
-        VariableAssignment solution = calculateSolution();
+        VariableAssignment<Number> solution = calculateSolution();
         Set<LinearConstraint> allConstraints = new HashSet<>(originalConstraints);
         result = SimplexResult.unbounded(solution, allConstraints);
         return result;
@@ -500,8 +492,8 @@ public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint>
     return value;
   }
 
-  private VariableAssignment calculateSolution() {
-    VariableAssignment assignment = new VariableAssignment();
+  private VariableAssignment<Number> calculateSolution() {
+    VariableAssignment<Number> assignment = new VariableAssignment<>();
 
     for (String variable : originalVariables) {
       Number value = getValue(variable);

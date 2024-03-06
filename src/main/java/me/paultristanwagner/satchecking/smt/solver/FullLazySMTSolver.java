@@ -26,6 +26,10 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
 
       Set<C> selectedConstraints = new HashSet<>();
       for (Literal trueLiteral : trueLiterals) {
+        if(!cnf.getConstraintLiteralMap().inverse().containsKey(trueLiteral.getName())) {
+          continue;
+        }
+
         C constraint = cnf.getConstraintLiteralMap().inverse().get(trueLiteral.getName());
 
         selectedConstraints.add(constraint);
