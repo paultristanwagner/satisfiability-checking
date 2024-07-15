@@ -25,11 +25,11 @@ public class SudokuEqualityBuilder {
   }
 
   private void equal(String a, String b) {
-    builder.append("[").append(a).append("=").append(b).append("]");
+    builder.append(a).append("=").append(b);
   }
 
   private void notEqual(String a, String b) {
-    builder.append("[").append(a).append("!=").append(b).append("]");
+    builder.append(a).append("!=").append(b);
   }
 
   public String build() {
