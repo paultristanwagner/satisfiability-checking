@@ -6,11 +6,9 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstr
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstraint;
 import me.paultristanwagner.satchecking.theory.LinearTerm;
 
-import java.util.Scanner;
-
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
-import static me.paultristanwagner.satchecking.parse.TokenType.GREATER_EQUALS;
-import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.EQUAL;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.LESS_EQUALS;
 
 public class LinearConstraintParser implements Parser<LinearConstraint> {
 

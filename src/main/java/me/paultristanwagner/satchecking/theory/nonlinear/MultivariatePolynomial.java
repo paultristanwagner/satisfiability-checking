@@ -1,5 +1,10 @@
 package me.paultristanwagner.satchecking.theory.nonlinear;
 
+import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.number;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.constantExponent;
@@ -9,10 +14,6 @@ import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.interva
 import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.pointInterval;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Matrix.matrix;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Polynomial.polynomial;
-
-import java.util.*;
-import java.util.stream.Collectors;
-import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 public class MultivariatePolynomial {
 

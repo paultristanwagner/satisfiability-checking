@@ -5,10 +5,9 @@ import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialC
 
 import static me.paultristanwagner.satchecking.parse.TokenType.*;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison.GREATER_THAN;
-import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison.GREATER_THAN_OR_EQUALS;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison.LESS_THAN;
-import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison.LESS_THAN_OR_EQUALS;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison.NOT_EQUALS;
+import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison.*;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.MultivariateMaximizationConstraint.maximize;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.MultivariateMinimizationConstraint.minimize;
 import static me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.multivariatePolynomialConstraint;

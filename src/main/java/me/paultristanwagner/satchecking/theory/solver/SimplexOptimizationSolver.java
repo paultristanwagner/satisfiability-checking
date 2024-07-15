@@ -1,16 +1,7 @@
 package me.paultristanwagner.satchecking.theory.solver;
 
-import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.EQUAL;
-import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.LESS_EQUALS;
-import static me.paultristanwagner.satchecking.theory.LinearConstraint.greaterThanOrEqual;
-import static me.paultristanwagner.satchecking.theory.LinearConstraint.lessThanOrEqual;
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
-import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import java.util.*;
-import java.util.Map.Entry;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearConstraint.MaximizingConstraint;
@@ -18,6 +9,16 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint.MinimizingConstr
 import me.paultristanwagner.satchecking.theory.SimplexResult;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.*;
+import java.util.Map.Entry;
+
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.EQUAL;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.LESS_EQUALS;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.greaterThanOrEqual;
+import static me.paultristanwagner.satchecking.theory.LinearConstraint.lessThanOrEqual;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ONE;
+import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
 
 public class SimplexOptimizationSolver implements TheorySolver<LinearConstraint> {
 

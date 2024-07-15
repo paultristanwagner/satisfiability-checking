@@ -1,11 +1,9 @@
 import me.paultristanwagner.satchecking.parse.Parser;
 import me.paultristanwagner.satchecking.parse.PolynomialParser;
-import me.paultristanwagner.satchecking.theory.arithmetic.Rational;
 import me.paultristanwagner.satchecking.theory.nonlinear.Interval;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +12,8 @@ import static me.paultristanwagner.satchecking.theory.arithmetic.Rational.parse;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Exponent.exponent;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.IntervalBoundType.CLOSED;
 import static me.paultristanwagner.satchecking.theory.nonlinear.Interval.interval;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public class MultivariatePolynomialTest {
 
