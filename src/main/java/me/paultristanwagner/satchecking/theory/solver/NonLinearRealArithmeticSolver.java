@@ -60,6 +60,8 @@ public class NonLinearRealArithmeticSolver implements TheorySolver<MultivariateP
     List<String> variableOrdering = null;
     String freshVariableName = null;
     if (objective != null) {
+      variablesSet.addAll(objective.getObjective().variables);
+
       freshVariableName = freshVariableName(variablesSet);
       MultivariatePolynomial freshVariable = variable(freshVariableName);
       MultivariatePolynomialConstraint helper = MultivariatePolynomialConstraint.equals(freshVariable, objective.getObjective());
