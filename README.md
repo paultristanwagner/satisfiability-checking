@@ -5,15 +5,12 @@ The techniques used here are introduced in the RWTH University
 lecture '[Satisfiability checking](https://ths.rwth-aachen.de/teaching/winter-term-2021-2022/lecture-satisfiability-checking/)'
 by Prof. Dr. Erika Ábrahám.
 
-# How to build and run the project
-Clone the git repository:  
-`git clone https://github.com/paultristanwagner/satisfiability-checking.git`  
-Navigate into the created directory:  
-`cd satisfiability-checking`  
-Let Maven build the project:  
-`mvn package`  
-Run the project:  
-`java -jar target/satchecking-1.0-SNAPSHOT.jar`  
+# How to run the project
+Under [Releases](https://github.com/paultristanwagner/satisfiability-checking/releases) you can find the latest version of the project.
+Download the jar file and run it with the following command: <br>
+```
+java -jar satchecking-v1.0.0.jar
+```
 Now you should see the command prompt indicated by a `>` symbol.
 
 # SMT solver
@@ -172,3 +169,14 @@ UNSAT! (feasible, but unbounded)
 Solution: x=-1/2;
 Time: 0ms
 ```
+
+## Optional: Build the project from source
+Clone the git repository:  
+`git clone https://github.com/paultristanwagner/satisfiability-checking.git`  
+Navigate into the created directory:  
+`cd satisfiability-checking`  
+Let Maven build the project:  
+`mvn package`  
+Run the project:  
+`java -jar target/satchecking-1.0-SNAPSHOT.jar`  
+Now you should see the command prompt indicated by a `>` symbol.
