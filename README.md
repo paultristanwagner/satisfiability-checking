@@ -9,7 +9,7 @@ by Prof. Dr. Erika Ábrahám.
 Under [Releases](https://github.com/paultristanwagner/satisfiability-checking/releases) you can find the latest version of the project.
 Download the jar file and run it with the following command: <br>
 ```
-java -jar satchecking-v1.0.0.jar
+java -jar satchecking-v1.0.1.jar
 ```
 Now you should see the command prompt indicated by a `>` symbol.
 
