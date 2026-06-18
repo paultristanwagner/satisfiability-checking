@@ -175,8 +175,18 @@ public class DPLLCDCLSolver implements SATSolver {
     conflictingClause = null;
     Literal assertingLiteral;
     while ((assertingLiteral = currentClause.isAsserting(assignment)) == null) {
+      // Conflict analysis may only resolve against the antecedent of a *propagated* literal.
+      // Decision literals are assigned with a null antecedent, so resolving on them would
+      // dereference null. Pick the most recent propagated literal of the current level.
       LiteralAssignment literalAssignment =
-          assignment.getLastAssignmentOnCurrentLevel(currentClause);
+          getLastPropagatedAssignmentOnCurrentLevel(currentClause);
+      if (literalAssignment == null) {
+        // No propagated literal remains on the current level: the only current-level literal
+        // of the clause is the decision itself, which is the 1-UIP. Stop resolving and use it
+        // as the asserting literal.
+        assertingLiteral = getCurrentLevelDecisionLiteral(currentClause);
+        break;
+      }
       Clause antcedent = literalAssignment.getAntecedent();
       currentClause = resolution(currentClause, antcedent, literalAssignment);
     }
@@ -204,6 +214,41 @@ public class DPLLCDCLSolver implements SATSolver {
     learnClause(currentClause);
 
     return true;
+  }
+
+  /**
+   * Returns the most recently assigned <em>propagated</em> literal of the current decision level
+   * that occurs in {@code clause}, or {@code null} if the only current-level literal of the clause
+   * is the decision literal. Only propagated literals (with a non-null antecedent) may be resolved
+   * upon during conflict analysis.
+   */
+  private LiteralAssignment getLastPropagatedAssignmentOnCurrentLevel(Clause clause) {
+    List<LiteralAssignment> assignmentsOnCurrentLevel = assignment.getAssignmentsOnCurrentLevel();
+    for (int i = assignmentsOnCurrentLevel.size() - 1; i >= 0; i--) {
+      LiteralAssignment literalAssignment = assignmentsOnCurrentLevel.get(i);
+      if (literalAssignment.getAntecedent() != null
+          && clause.contains(literalAssignment.getLiteralName())) {
+        return literalAssignment;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Returns the falsified literal of {@code clause} corresponding to the current-level decision,
+   * which is the 1-UIP when no propagated literal of the current level remains in the clause.
+   */
+  private Literal getCurrentLevelDecisionLiteral(Clause clause) {
+    LiteralAssignment decision = assignment.getLastDecision();
+    for (Literal literal : clause.getLiterals()) {
+      if (literal.getName().equals(decision.getLiteralName())) {
+        return literal;
+      }
+    }
+
+    throw new IllegalStateException(
+        "Clause has no literal assigned on the current decision level");
   }
 
   // todo: Experimental
