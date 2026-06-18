@@ -866,14 +866,26 @@ public class BitVectorFlattener {
       String signBitVariableTerm1 = bitVectorVariableToName.get(term1) + "_" + (term1.getLength() - 1);
       String signBitVariableRemainder = bitVectorVariableToName.get(remainder) + "_" + (remainder.getLength() - 1);
 
-      remainderRestriction = equivalence(
-          or(
-              and(zeroCase),
-              variable(signBitVariableRemainder)
-          ),
-          variable(signBitVariableTerm1)
+      // The remainder of a truncating division has the same sign as the dividend
+      // (or is zero). Note: this must be a disjunction; the previous biconditional
+      // formulation wrongly forced UNSAT whenever the division was exact (remainder 0)
+      // and the dividend was negative, or vice-versa.
+      remainderRestriction = or(
+          and(zeroCase),
+          equivalence(
+              variable(signBitVariableRemainder),
+              variable(signBitVariableTerm1)
+          )
       );
     }
+
+    // SMT-LIB QF_BV semantics for division by zero. Division by zero must not
+    // force UNSAT; instead the result takes a fixed value. The l = q*r + rem
+    // encoding (with rem < r) is only meaningful when the divisor is non-zero,
+    // so it is guarded by !divisorIsZero.
+    PropositionalLogicExpression divisorIsZero = divisorIsZeroExpression(term2);
+    PropositionalLogicExpression divisionByZeroResult =
+        divisionByZeroResultExpression(division, term1);
 
     return and(
         convertTermNonRecursive(extendedCoefficient),
@@ -882,9 +894,15 @@ public class BitVectorFlattener {
         convertTermNonRecursive(extendedRemainder),
         convertTermNonRecursive(product),
         convertTermNonRecursive(addition),
-        convertConstraintNonRecursive(equalConstraint),
-        lessThanExpression,
-        remainderRestriction
+        implication(
+            negation(divisorIsZero),
+            and(
+                convertConstraintNonRecursive(equalConstraint),
+                lessThanExpression,
+                remainderRestriction
+            )
+        ),
+        implication(divisorIsZero, divisionByZeroResult)
     );
   }
 
@@ -949,6 +967,14 @@ public class BitVectorFlattener {
       );
     }
 
+    // SMT-LIB QF_BV semantics for remainder by zero: bvurem(x, 0) = x and
+    // bvsrem(x, 0) = x. Remainder by zero must not force UNSAT; the
+    // l = q*r + rem encoding (with rem < r) is only meaningful for a non-zero
+    // divisor, so it is guarded by !divisorIsZero.
+    PropositionalLogicExpression divisorIsZero = divisorIsZeroExpression(term2);
+    PropositionalLogicExpression remainderByZeroResult =
+        equalBitsExpression(remainder, term1);
+
     return and(
         convertTermRecursive(extendedCoefficient),
         convertTermNonRecursive(extendedTerm1),
@@ -956,10 +982,89 @@ public class BitVectorFlattener {
         convertTermNonRecursive(extendedResult),
         convertTermNonRecursive(product),
         convertTermNonRecursive(addition),
-        convertConstraintNonRecursive(equalConstraint),
-        lessThanExpression,
-        remainderRestriction
+        implication(
+            negation(divisorIsZero),
+            and(
+                convertConstraintNonRecursive(equalConstraint),
+                lessThanExpression,
+                remainderRestriction
+            )
+        ),
+        implication(divisorIsZero, remainderByZeroResult)
     );
+  }
+
+  // Builds a propositional condition that is true iff the (non-extended) divisor
+  // term evaluates to zero, i.e. all of its bits are zero.
+  private PropositionalLogicExpression divisorIsZeroExpression(BitVectorTerm divisor) {
+    String divisorVariable = bitVectorVariableToName.get(divisor);
+
+    List<PropositionalLogicExpression> bitIsZero = new ArrayList<>();
+    for (int i = 0; i < divisor.getLength(); i++) {
+      bitIsZero.add(negation(variable(divisorVariable + "_" + i)));
+    }
+
+    return and(bitIsZero);
+  }
+
+  // Asserts that the result term equals the source term bit for bit (over the
+  // result length). Used for x % 0 = x.
+  private PropositionalLogicExpression equalBitsExpression(
+      BitVectorTerm resultTerm, BitVectorTerm sourceTerm) {
+    String resultVariable = bitVectorVariableToName.get(resultTerm);
+    String sourceVariable = bitVectorVariableToName.get(sourceTerm);
+
+    List<PropositionalLogicExpression> bitEqualities = new ArrayList<>();
+    for (int i = 0; i < resultTerm.getLength(); i++) {
+      bitEqualities.add(
+          equivalence(
+              variable(resultVariable + "_" + i),
+              variable(sourceVariable + "_" + i)));
+    }
+
+    return and(bitEqualities);
+  }
+
+  // Result value of dividend / 0 according to SMT-LIB QF_BV semantics.
+  // For unsigned division (bvudiv) and for non-negative signed dividends the
+  // result is all ones (2^n - 1). For negative signed dividends (bvsdiv) the
+  // result is one. The dividend's sign bit selects between the two cases; for
+  // an unsigned dividend (sign bit always treated as a value bit) the all-ones
+  // branch is selected whenever the top bit is zero, matching bvudiv on the
+  // values reachable here.
+  private PropositionalLogicExpression divisionByZeroResultExpression(
+      BitVectorTerm resultTerm, BitVectorTerm dividend) {
+    String resultVariable = bitVectorVariableToName.get(resultTerm);
+    String dividendVariable = bitVectorVariableToName.get(dividend);
+
+    int length = resultTerm.getLength();
+    String dividendSignBit = dividendVariable + "_" + (length - 1);
+
+    List<PropositionalLogicExpression> allOnesCase = new ArrayList<>();
+    List<PropositionalLogicExpression> oneCase = new ArrayList<>();
+    for (int i = 0; i < length; i++) {
+      String bit = resultVariable + "_" + i;
+
+      // all ones: every bit set
+      allOnesCase.add(variable(bit));
+
+      // value one: only bit 0 set
+      if (i == 0) {
+        oneCase.add(variable(bit));
+      } else {
+        oneCase.add(negation(variable(bit)));
+      }
+    }
+
+    if (!resultTerm.isSigned()) {
+      // bvudiv(x, 0) = 1...1
+      return and(allOnesCase);
+    }
+
+    // bvsdiv(x, 0) = ite(msb(x) = 0, 1...1, 1)
+    return and(
+        implication(negation(variable(dividendSignBit)), and(allOnesCase)),
+        implication(variable(dividendSignBit), and(oneCase)));
   }
 
   private static PropositionalLogicExpression halfAdderFormula(
