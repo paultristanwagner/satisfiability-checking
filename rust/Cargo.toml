@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["core", "sat", "term", "theory"]
+members = ["core", "sat", "term", "theory", "smt"]
 
 [workspace.package]
 edition = "2021"
@@ -10,6 +10,8 @@ repository = "https://github.com/paultristanwagner/satisfiability-checking"
 [workspace.dependencies]
 satcheck-core = { path = "core" }
 satcheck-term = { path = "term" }
+satcheck-sat = { path = "sat" }
+satcheck-theory = { path = "theory" }
 num-bigint = "0.4"
 num-rational = "0.4"
 num-traits = "0.2"

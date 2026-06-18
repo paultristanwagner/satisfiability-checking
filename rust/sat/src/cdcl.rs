@@ -122,6 +122,11 @@ impl<T: Theory> Solver<T> {
         }
     }
 
+    /// Mutable access to the attached theory (e.g. to register atoms before solving).
+    pub fn theory_mut(&mut self) -> &mut T {
+        &mut self.theory
+    }
+
     /// Ensure variables `0..n` exist.
     pub fn ensure_vars(&mut self, n: usize) {
         if n <= self.num_vars {
