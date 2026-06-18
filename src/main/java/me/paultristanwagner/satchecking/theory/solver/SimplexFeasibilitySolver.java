@@ -25,6 +25,10 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
   private Map<String, DeltaRational> lowerBounds;
   private Map<String, DeltaRational> upperBounds;
 
+  // Maps each slack variable name to the index of the constraint it represents. Used to build
+  // infeasibility explanations structurally rather than by parsing variable names.
+  private Map<String, Integer> slackConstraintIndices;
+
   private final List<LinearConstraint> constraints = new ArrayList<>();
 
   @Override
@@ -36,6 +40,7 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     values = null;
     lowerBounds = null;
     upperBounds = null;
+    slackConstraintIndices = null;
     rows = 0;
     columns = 0;
   }
@@ -72,11 +77,13 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
     // Initialize slack variables, tableau and constraints
     basicVariables = new ArrayList<>();
+    slackConstraintIndices = new HashMap<>();
     tableau = new Number[constraints.size()][variableSet.size()];
     for (int i = 0; i < constraints.size(); i++) {
       String slackName = "s" + i;
       LinearConstraint constraint = constraints.get(i);
       basicVariables.add(slackName);
+      slackConstraintIndices.put(slackName, i);
 
       for (int j = 0; j < variableSet.size(); j++) {
         String variable = variables.get(j);
@@ -214,20 +221,24 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
   private Set<LinearConstraint> calculateExplanation(Violation violation) {
     Set<LinearConstraint> explanation = new HashSet<>();
 
-    int constraintIndex = Integer.parseInt(violation.variable().split("s")[1]);
-    LinearConstraint constraint = constraints.get(constraintIndex);
+    // The violating variable is a slack; add the constraint it represents.
+    Integer violatingIndex = slackConstraintIndices.get(violation.variable());
+    if (violatingIndex != null) {
+      explanation.add(constraints.get(violatingIndex));
+    }
 
-    explanation.add(constraint);
-
+    // Add the constraints of every slack with a non-zero coefficient in the violating row.
+    // Original (non-slack) variables represent no constraint, so they are skipped. Previously
+    // this parsed the variable name (split("s")), which crashed on original variables or names
+    // containing 's', and after pivots when a non-basic was an original variable.
     int basicIndex = basicVariables.indexOf(violation.variable());
     for (int j = 0; j < columns; j++) {
       Number a = tableau[basicIndex][j];
       if (a.isNonZero()) {
-        String variable = nonBasicVariables.get(j);
-        constraintIndex = Integer.parseInt(variable.split("s")[1]);
-        constraint = constraints.get(constraintIndex);
-
-        explanation.add(constraint);
+        Integer constraintIndex = slackConstraintIndices.get(nonBasicVariables.get(j));
+        if (constraintIndex != null) {
+          explanation.add(constraints.get(constraintIndex));
+        }
       }
     }
 
