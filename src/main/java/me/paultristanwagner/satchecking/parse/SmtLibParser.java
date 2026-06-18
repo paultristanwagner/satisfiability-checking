@@ -19,6 +19,27 @@ import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Functi
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearTerm;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+import me.paultristanwagner.satchecking.theory.bitvector.BitVector;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorEqualConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorGreaterThanConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorGreaterThanOrEqualConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorLessThanConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorLessThanOrEqualConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorUnequalConstraint;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorAddition;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorAnd;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorConstant;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorDivision;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorLeftShift;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorNegation;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorOr;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorProduct;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorRemainder;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorRightShift;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorSubtraction;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorVariable;
+import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorXor;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint;
 import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison;
@@ -176,7 +197,8 @@ public class SmtLibParser {
     ARITHMETIC, // QF_LRA, QF_LIA
     NONLINEAR, // QF_NRA
     EQUALITY, // QF_EQ
-    UF // QF_UF, QF_EQUF
+    UF, // QF_UF, QF_EQUF
+    BITVECTOR // QF_BV
   }
 
   private String logicName;
@@ -196,6 +218,9 @@ public class SmtLibParser {
   // Sort of each declared 0-arity symbol (constant/variable), e.g. "Bool", "Real", "Int", "U".
   // Used to resolve '=' as a biconditional (Bool operands) versus a theory equality atom.
   private final Map<String, String> symbolSorts = new HashMap<>();
+
+  // For QF_BV: declared bit-width of each 0-arity bit-vector symbol (its (_ BitVec n) width).
+  private final Map<String, Integer> bvWidths = new HashMap<>();
 
   /** Signature of a declared uninterpreted function/predicate (arity > 0). */
   private record FunSig(List<String> argSorts, String returnSort) {}
@@ -425,11 +450,12 @@ public class SmtLibParser {
       case "QF_NRA" -> kind = Kind.NONLINEAR;
       case "QF_EQ" -> kind = Kind.EQUALITY;
       case "QF_UF", "QF_EQUF" -> kind = Kind.UF;
+      case "QF_BV" -> kind = Kind.BITVECTOR;
       default ->
           throw err(
               "unsupported logic '"
                   + logicName
-                  + "' (supported: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF)",
+                  + "' (supported: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF, QF_BV)",
               index);
     }
   }
@@ -455,7 +481,33 @@ public class SmtLibParser {
     String sort = sortName(args.get(1));
     declaredFunctions.add(name);
     symbolSorts.put(name, sort);
+    int bvWidth = bvWidthOfSort(args.get(1));
+    if (bvWidth > 0) {
+      bvWidths.put(name, bvWidth);
+    }
     recordDeclaration(name);
+  }
+
+  /**
+   * If {@code sort} is a {@code (_ BitVec n)} sort, returns its declared width {@code n}; otherwise
+   * returns -1. The width must be a positive numeral.
+   */
+  private int bvWidthOfSort(SExpr sort) {
+    if (sort.isList()
+        && sort.list.size() == 3
+        && sort.list.get(0).isAtom()
+        && "_".equals(sort.list.get(0).atom.value())
+        && sort.list.get(1).isAtom()
+        && "BitVec".equals(sort.list.get(1).atom.value())
+        && sort.list.get(2).isAtom()
+        && sort.list.get(2).atom.type() == SmtLibLexer.NUMERAL) {
+      int n = Integer.parseInt(sort.list.get(2).atom.value());
+      if (n <= 0) {
+        throw err("bit-vector width must be positive", sort.index);
+      }
+      return n;
+    }
+    return -1;
   }
 
   private void handleDeclareFun(List<SExpr> args, int index) {
@@ -475,6 +527,10 @@ public class SmtLibParser {
     if (argSortList.list.isEmpty()) {
       // 0-arity -> constant/variable.
       symbolSorts.put(name, retSort);
+      int bvWidth = bvWidthOfSort(args.get(2));
+      if (bvWidth > 0) {
+        bvWidths.put(name, bvWidth);
+      }
     } else {
       List<String> argSorts = new ArrayList<>();
       for (SExpr s : argSortList.list) {
@@ -777,6 +833,9 @@ public class SmtLibParser {
     }
     if (kind == Kind.NONLINEAR) {
       return nonlinearAtomFormula(atom, head);
+    }
+    if (kind == Kind.BITVECTOR) {
+      return bitVectorAtomFormula(atom, head);
     }
     return equalityAtomFormula(atom, head);
   }
@@ -1092,6 +1151,272 @@ public class SmtLibParser {
     }
   }
 
+  // ---- bit-vectors (QF_BV) --------------------------------------------------
+
+  /**
+   * Builds the propositional representation of a QF_BV atom over {@link
+   * me.paultristanwagner.satchecking.theory.bitvector.constraint.BitVectorConstraint} leaves.
+   *
+   * <p>Supported: {@code =} (Equal), {@code distinct} (pairwise Unequal), and the SIGNED comparisons
+   * {@code bvsle}/{@code bvslt}/{@code bvsge}/{@code bvsgt}. UNSIGNED comparisons ({@code bvule}/
+   * {@code bvult}/{@code bvuge}/{@code bvugt}) are REJECTED as unsupported because the underlying
+   * theory only models SIGNED comparison (issue #15): mis-encoding them as signed would risk a wrong
+   * verdict. Every operand width is checked to agree.
+   */
+  private PropositionalLogicExpression bitVectorAtomFormula(SExpr atom, String head) {
+    switch (head) {
+      case "=" -> {
+        if (atom.list.size() != 3) {
+          throw err("'=' expects exactly two arguments in this subset", atom.index);
+        }
+        BitVectorTerm a = parseBitVectorTerm(atom.list.get(1));
+        BitVectorTerm b = parseBitVectorTerm(atom.list.get(2));
+        requireSameWidth(a, b, atom.index);
+        return atomVariable(BitVectorEqualConstraint.equal(a, b));
+      }
+      case "distinct" -> {
+        List<SExpr> argExprs = atom.list.subList(1, atom.list.size());
+        if (argExprs.size() < 2) {
+          throw err("'distinct' requires at least two arguments", atom.index);
+        }
+        List<PropositionalLogicExpression> parts = new ArrayList<>();
+        for (int i = 0; i < argExprs.size(); i++) {
+          for (int j = i + 1; j < argExprs.size(); j++) {
+            BitVectorTerm a = parseBitVectorTerm(argExprs.get(i));
+            BitVectorTerm b = parseBitVectorTerm(argExprs.get(j));
+            requireSameWidth(a, b, atom.index);
+            parts.add(atomVariable(BitVectorUnequalConstraint.unequal(a, b)));
+          }
+        }
+        return parts.size() == 1 ? parts.get(0) : PropositionalLogicAnd.and(parts);
+      }
+      case "bvslt", "bvsle", "bvsgt", "bvsge" -> {
+        if (atom.list.size() != 3) {
+          throw err("'" + head + "' expects exactly two arguments", atom.index);
+        }
+        BitVectorTerm a = parseBitVectorTerm(atom.list.get(1));
+        BitVectorTerm b = parseBitVectorTerm(atom.list.get(2));
+        requireSameWidth(a, b, atom.index);
+        return switch (head) {
+          case "bvslt" -> atomVariable(BitVectorLessThanConstraint.lessThan(a, b));
+          case "bvsle" -> atomVariable(BitVectorLessThanOrEqualConstraint.lessThanOrEqual(a, b));
+          case "bvsgt" -> atomVariable(BitVectorGreaterThanConstraint.greaterThan(a, b));
+          default -> atomVariable(BitVectorGreaterThanOrEqualConstraint.greaterThanOrEqual(a, b));
+        };
+      }
+      // Unsigned comparisons: the theory has NO sound unsigned comparison (issue #15); reject rather
+      // than silently encoding them as signed comparisons (which would be unsound).
+      case "bvult", "bvule", "bvugt", "bvuge" ->
+          throw err(
+              "unsupported: '"
+                  + head
+                  + "' (the bit-vector theory has no sound unsigned comparison, issue #15)",
+              atom.index);
+      default -> throw err("unsupported: bit-vector predicate '" + head + "'", atom.index);
+    }
+  }
+
+  private void requireSameWidth(BitVectorTerm a, BitVectorTerm b, int index) {
+    if (a.getLength() != b.getLength()) {
+      throw err(
+          "bit-vector width mismatch: "
+              + a.getLength()
+              + " vs "
+              + b.getLength()
+              + " (no implicit zero/sign extension is supported)",
+          index);
+    }
+  }
+
+  /**
+   * Parses a QF_BV term into a {@link BitVectorTerm}. Supports declared bit-vector constants/
+   * variables, the literal forms ({@code #x...}, {@code #b...}, {@code (_ bvN w)}), the bitwise/
+   * arithmetic operators that map to existing term classes, and {@code let}/{@code define-fun}.
+   * Anything else (extract/concat/zero_extend/sign_extend/repeat/rotate, {@code bvashr}, unsupported
+   * operators, or a term whose width cannot be determined) is REJECTED as unsupported.
+   */
+  private BitVectorTerm parseBitVectorTerm(SExpr e) {
+    if (e.isAtom()) {
+      Tok t = e.atom;
+      if (t.type() == SmtLibLexer.BV_LITERAL) {
+        return parseBitVectorLiteral(t.value(), e.index);
+      }
+      String v = t.value();
+      Object bound = lookupLet(v);
+      if (bound instanceof BitVectorTerm boundTerm) {
+        return boundTerm;
+      }
+      if (bound instanceof PropositionalLogicExpression) {
+        throw err("let-bound symbol '" + v + "' is a formula but is used as a term", e.index);
+      }
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parseBitVectorTerm(expanded);
+      }
+      Integer width = bvWidths.get(v);
+      if (width == null) {
+        throw err(
+            "cannot determine bit-vector width of symbol '"
+                + v
+                + "' (declare it with sort (_ BitVec n))",
+            e.index);
+      }
+      return BitVectorVariable.bitvector(v, width);
+    }
+
+    // (_ bvN w) decimal literal.
+    if (e.isList()
+        && e.list.size() == 3
+        && e.list.get(0).isAtom()
+        && "_".equals(e.list.get(0).atom.value())
+        && e.list.get(1).isAtom()
+        && e.list.get(1).atom.value().startsWith("bv")) {
+      return parseBvDecimalLiteral(e);
+    }
+
+    String head = e.head();
+    if (head == null) {
+      // An application whose operator is itself a list is an indexed operator such as
+      // ((_ extract i j) x) or ((_ zero_extend k) x); none of these are supported.
+      if (e.isList()
+          && !e.list.isEmpty()
+          && e.list.get(0).isList()
+          && "_".equals(e.list.get(0).head())) {
+        String indexed =
+            e.list.get(0).list.size() >= 2 && e.list.get(0).list.get(1).isAtom()
+                ? e.list.get(0).list.get(1).atom.value()
+                : "indexed operator";
+        throw err(
+            "unsupported: indexed bit-vector operator '" + indexed + "' (e.g. extract/zero_extend/sign_extend/repeat/rotate)",
+            e.index);
+      }
+      throw err("malformed bit-vector term", e.index);
+    }
+    if (defineFuns.containsKey(head) && lookupLet(head) == null) {
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parseBitVectorTerm(expanded);
+      }
+    }
+
+    switch (head) {
+      case "let" -> {
+        Map<String, Object> frame = evaluateLetBindings(e);
+        letScopes.push(frame);
+        try {
+          return parseBitVectorTerm(e.list.get(2));
+        } finally {
+          letScopes.pop();
+        }
+      }
+      case "bvadd", "bvsub", "bvmul", "bvand", "bvor", "bvxor", "bvshl", "bvlshr", "bvudiv",
+          "bvurem" -> {
+        if (e.list.size() != 3) {
+          throw err("'" + head + "' expects exactly two arguments", e.index);
+        }
+        BitVectorTerm a = parseBitVectorTerm(e.list.get(1));
+        BitVectorTerm b = parseBitVectorTerm(e.list.get(2));
+        requireSameWidth(a, b, e.index);
+        return switch (head) {
+          case "bvadd" -> BitVectorAddition.addition(a, b);
+          case "bvsub" -> BitVectorSubtraction.subtraction(a, b);
+          case "bvmul" -> BitVectorProduct.product(a, b);
+          case "bvand" -> BitVectorAnd.bitwiseAnd(a, b);
+          case "bvor" -> BitVectorOr.bitwiseOr(a, b);
+          case "bvxor" -> BitVectorXor.bitwiseXor(a, b);
+          case "bvshl" -> BitVectorLeftShift.leftShift(a, b);
+          case "bvlshr" -> BitVectorRightShift.rightShift(a, b);
+          case "bvudiv" -> BitVectorDivision.division(a, b);
+          default -> BitVectorRemainder.remainder(a, b);
+        };
+      }
+      case "bvnot" -> {
+        if (e.list.size() != 2) {
+          throw err("'bvnot' expects exactly one argument", e.index);
+        }
+        return BitVectorNegation.negation(parseBitVectorTerm(e.list.get(1)));
+      }
+      case "ite" ->
+          // A term-level ite over bit-vectors cannot be modeled by the bit-blasting flattener
+          // (which has no ite term) and lifting it through arbitrary BV operators is not supported;
+          // reject rather than mis-encode.
+          throw err("unsupported: term-level 'ite' over bit-vectors", e.index);
+      case "bvneg" -> {
+        // two's-complement negation: 0 - x (there is no dedicated negate term).
+        if (e.list.size() != 2) {
+          throw err("'bvneg' expects exactly one argument", e.index);
+        }
+        BitVectorTerm x = parseBitVectorTerm(e.list.get(1));
+        BitVectorTerm zero = BitVectorConstant.constant(new BitVector(new boolean[x.getLength()]));
+        return BitVectorSubtraction.subtraction(zero, x);
+      }
+      // Explicitly unsupported operators (no sound encoding in the current theory).
+      case "bvashr" ->
+          throw err("unsupported: 'bvashr' (no arithmetic right shift in the theory)", e.index);
+      case "extract", "concat", "zero_extend", "sign_extend", "repeat", "rotate_left",
+          "rotate_right" ->
+          throw err("unsupported: '" + head + "' (no extract/concat/extend/rotate in the theory)", e.index);
+      default -> {
+        // (_ extract i j) / (_ zero_extend k) etc. appear as a head '_' application.
+        if ("_".equals(head)) {
+          throw err("unsupported: indexed bit-vector operator", e.index);
+        }
+        throw err("unsupported: bit-vector operator '" + head + "'", e.index);
+      }
+    }
+  }
+
+  /** Parses a {@code #x...} (hex) or {@code #b...} (binary) bit-vector literal. */
+  private BitVectorConstant parseBitVectorLiteral(String text, int index) {
+    if (text.startsWith("#b")) {
+      String digits = text.substring(2);
+      int width = digits.length();
+      boolean[] bits = new boolean[width];
+      for (int i = 0; i < width; i++) {
+        bits[width - 1 - i] = digits.charAt(i) == '1';
+      }
+      return BitVectorConstant.constant(new BitVector(bits));
+    }
+    if (text.startsWith("#x")) {
+      String digits = text.substring(2);
+      int width = 4 * digits.length();
+      boolean[] bits = new boolean[width];
+      for (int d = 0; d < digits.length(); d++) {
+        int nibble = Character.digit(digits.charAt(d), 16);
+        // most significant nibble first; bit 0 is the least significant overall bit.
+        int base = (digits.length() - 1 - d) * 4;
+        for (int k = 0; k < 4; k++) {
+          bits[base + k] = (nibble & (1 << k)) != 0;
+        }
+      }
+      return BitVectorConstant.constant(new BitVector(bits));
+    }
+    throw err("malformed bit-vector literal '" + text + "'", index);
+  }
+
+  /** Parses a {@code (_ bvN w)} decimal bit-vector literal of value {@code N} and width {@code w}. */
+  private BitVectorConstant parseBvDecimalLiteral(SExpr e) {
+    String bvSymbol = e.list.get(1).atom.value(); // "bvN"
+    SExpr widthExpr = e.list.get(2);
+    if (!widthExpr.isAtom() || widthExpr.atom.type() != SmtLibLexer.NUMERAL) {
+      throw err("malformed (_ bvN w) literal: width must be a numeral", e.index);
+    }
+    String numberPart = bvSymbol.substring(2);
+    if (numberPart.isEmpty() || !numberPart.chars().allMatch(Character::isDigit)) {
+      throw err("malformed (_ bvN w) literal: value must be a non-negative decimal", e.index);
+    }
+    int width = Integer.parseInt(widthExpr.atom.value());
+    if (width <= 0) {
+      throw err("bit-vector width must be positive", e.index);
+    }
+    java.math.BigInteger value = new java.math.BigInteger(numberPart);
+    boolean[] bits = new boolean[width];
+    for (int i = 0; i < width; i++) {
+      bits[i] = value.testBit(i);
+    }
+    return BitVectorConstant.constant(new BitVector(bits));
+  }
+
   // ---- let bindings ---------------------------------------------------------
 
   /**
@@ -1147,7 +1472,63 @@ public class SmtLibParser {
     if (kind == Kind.ARITHMETIC && looksLikeArithmeticTerm(valueExpr)) {
       return parseLinearTerm(valueExpr);
     }
+    if (kind == Kind.BITVECTOR && looksLikeBitVectorTerm(valueExpr)) {
+      return parseBitVectorTerm(valueExpr);
+    }
     return parseBooleanFormula(valueExpr);
+  }
+
+  /**
+   * Heuristic: does this expression denote a bit-vector term (rather than a boolean formula)? Used to
+   * classify {@code let} bindings in QF_BV. Bit-vector literals, declared bit-vector symbols, and
+   * applications of the bit-vector term operators are terms; predicate applications and boolean
+   * connectives are formulas.
+   */
+  private boolean looksLikeBitVectorTerm(SExpr e) {
+    if (e.isAtom()) {
+      Tok t = e.atom;
+      if (t.type() == SmtLibLexer.BV_LITERAL) {
+        return true;
+      }
+      String v = t.value();
+      if (v.equals("true") || v.equals("false")) {
+        return false;
+      }
+      Object bound = lookupLet(v);
+      if (bound instanceof BitVectorTerm) {
+        return true;
+      }
+      if (bound instanceof PropositionalLogicExpression) {
+        return false;
+      }
+      if ("Bool".equals(symbolSorts.get(v))) {
+        return false;
+      }
+      if (defineFuns.containsKey(v)) {
+        return !"Bool".equals(defineFuns.get(v).returnSort());
+      }
+      return bvWidths.containsKey(v);
+    }
+    String head = e.head();
+    if (head == null) {
+      return false;
+    }
+    if (defineFuns.containsKey(head)) {
+      return !"Bool".equals(defineFuns.get(head).returnSort());
+    }
+    if (e.isList()
+        && e.list.size() == 3
+        && e.list.get(0).isAtom()
+        && "_".equals(e.list.get(0).atom.value())
+        && e.list.get(1).isAtom()
+        && e.list.get(1).atom.value().startsWith("bv")) {
+      return true; // (_ bvN w)
+    }
+    return switch (head) {
+      case "bvadd", "bvsub", "bvmul", "bvand", "bvor", "bvxor", "bvnot", "bvneg",
+          "bvshl", "bvlshr", "bvudiv", "bvurem" -> true;
+      default -> false;
+    };
   }
 
   /**
@@ -1270,6 +1651,9 @@ public class SmtLibParser {
       if (t.type() == SmtLibLexer.DECIMAL) {
         return "Real";
       }
+      if (t.type() == SmtLibLexer.BV_LITERAL) {
+        return "BitVec";
+      }
       String v = t.value();
       if (v.equals("true") || v.equals("false")) {
         return "Bool";
@@ -1280,6 +1664,9 @@ public class SmtLibParser {
       }
       if (bound instanceof LinearTerm || bound instanceof MultivariatePolynomial) {
         return "Real";
+      }
+      if (bound instanceof BitVectorTerm) {
+        return "BitVec";
       }
       if (defineFuns.containsKey(v)) {
         return defineFuns.get(v).returnSort();
@@ -1292,8 +1679,13 @@ public class SmtLibParser {
     }
     switch (head) {
       case "and", "or", "not", "=>", "implies", "xor", "=", "distinct",
-          "<=", ">=", "<", ">", "true", "false" -> {
+          "<=", ">=", "<", ">", "true", "false",
+          "bvslt", "bvsle", "bvsgt", "bvsge", "bvult", "bvule", "bvugt", "bvuge" -> {
         return "Bool";
+      }
+      case "bvadd", "bvsub", "bvmul", "bvand", "bvor", "bvxor", "bvnot", "bvneg",
+          "bvshl", "bvlshr", "bvashr", "bvudiv", "bvurem", "bvsdiv", "bvsrem" -> {
+        return "BitVec";
       }
       case "+", "-", "*", "/", "^" -> {
         return "Real";

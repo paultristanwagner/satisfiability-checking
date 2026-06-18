@@ -1,5 +1,6 @@
 package me.paultristanwagner.satchecking.theory.bitvector.constraint;
 
+import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
 
 public class BitVectorLessThanConstraint extends BitVectorBinaryConstraint {
@@ -10,6 +11,12 @@ public class BitVectorLessThanConstraint extends BitVectorBinaryConstraint {
 
   public static BitVectorLessThanConstraint lessThan(BitVectorTerm term1, BitVectorTerm term2) {
     return new BitVectorLessThanConstraint(term1, term2);
+  }
+
+  @Override
+  public Constraint negate() {
+    // not (a < b)  <=>  a >= b
+    return BitVectorGreaterThanOrEqualConstraint.greaterThanOrEqual(term1, term2);
   }
 
   @Override

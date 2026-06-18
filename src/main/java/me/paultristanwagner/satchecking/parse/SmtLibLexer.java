@@ -28,6 +28,9 @@ public class SmtLibLexer extends Lexer {
   // A string literal "...". Two consecutive double quotes are an escaped quote.
   public static final TokenType STRING = TokenType.of("string", "^\"(\"\"|[^\"])*\"");
 
+  // An SMT-LIB bit-vector literal: hexadecimal (#x...) or binary (#b...).
+  public static final TokenType BV_LITERAL = TokenType.of("bv literal", "^#(x[0-9a-fA-F]+|b[01]+)");
+
   // An SMT-LIB symbol. Covers simple symbols and the special operator characters.
   // Note: a leading digit is excluded so numerals win.
   public static final TokenType SYMBOL =
@@ -49,6 +52,7 @@ public class SmtLibLexer extends Lexer {
         NUMERAL,
         KEYWORD,
         STRING,
+        BV_LITERAL,
         QUOTED_SYMBOL,
         SYMBOL);
 
