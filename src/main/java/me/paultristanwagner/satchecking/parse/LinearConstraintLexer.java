@@ -13,6 +13,8 @@ public class LinearConstraintLexer extends Lexer {
         EQUALS,
         LOWER_EQUALS,
         GREATER_EQUALS,
+        LESS_THAN,
+        GREATER_THAN,
         LPAREN,
         RPAREN
     );

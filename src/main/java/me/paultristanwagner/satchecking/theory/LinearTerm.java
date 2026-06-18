@@ -6,6 +6,7 @@ import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static me.paultristanwagner.satchecking.theory.arithmetic.Number.ZERO;
@@ -132,6 +133,18 @@ public class LinearTerm {
     }
     result = result.add(constant);
     return result;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof LinearTerm that)) return false;
+    return coefficients.equals(that.coefficients) && constant.equals(that.constant);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(coefficients, constant);
   }
 
   @Override

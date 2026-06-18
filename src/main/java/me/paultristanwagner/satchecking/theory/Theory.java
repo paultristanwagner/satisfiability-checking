@@ -66,7 +66,7 @@ public class Theory {
   public TheorySolver getTheorySolver() {
     return switch (name) {
       case QF_NRA_NAME -> new NonLinearRealArithmeticSolver();
-      case QF_LRA_NAME -> new SimplexOptimizationSolver();
+      case QF_LRA_NAME -> new LinearArithmeticSolver();
       case QF_LIA_NAME -> new LinearIntegerSolver();
       case QF_EQ_NAME -> new EqualityLogicSolver();
       case QF_EQUF_NAME -> new EqualityFunctionSolver();

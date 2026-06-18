@@ -3,6 +3,7 @@ package me.paultristanwagner.satchecking.theory.solver;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.SimplexResult;
+import me.paultristanwagner.satchecking.theory.arithmetic.DeltaRational;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.*;
@@ -19,16 +20,24 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
   private List<String> basicVariables;
   private List<String> nonBasicVariables;
-  private List<Number> values;
+  private List<DeltaRational> values;
 
-  private Map<String, Number> lowerBounds;
-  private Map<String, Number> upperBounds;
+  private Map<String, DeltaRational> lowerBounds;
+  private Map<String, DeltaRational> upperBounds;
 
   private final List<LinearConstraint> constraints = new ArrayList<>();
 
   @Override
   public void clear() {
-    throw new UnsupportedOperationException();
+    constraints.clear();
+    tableau = null;
+    basicVariables = null;
+    nonBasicVariables = null;
+    values = null;
+    lowerBounds = null;
+    upperBounds = null;
+    rows = 0;
+    columns = 0;
   }
 
   @Override
@@ -58,7 +67,7 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     nonBasicVariables = new ArrayList<>(variables);
     values = new ArrayList<>();
     for (int i = 0; i < variables.size(); i++) {
-      values.add(ZERO());
+      values.add(DeltaRational.ZERO);
     }
 
     // Initialize slack variables, tableau and constraints
@@ -74,18 +83,25 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
         tableau[i][j] = constraint.getDifference().getCoefficients().getOrDefault(variable, ZERO());
       }
 
-      if (constraint.getBound() == EQUAL) {
-        lowerBounds.put(slackName, constraint.getDifference().getConstant().negate());
-        upperBounds.put(slackName, constraint.getDifference().getConstant().negate());
-      } else if (constraint.getBound() == LESS_EQUALS) {
-        upperBounds.put(slackName, constraint.getDifference().getConstant().negate());
-      } else if (constraint.getBound() == GREATER_EQUALS) {
-        lowerBounds.put(slackName, constraint.getDifference().getConstant().negate());
+      // c is the value the row-term (sum of coefficient*variable) is bounded against.
+      Number c = constraint.getDifference().getConstant().negate();
+
+      switch (constraint.getBound()) {
+        case EQUAL -> {
+          lowerBounds.put(slackName, DeltaRational.of(c));
+          upperBounds.put(slackName, DeltaRational.of(c));
+        }
+        case LESS_EQUALS -> upperBounds.put(slackName, DeltaRational.of(c));
+        case GREATER_EQUALS -> lowerBounds.put(slackName, DeltaRational.of(c));
+        // strict: s < c  <=>  s <= c - delta
+        case LESS -> upperBounds.put(slackName, DeltaRational.of(c, ONE().negate()));
+        // strict: s > c  <=>  s >= c + delta
+        case GREATER -> lowerBounds.put(slackName, DeltaRational.of(c, ONE()));
       }
     }
 
     this.rows = tableau.length;
-    this.columns = tableau[0].length;
+    this.columns = tableau.length == 0 ? 0 : tableau[0].length;
 
     while (true) {
       Violation violation = getViolation();
@@ -101,18 +117,98 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
       pivot(violation.variable(), pivotVariable, violation.increase());
     }
 
+    // The current assignment is feasible over the delta-rationals. Pick a concrete, safe
+    // positive delta to materialize a real-valued witness (see chooseDelta).
+    Number delta = chooseDelta();
+
     VariableAssignment variableAssignment = new VariableAssignment();
 
     for (String variable : variables) {
-      Number value;
+      DeltaRational value;
       if (basicVariables.contains(variable)) {
         value = getBasicValue(basicVariables.indexOf(variable));
       } else {
         value = values.get(nonBasicVariables.indexOf(variable));
       }
-      variableAssignment.assign(variable, value);
+      // materialize c + k*delta
+      Number concrete = value.getRational().add(value.getDelta().multiply(delta));
+      variableAssignment.assign(variable, concrete);
     }
     return SimplexResult.feasible(variableAssignment);
+  }
+
+  /**
+   * Chooses a concrete positive delta such that every delta-rational variable value {@code (c, k)}
+   * stays within its bounds. The verdict (SAT/UNSAT) does NOT depend on this choice; delta only
+   * shapes the concrete witness.
+   *
+   * <p>For each basic variable with value {@code (c_val, k_val)} we look at its bounds {@code
+   * (c_bound, k_bound)}. The materialized value {@code c_val + k_val*delta} must respect {@code
+   * c_bound + k_bound*delta}. When the rational parts are equal the constraint is already satisfied
+   * for any delta (the delta parts are consistent by construction of the feasible point). When the
+   * rational parts differ, the bound is strictly satisfied for all sufficiently small delta; the
+   * critical delta where it would be violated is {@code (c_bound - c_val) / (k_val - k_bound)},
+   * which we take only when positive. We pick delta to be the minimum of all such positive critical
+   * values (halved, to stay strictly inside), or 1 when there is no such bound.
+   */
+  private Number chooseDelta() {
+    Number delta = null; // will hold the minimum positive critical ratio
+
+    for (int i = 0; i < rows; i++) {
+      String variable = basicVariables.get(i);
+      DeltaRational value = getBasicValue(i);
+
+      DeltaRational upper = upperBounds.get(variable);
+      if (upper != null) {
+        Number ratio = criticalRatio(value, upper);
+        if (ratio != null && (delta == null || ratio.lessThan(delta))) {
+          delta = ratio;
+        }
+      }
+
+      DeltaRational lower = lowerBounds.get(variable);
+      if (lower != null) {
+        Number ratio = criticalRatio(value, lower);
+        if (ratio != null && (delta == null || ratio.lessThan(delta))) {
+          delta = ratio;
+        }
+      }
+    }
+
+    if (delta == null) {
+      return ONE();
+    }
+
+    // Stay strictly below the critical value to keep all strict bounds satisfied.
+    return delta.divide(Number.number(2));
+  }
+
+  /**
+   * Returns the positive critical delta where {@code value} would meet {@code bound}, or null if
+   * the bound imposes no positive upper limit on delta (rational parts equal, or the value moves
+   * away from the bound as delta grows).
+   *
+   * <p>value = (c_val, k_val), bound = (c_bound, k_bound). Critical delta = (c_bound - c_val) /
+   * (k_val - k_bound), taken only when both numerator-direction and denominator make it positive.
+   */
+  private Number criticalRatio(DeltaRational value, DeltaRational bound) {
+    Number cDiff = bound.getRational().subtract(value.getRational()); // c_bound - c_val
+    Number kDiff = value.getDelta().subtract(bound.getDelta()); // k_val - k_bound
+
+    if (cDiff.isZero()) {
+      // rational parts equal: feasibility already holds in the delta-part for all delta > 0.
+      return null;
+    }
+    if (kDiff.isZero()) {
+      // delta does not move value relative to bound; rational parts already separate them.
+      return null;
+    }
+
+    Number ratio = cDiff.divide(kDiff);
+    if (ratio.isPositive()) {
+      return ratio;
+    }
+    return null;
   }
 
   private Set<LinearConstraint> calculateExplanation(Violation violation) {
@@ -142,20 +238,20 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     Violation result = null;
     for (int i = 0; i < rows; i++) {
       String variable = basicVariables.get(i);
-      Number value = getBasicValue(i);
+      DeltaRational value = getBasicValue(i);
       if (result != null && result.variable().compareTo(variable) < 0) {
         continue;
       }
 
       if (upperBounds.containsKey(variable)) {
-        Number u = upperBounds.get(variable);
+        DeltaRational u = upperBounds.get(variable);
         if (value.greaterThan(u)) {
           result = new Violation(variable, false);
         }
       }
 
       if (lowerBounds.containsKey(variable)) {
-        Number l = lowerBounds.get(variable);
+        DeltaRational l = lowerBounds.get(variable);
         if (value.lessThan(l)) {
           result = new Violation(variable, true);
         }
@@ -198,10 +294,10 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     int nonBasicIndex = this.nonBasicVariables.indexOf(nonBasic);
 
     if (increase) {
-      Number l = lowerBounds.get(basic);
+      DeltaRational l = lowerBounds.get(basic);
       values.set(nonBasicIndex, l);
     } else {
-      Number u = upperBounds.get(basic);
+      DeltaRational u = upperBounds.get(basic);
       values.set(nonBasicIndex, u);
     }
 
@@ -236,8 +332,8 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
   private boolean canBeIncreased(String variable) {
     if (upperBounds.containsKey(variable)) {
-      Number u = upperBounds.get(variable);
-      Number value = values.get(nonBasicVariables.indexOf(variable));
+      DeltaRational u = upperBounds.get(variable);
+      DeltaRational value = values.get(nonBasicVariables.indexOf(variable));
 
       return value.lessThan(u);
     }
@@ -246,18 +342,18 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
 
   private boolean canBeDecreased(String variable) {
     if (lowerBounds.containsKey(variable)) {
-      Number l = lowerBounds.get(variable);
-      Number value = values.get(nonBasicVariables.indexOf(variable));
+      DeltaRational l = lowerBounds.get(variable);
+      DeltaRational value = values.get(nonBasicVariables.indexOf(variable));
 
       return value.greaterThan(l);
     }
     return true;
   }
 
-  public Number getBasicValue(int row) {
-    Number result = ZERO();
+  public DeltaRational getBasicValue(int row) {
+    DeltaRational result = DeltaRational.ZERO;
     for (int i = 0; i < columns; i++) {
-      Number summand = tableau[row][i].multiply(values.get(i));
+      DeltaRational summand = values.get(i).scale(tableau[row][i]);
       result = result.add(summand);
     }
     return result;
@@ -268,21 +364,21 @@ public class SimplexFeasibilitySolver implements TheorySolver<LinearConstraint> 
     System.out.print("       ");
     for (int i = 0; i < nonBasicVariables.size(); i++) {
       String variable = nonBasicVariables.get(i);
-      System.out.printf(" %s[%.2f]", variable, values.get(i));
+      System.out.printf(" %s[%s]", variable, values.get(i));
     }
     System.out.println();
 
     for (int i = 0; i < rows; i++) {
-      System.out.printf("%s[%.2f] ", basicVariables.get(i), getBasicValue(i));
+      System.out.printf("%s[%s] ", basicVariables.get(i), getBasicValue(i));
       for (int j = 0; j < columns; j++) {
-        System.out.printf("  %.2f  ", tableau[i][j]);
+        System.out.printf("  %s  ", tableau[i][j]);
       }
       System.out.println();
     }
 
     System.out.println();
-    upperBounds.forEach((v, u) -> System.out.printf("%s <= %.2f%n", v, u));
-    lowerBounds.forEach((v, l) -> System.out.printf("%s >= %.2f%n", v, l));
+    upperBounds.forEach((v, u) -> System.out.printf("%s <= %s%n", v, u));
+    lowerBounds.forEach((v, l) -> System.out.printf("%s >= %s%n", v, l));
 
     System.out.println("---------------------");
   }
