@@ -140,8 +140,13 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
         }
       }
 
-      Clause clause = new Clause(literals);
-      cnf.getBooleanStructure().learnClause(clause);
+      // Guard: if every explanation constraint was unmapped (e.g. a theory returned only derived
+      // helper constraints), do NOT learn an empty clause — that would falsely force UNSAT. The
+      // current model is still excluded by nextModel()'s built-in blocking, so termination holds.
+      if (!literals.isEmpty()) {
+        Clause clause = new Clause(literals);
+        cnf.getBooleanStructure().learnClause(clause);
+      }
     }
 
     if (objectivePresent && foundOptimizationSolution) {
