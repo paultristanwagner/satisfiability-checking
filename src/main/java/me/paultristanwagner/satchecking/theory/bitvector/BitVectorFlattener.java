@@ -5,6 +5,7 @@ import me.paultristanwagner.satchecking.parse.BitVectorParenthesisTerm;
 import me.paultristanwagner.satchecking.parse.PropositionalLogicParser;
 import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
 import me.paultristanwagner.satchecking.sat.Assignment;
+import me.paultristanwagner.satchecking.sat.Literal;
 import me.paultristanwagner.satchecking.sat.CNF;
 import me.paultristanwagner.satchecking.theory.bitvector.constraint.*;
 import me.paultristanwagner.satchecking.theory.bitvector.term.*;
@@ -1164,9 +1165,10 @@ public class BitVectorFlattener {
     boolean[] bits = new boolean[term.getLength()];
     for (int i = 0; i < term.getLength(); i++) {
       String bitVariableName = variableName + "_" + i;
-      try {
+      // An unconstrained bit is left false (a valid free choice). Check assignment explicitly
+      // rather than catching the NullPointerException getValue throws on an unassigned variable.
+      if (assignment.assigns(new Literal(bitVariableName))) {
         bits[i] = assignment.getValue(bitVariableName);
-      } catch (NullPointerException e) {
       }
     }
 
