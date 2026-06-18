@@ -105,6 +105,11 @@ public class SmtLibCommand extends Command {
    * Parses and solves a script, returning the verdict. When {@code print} is true, prints the
    * verdict and (if present) whether it matches the declared {@code :status}. Throws
    * {@link SyntaxError} on unsupported / malformed input.
+   *
+   * <p>Scripts may contain multiple {@code (check-sat)} commands (e.g. with {@code push}/{@code
+   * pop}); each is solved against the assertions in scope at that point, and (when {@code print})
+   * each verdict is printed. The value returned is the verdict of the LAST {@code (check-sat)}. A
+   * script with no {@code (check-sat)} is solved once against all of its assertions.
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static Verdict runScript(String script, boolean print) {
@@ -120,31 +125,37 @@ public class SmtLibCommand extends Command {
     String theoryName = mapLogic(parsed.getLogic());
     Theory theory = Theory.get(theoryName);
 
-    TheoryCNF theoryCNF = parsed.getTheoryCNF();
-    if (theoryCNF == null) {
-      List<TheoryClause<Constraint>> clauses = parsed.getClauses();
-      theoryCNF = new TheoryCNF(clauses);
+    // One snapshot per (check-sat); if the script had none, solve the single final snapshot.
+    List<TheoryCNF<Constraint>> snapshots = parsed.getCheckSatSnapshots();
+    if (snapshots.isEmpty()) {
+      TheoryCNF theoryCNF = parsed.getTheoryCNF();
+      if (theoryCNF == null) {
+        theoryCNF = new TheoryCNF(parsed.getClauses());
+      }
+      snapshots = List.of(theoryCNF);
     }
 
-    SMTSolver smtSolver = theory.getSMTSolver();
-    smtSolver.setSATSolver(new DPLLCDCLSolver());
-    TheorySolver theorySolver = theory.getTheorySolver();
-    smtSolver.setTheorySolver(theorySolver);
-    smtSolver.load(theoryCNF);
+    Verdict verdict = Verdict.UNKNOWN;
+    for (TheoryCNF theoryCNF : snapshots) {
+      SMTSolver smtSolver = theory.getSMTSolver();
+      smtSolver.setSATSolver(new DPLLCDCLSolver());
+      TheorySolver theorySolver = theory.getTheorySolver();
+      smtSolver.setTheorySolver(theorySolver);
+      smtSolver.load(theoryCNF);
 
-    SMTResult<?> result = smtSolver.solve();
+      SMTResult<?> result = smtSolver.solve();
 
-    Verdict verdict;
-    if (result.isUnknown()) {
-      verdict = Verdict.UNKNOWN;
-    } else if (result.isSatisfiable()) {
-      verdict = Verdict.SAT;
-    } else {
-      verdict = Verdict.UNSAT;
-    }
+      if (result.isUnknown()) {
+        verdict = Verdict.UNKNOWN;
+      } else if (result.isSatisfiable()) {
+        verdict = Verdict.SAT;
+      } else {
+        verdict = Verdict.UNSAT;
+      }
 
-    if (print) {
-      printVerdict(verdict, parsed.getStatus());
+      if (print) {
+        printVerdict(verdict, parsed.getStatus());
+      }
     }
 
     return verdict;

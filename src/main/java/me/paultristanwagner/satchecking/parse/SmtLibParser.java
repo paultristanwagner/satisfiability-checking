@@ -60,18 +60,23 @@ public class SmtLibParser {
     private final List<TheoryClause<Constraint>> clauses;
     private final List<String> warnings;
     private final TheoryCNF<Constraint> theoryCNF; // non-null for general boolean structure path
+    // One TheoryCNF snapshot per (check-sat). Empty when the script has no (check-sat) command, in
+    // which case {@link #getTheoryCNF()} carries the single snapshot built from all assertions.
+    private final List<TheoryCNF<Constraint>> checkSatSnapshots;
 
     public SmtLibScript(
         String logic,
         String status,
         List<TheoryClause<Constraint>> clauses,
         List<String> warnings,
-        TheoryCNF<Constraint> theoryCNF) {
+        TheoryCNF<Constraint> theoryCNF,
+        List<TheoryCNF<Constraint>> checkSatSnapshots) {
       this.logic = logic;
       this.status = status;
       this.clauses = clauses;
       this.warnings = warnings;
       this.theoryCNF = theoryCNF;
+      this.checkSatSnapshots = checkSatSnapshots;
     }
 
     public String getLogic() {
@@ -97,6 +102,15 @@ public class SmtLibParser {
      */
     public TheoryCNF<Constraint> getTheoryCNF() {
       return theoryCNF;
+    }
+
+    /**
+     * One {@link TheoryCNF} snapshot per {@code (check-sat)} command, in script order. Each snapshot
+     * is the conjunction of all assertions in scope at that {@code (check-sat)} (respecting
+     * {@code push}/{@code pop}). Empty when the script contains no {@code (check-sat)}.
+     */
+    public List<TheoryCNF<Constraint>> getCheckSatSnapshots() {
+      return checkSatSnapshots;
     }
   }
 
@@ -161,10 +175,46 @@ public class SmtLibParser {
   private final List<TheoryClause<Constraint>> clauses = new ArrayList<>();
   private final List<String> warnings = new ArrayList<>();
 
-  // General boolean-structure path (equality logics only): one propositional formula per assert,
-  // over equality atoms canonicalized to their POSITIVE form. A fresh "a<i>" name per distinct atom.
+  // General boolean-structure path: one propositional formula per assert, over theory atoms
+  // canonicalized to their POSITIVE form. A fresh "a<i>" name per distinct atom.
   private final List<PropositionalLogicExpression> assertedFormulas = new ArrayList<>();
   private final BiMap<Constraint, String> atomNameMap = HashBiMap.create();
+
+  // Sort of each declared 0-arity symbol (constant/variable), e.g. "Bool", "Real", "Int", "U".
+  // Used to resolve '=' as a biconditional (Bool operands) versus a theory equality atom.
+  private final Map<String, String> symbolSorts = new HashMap<>();
+
+  /** Signature of a declared uninterpreted function/predicate (arity > 0). */
+  private record FunSig(List<String> argSorts, String returnSort) {}
+
+  private final Map<String, FunSig> functionSigs = new HashMap<>();
+
+  /** A define-fun macro: ordered parameter names, their sorts, the return sort and the body. */
+  private record FunDef(List<String> params, List<String> paramSorts, String returnSort, SExpr body) {}
+
+  private final Map<String, FunDef> defineFuns = new HashMap<>();
+
+  // Stable propositional-variable names for Bool atoms (bare Bool vars and Bool predicate
+  // applications), keyed by their textual form so identical occurrences share one variable.
+  // Names use the reserved "p" prefix so they never collide with theory atoms ("a*") or Tseitin
+  // helpers ("h*").
+  private final Map<String, String> boolAtomNames = new HashMap<>();
+
+  // Snapshots of the asserted conjunction taken at each (check-sat) command.
+  private final List<TheoryCNF<Constraint>> checkSatSnapshots = new ArrayList<>();
+  private boolean sawCheckSat = false;
+
+  // push/pop scoping. Each pushed frame records how to undo declarations / define-funs / assertions
+  // / sort entries added since the matching push, so (pop) discards exactly those.
+  private static final class Frame {
+    int assertionCount; // size of assertedFormulas at push time
+    final List<String> declaredSymbols = new ArrayList<>(); // declare-const/declare-fun names added
+    final List<String> definedFuns = new ArrayList<>(); // define-fun names added
+    // previous define-fun definitions shadowed by a redefinition in this frame (for restore on pop)
+    final Map<String, FunDef> shadowedDefs = new HashMap<>();
+  }
+
+  private final Deque<Frame> frames = new ArrayDeque<>();
 
   // Scoped 'let' environment. Each frame maps a bound symbol to its parsed value. A value is either
   // a parsed LinearTerm (term-sorted binding) or a parsed PropositionalLogicExpression (formula).
@@ -237,9 +287,21 @@ public class SmtLibParser {
       handleCommand(command);
     }
 
-    // All supported logics use the general boolean-structure path: conjoin all asserted formulas,
-    // Tseitin-transform and build a TheoryCNF from the (CNF, atom-name) mapping. An empty assertion
-    // set is trivially satisfiable; we model it with an empty CNF (no clauses), treated as SAT.
+    // A single snapshot of the final assertion set, for callers (and scripts) that have no explicit
+    // (check-sat): conjoin all asserted formulas, Tseitin-transform and build a TheoryCNF. An empty
+    // assertion set is trivially satisfiable; we model it with an empty CNF (treated as SAT).
+    TheoryCNF<Constraint> theoryCNF = buildSnapshot();
+
+    return new SmtLibScript(
+        logicName, status, clauses, warnings, theoryCNF, checkSatSnapshots);
+  }
+
+  /**
+   * Builds a {@link TheoryCNF} from the currently accumulated assertions (their conjunction). The
+   * atom-name map is shared across snapshots; that is harmless because each snapshot carries its own
+   * boolean structure and the lazy SMT loop only consults names that appear in that structure.
+   */
+  private TheoryCNF<Constraint> buildSnapshot() {
     CNF cnf;
     if (assertedFormulas.isEmpty()) {
       cnf = new CNF(new ArrayList<>());
@@ -247,12 +309,10 @@ public class SmtLibParser {
       PropositionalLogicExpression conjunction =
           assertedFormulas.size() == 1
               ? assertedFormulas.get(0)
-              : new PropositionalLogicAnd(assertedFormulas);
+              : new PropositionalLogicAnd(new ArrayList<>(assertedFormulas));
       cnf = PropositionalLogicParser.tseitin(conjunction);
     }
-    TheoryCNF<Constraint> theoryCNF = new TheoryCNF<>(cnf, atomNameMap);
-
-    return new SmtLibScript(logicName, status, clauses, warnings, theoryCNF);
+    return new TheoryCNF<>(cnf, HashBiMap.create(atomNameMap));
   }
 
   private void handleCommand(SExpr command) {
@@ -267,21 +327,78 @@ public class SmtLibParser {
       case "set-info" -> handleSetInfo(args);
       case "declare-const" -> handleDeclareConst(args, command.index);
       case "declare-fun" -> handleDeclareFun(args, command.index);
+      case "define-fun" -> handleDefineFun(args, command.index);
       case "declare-sort", "define-sort" -> {
         /* tracked/ignored */
       }
       case "assert" -> handleAssert(args, command.index);
       case "check-sat", "check-sat-assuming" -> {
-        /* the command driver triggers solving; nothing to accumulate */
+        // Snapshot the currently accumulated assertions; the command driver solves each snapshot.
+        sawCheckSat = true;
+        checkSatSnapshots.add(buildSnapshot());
       }
-      case "exit", "set-option", "get-model", "get-info", "push", "pop", "reset", "echo" -> {
-        // No-op for our subset. push/pop are not supported as incremental solving but
-        // single-frame scripts are common; we warn for push/pop specifically below.
-        if (name.equals("push") || name.equals("pop")) {
-          warnings.add("ignoring unsupported incremental command '" + name + "'");
-        }
+      case "push" -> handlePush(args, command.index);
+      case "pop" -> handlePop(args, command.index);
+      case "exit", "set-option", "get-model", "get-info", "reset", "echo" -> {
+        /* No-op for our subset. */
       }
       default -> warnings.add("ignoring unknown command '" + name + "'");
+    }
+  }
+
+  // ---- push / pop scoping ---------------------------------------------------
+
+  private void handlePush(List<SExpr> args, int index) {
+    int n = pushPopCount(args, index, "push");
+    for (int i = 0; i < n; i++) {
+      Frame frame = new Frame();
+      frame.assertionCount = assertedFormulas.size();
+      frames.push(frame);
+    }
+  }
+
+  private void handlePop(List<SExpr> args, int index) {
+    int n = pushPopCount(args, index, "pop");
+    for (int i = 0; i < n; i++) {
+      if (frames.isEmpty()) {
+        throw err("'pop' without a matching 'push'", index);
+      }
+      Frame frame = frames.pop();
+      // Discard assertions added in this frame.
+      while (assertedFormulas.size() > frame.assertionCount) {
+        assertedFormulas.remove(assertedFormulas.size() - 1);
+      }
+      // Discard declarations added in this frame.
+      for (String sym : frame.declaredSymbols) {
+        declaredFunctions.remove(sym);
+        symbolSorts.remove(sym);
+        functionSigs.remove(sym);
+      }
+      // Discard define-funs added in this frame, restoring anything they shadowed.
+      for (String def : frame.definedFuns) {
+        defineFuns.remove(def);
+      }
+      for (var e : frame.shadowedDefs.entrySet()) {
+        defineFuns.put(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  private int pushPopCount(List<SExpr> args, int index, String cmd) {
+    if (args.isEmpty()) {
+      return 1;
+    }
+    if (!args.get(0).isAtom() || args.get(0).atom.type() != SmtLibLexer.NUMERAL) {
+      throw err("'" + cmd + "' expects an optional numeral argument", index);
+    }
+    return Integer.parseInt(args.get(0).atom.value());
+  }
+
+  /** Records a newly declared symbol against the innermost open frame, if any. */
+  private void recordDeclaration(String symbol) {
+    Frame frame = frames.peek();
+    if (frame != null) {
+      frame.declaredSymbols.add(symbol);
     }
   }
 
@@ -320,7 +437,11 @@ public class SmtLibParser {
     if (args.size() < 2 || !args.get(0).isAtom()) {
       throw err("declare-const expects a name and a sort", index);
     }
-    declaredFunctions.add(args.get(0).atom.value());
+    String name = args.get(0).atom.value();
+    String sort = sortName(args.get(1));
+    declaredFunctions.add(name);
+    symbolSorts.put(name, sort);
+    recordDeclaration(name);
   }
 
   private void handleDeclareFun(List<SExpr> args, int index) {
@@ -328,9 +449,137 @@ public class SmtLibParser {
     if (args.size() < 3 || !args.get(0).isAtom()) {
       throw err("declare-fun expects a name, argument sorts and a return sort", index);
     }
-    declaredFunctions.add(args.get(0).atom.value());
-    // 0-arity -> variable/constant; >0 arity -> uninterpreted function. We don't need to store the
-    // arity: term parsing distinguishes by whether the symbol appears applied.
+    String name = args.get(0).atom.value();
+    declaredFunctions.add(name);
+    recordDeclaration(name);
+
+    SExpr argSortList = args.get(1);
+    String retSort = sortName(args.get(2));
+    if (!argSortList.isList()) {
+      throw err("declare-fun argument sorts must be a list", argSortList.index);
+    }
+    if (argSortList.list.isEmpty()) {
+      // 0-arity -> constant/variable.
+      symbolSorts.put(name, retSort);
+    } else {
+      List<String> argSorts = new ArrayList<>();
+      for (SExpr s : argSortList.list) {
+        argSorts.add(sortName(s));
+      }
+      functionSigs.put(name, new FunSig(argSorts, retSort));
+    }
+  }
+
+  /**
+   * If {@code call} is an application (or bare use) of a {@code define-fun} macro, returns the body
+   * with the actual arguments substituted for the formal parameters; otherwise returns {@code null}.
+   * Substitution is purely syntactic over s-expressions, so the resulting body is then parsed in the
+   * caller's context (formula or term), matching the {@code let}-style resolution. Recursion-free
+   * nesting works because the expanded body is reparsed and any further macro calls expand in turn.
+   */
+  private SExpr expandDefineFun(SExpr call) {
+    String head;
+    List<SExpr> argExprs;
+    if (call.isAtom()) {
+      head = call.atom.value();
+      argExprs = List.of();
+    } else {
+      head = call.head();
+      argExprs = call.list.subList(1, call.list.size());
+    }
+    if (head == null) {
+      return null;
+    }
+    // A let binding shadows a macro of the same name.
+    if (lookupLet(head) != null) {
+      return null;
+    }
+    FunDef def = defineFuns.get(head);
+    if (def == null) {
+      return null;
+    }
+    if (def.params().size() != argExprs.size()) {
+      throw err(
+          "define-fun '"
+              + head
+              + "' applied with "
+              + argExprs.size()
+              + " arguments but expects "
+              + def.params().size(),
+          call.index);
+    }
+    Map<String, SExpr> substitution = new HashMap<>();
+    for (int i = 0; i < def.params().size(); i++) {
+      substitution.put(def.params().get(i), argExprs.get(i));
+    }
+    return substitute(def.body(), substitution);
+  }
+
+  /** Returns a copy of {@code e} with every formal-parameter symbol replaced by its argument. */
+  private SExpr substitute(SExpr e, Map<String, SExpr> substitution) {
+    if (substitution.isEmpty()) {
+      return e;
+    }
+    if (e.isAtom()) {
+      SExpr replacement = substitution.get(e.atom.value());
+      return replacement != null ? replacement : e;
+    }
+    List<SExpr> newList = new ArrayList<>(e.list.size());
+    for (int i = 0; i < e.list.size(); i++) {
+      SExpr child = e.list.get(i);
+      // Do not substitute the head position when it names a parameter shadowing a function: SMT-LIB
+      // forbids parameters in operator position, so we substitute only non-head atoms and recurse
+      // into sub-lists. (Substituting head atoms is harmless for our atomic-argument case anyway.)
+      newList.add(substitute(child, substitution));
+    }
+    return new SExpr(newList, e.index);
+  }
+
+  /** Returns the (possibly parameterized) sort's head name, e.g. "Bool", "Real", "U", "(_ ...)". */
+  private String sortName(SExpr sort) {
+    if (sort.isAtom()) {
+      return sort.atom.value();
+    }
+    String head = sort.head();
+    return head == null ? "?" : head;
+  }
+
+  // ---- define-fun macros ----------------------------------------------------
+
+  private void handleDefineFun(List<SExpr> args, int index) {
+    // (define-fun name ((p1 S1) ... (pn Sn)) RetSort body)
+    if (args.size() != 4 || !args.get(0).isAtom()) {
+      throw err("define-fun expects a name, a parameter list, a return sort and a body", index);
+    }
+    String name = args.get(0).atom.value();
+    SExpr paramList = args.get(1);
+    if (!paramList.isList()) {
+      throw err("define-fun parameter list must be a list", paramList.index);
+    }
+    List<String> params = new ArrayList<>();
+    List<String> paramSorts = new ArrayList<>();
+    for (SExpr p : paramList.list) {
+      if (!p.isList() || p.list.size() != 2 || !p.list.get(0).isAtom()) {
+        throw err("malformed define-fun parameter (expected (symbol Sort))", p.index);
+      }
+      params.add(p.list.get(0).atom.value());
+      paramSorts.add(sortName(p.list.get(1)));
+    }
+    String retSort = sortName(args.get(2));
+    SExpr body = args.get(3);
+
+    // Definitions are global. If a redefinition happens inside an open frame, remember the previous
+    // definition so (pop) restores it.
+    Frame frame = frames.peek();
+    if (frame != null) {
+      if (defineFuns.containsKey(name) && !frame.definedFuns.contains(name)) {
+        frame.shadowedDefs.put(name, defineFuns.get(name));
+      }
+      if (!frame.definedFuns.contains(name)) {
+        frame.definedFuns.add(name);
+      }
+    }
+    defineFuns.put(name, new FunDef(params, paramSorts, retSort, body));
   }
 
   // ---- assert / boolean structure ------------------------------------------
@@ -370,6 +619,15 @@ public class SmtLibParser {
         throw err(
             "let-bound symbol '" + v + "' is a term but is used as a boolean formula", formula.index);
       }
+      // A 0-ary define-fun used where a formula is expected expands to its (boolean) body.
+      SExpr expanded = expandDefineFun(formula);
+      if (expanded != null) {
+        return parseBooleanFormula(expanded);
+      }
+      // A Bool-sorted declared constant/variable is a propositional atom (no theory constraint).
+      if ("Bool".equals(symbolSorts.get(v))) {
+        return boolAtom(v);
+      }
       throw err(
           "expected a boolean formula; bare symbol '" + v + "' is not a boolean atom", formula.index);
     }
@@ -377,6 +635,26 @@ public class SmtLibParser {
     String head = formula.head();
     if (head == null) {
       throw err("expected a boolean formula", formula.index);
+    }
+
+    // A define-fun application in formula position expands and is parsed as a formula.
+    if (defineFuns.containsKey(head) && lookupLet(head) == null) {
+      SExpr expanded = expandDefineFun(formula);
+      if (expanded != null) {
+        return parseBooleanFormula(expanded);
+      }
+    }
+
+    // A declared uninterpreted predicate (Bool-returning function with arguments) applied in
+    // formula position becomes a fresh propositional atom keyed by its textual form.
+    FunSig sig = functionSigs.get(head);
+    if (sig != null) {
+      if (!"Bool".equals(sig.returnSort())) {
+        throw err(
+            "function '" + head + "' returns " + sig.returnSort() + ", not Bool, used as a formula",
+            formula.index);
+      }
+      return boolAtom(textOf(formula));
     }
 
     switch (head) {
@@ -428,9 +706,15 @@ public class SmtLibParser {
         }
         return result;
       }
-      case "=", "distinct", "<=", ">=", "<", ">" -> {
-        // '=' over boolean sub-formulas would be a biconditional; in this subset '=' is the equality/
-        // arithmetic predicate over terms. Treat it (and the inequality predicates) as an atom.
+      case "=", "distinct" -> {
+        // '=' / 'distinct' over BOOLEAN operands are propositional (bi)conditionals; over THEORY
+        // terms they are equality atoms. We resolve by the operand sort.
+        if (booleanSortedArgs(formula)) {
+          return booleanEqualityFormula(formula, head);
+        }
+        return atomFormula(formula, head);
+      }
+      case "<=", ">=", "<", ">" -> {
         return atomFormula(formula, head);
       }
       case "ite" -> {
@@ -466,10 +750,69 @@ public class SmtLibParser {
    * handling for the arithmetic logics and to the equality handling otherwise.
    */
   private PropositionalLogicExpression atomFormula(SExpr atom, String head) {
+    // Lift any term-level ITE among the predicate's operands to the formula level:
+    //   (pred ... (ite c a b) ...) == (ite c (pred ... a ...) (pred ... b ...)).
+    // This keeps the equality theory free of Bool-conditioned terms (which it cannot model) and is
+    // applied repeatedly until no top-level operand is an ite.
+    PropositionalLogicExpression lifted = liftIte(atom, head);
+    if (lifted != null) {
+      return lifted;
+    }
     if (kind == Kind.ARITHMETIC) {
       return arithmeticAtomFormula(atom, head);
     }
     return equalityAtomFormula(atom, head);
+  }
+
+  /**
+   * If a direct operand of the predicate application {@code atom} is a term-level {@code ite} (after
+   * resolving {@code let}/{@code define-fun}), distributes the predicate over the {@code ite}
+   * branches at the formula level and returns the parsed result; otherwise returns {@code null}.
+   */
+  private PropositionalLogicExpression liftIte(SExpr atom, String head) {
+    for (int i = 1; i < atom.list.size(); i++) {
+      SExpr resolved = resolveTermHead(atom.list.get(i));
+      if (resolved != null && resolved.isList() && "ite".equals(resolved.head())) {
+        if (resolved.list.size() != 4) {
+          throw err("'ite' expects exactly three arguments", resolved.index);
+        }
+        SExpr cond = resolved.list.get(1);
+        SExpr thenE = resolved.list.get(2);
+        SExpr elseE = resolved.list.get(3);
+        // (ite cond (pred ...[i:=thenE]...) (pred ...[i:=elseE]...))
+        PropositionalLogicExpression c = parseBooleanFormula(cond);
+        PropositionalLogicExpression thenF = parseBooleanFormula(replaceArg(atom, i, thenE));
+        PropositionalLogicExpression cElse =
+            new PropositionalLogicNegation(parseBooleanFormula(cond));
+        PropositionalLogicExpression elseF = parseBooleanFormula(replaceArg(atom, i, elseE));
+        return PropositionalLogicOr.or(
+            PropositionalLogicAnd.and(c, thenF), PropositionalLogicAnd.and(cElse, elseF));
+      }
+    }
+    return null;
+  }
+
+  /** Returns the expression with let/define-fun resolved enough to inspect its head, or null. */
+  private SExpr resolveTermHead(SExpr e) {
+    String head = e.isAtom() ? e.atom.value() : e.head();
+    if (head == null) {
+      return e;
+    }
+    if (lookupLet(head) != null) {
+      return null; // let-bound: already a parsed value, cannot be a syntactic ite here
+    }
+    if (defineFuns.containsKey(head)) {
+      SExpr expanded = expandDefineFun(e);
+      return expanded == null ? e : resolveTermHead(expanded);
+    }
+    return e;
+  }
+
+  /** Returns a copy of the application {@code atom} with operand {@code i} replaced by {@code repl}. */
+  private SExpr replaceArg(SExpr atom, int i, SExpr repl) {
+    List<SExpr> newList = new ArrayList<>(atom.list);
+    newList.set(i, repl);
+    return new SExpr(newList, atom.index);
   }
 
   /**
@@ -647,12 +990,21 @@ public class SmtLibParser {
       if (bound instanceof PropositionalLogicExpression) {
         return false;
       }
+      if ("Bool".equals(symbolSorts.get(v))) {
+        return false;
+      }
+      if (defineFuns.containsKey(v)) {
+        return !"Bool".equals(defineFuns.get(v).returnSort());
+      }
       // an unbound symbol where a let value is being classified: a declared numeric variable.
       return true;
     }
     String head = e.head();
     if (head == null) {
       return false;
+    }
+    if (defineFuns.containsKey(head)) {
+      return !"Bool".equals(defineFuns.get(head).returnSort());
     }
     return switch (head) {
       case "+", "-", "*", "/" -> true;
@@ -671,6 +1023,153 @@ public class SmtLibParser {
       Function right = parseFunctionTerm(rightExpr);
       return new EqualityFunctionConstraint(left, right, true);
     }
+  }
+
+  /**
+   * Returns the propositional variable for a Bool atom (a bare Bool variable or a Bool-predicate
+   * application), keyed by its textual form so identical occurrences share one variable. Such atoms
+   * carry NO theory constraint (they are absent from {@code atomNameMap}); the lazy SMT loop treats
+   * any literal name it does not find in the constraint map as a free boolean. Names use the
+   * reserved "p" prefix to avoid colliding with theory atoms ("a*") or Tseitin helpers ("h*").
+   */
+  private PropositionalLogicVariable boolAtom(String text) {
+    String name = boolAtomNames.computeIfAbsent(text, t -> "p" + boolAtomNames.size() + "_" + sanitize(t));
+    return new PropositionalLogicVariable(name);
+  }
+
+  /** Reduces a textual atom key to characters safe for a propositional-variable identifier. */
+  private static String sanitize(String text) {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      sb.append(Character.isLetterOrDigit(c) ? c : '_');
+    }
+    return sb.toString();
+  }
+
+  /** Reconstructs the textual s-expression of {@code e}, used to key Bool predicate applications. */
+  private String textOf(SExpr e) {
+    if (e.isAtom()) {
+      return e.atom.value();
+    }
+    StringBuilder sb = new StringBuilder("(");
+    for (int i = 0; i < e.list.size(); i++) {
+      if (i > 0) {
+        sb.append(' ');
+      }
+      sb.append(textOf(e.list.get(i)));
+    }
+    return sb.append(')').toString();
+  }
+
+  /**
+   * Determines whether the operands of an {@code (= ...)} / {@code (distinct ...)} application are
+   * Bool-sorted (making the application a propositional connective) rather than theory terms. We look
+   * at the first operand's sort; SMT-LIB requires all operands to share a sort.
+   */
+  private boolean booleanSortedArgs(SExpr formula) {
+    if (formula.list.size() < 2) {
+      return false;
+    }
+    return "Bool".equals(sortOf(formula.list.get(1)));
+  }
+
+  /** Best-effort sort of a term/formula expression; returns null when unknown. */
+  private String sortOf(SExpr e) {
+    if (e.isAtom()) {
+      Tok t = e.atom;
+      if (t.type() == SmtLibLexer.NUMERAL) {
+        return kind == Kind.ARITHMETIC && "QF_LRA".equals(logicName) ? "Real" : "Int";
+      }
+      if (t.type() == SmtLibLexer.DECIMAL) {
+        return "Real";
+      }
+      String v = t.value();
+      if (v.equals("true") || v.equals("false")) {
+        return "Bool";
+      }
+      Object bound = lookupLet(v);
+      if (bound instanceof PropositionalLogicExpression) {
+        return "Bool";
+      }
+      if (bound instanceof LinearTerm) {
+        return "Real";
+      }
+      if (defineFuns.containsKey(v)) {
+        return defineFuns.get(v).returnSort();
+      }
+      return symbolSorts.get(v);
+    }
+    String head = e.head();
+    if (head == null) {
+      return null;
+    }
+    switch (head) {
+      case "and", "or", "not", "=>", "implies", "xor", "=", "distinct",
+          "<=", ">=", "<", ">", "true", "false" -> {
+        return "Bool";
+      }
+      case "+", "-", "*", "/" -> {
+        return "Real";
+      }
+      case "ite" -> {
+        // sort of an ite is the sort of its branches.
+        return e.list.size() == 4 ? sortOf(e.list.get(2)) : null;
+      }
+      case "let" -> {
+        return e.list.size() == 3 ? letBodySort(e) : null;
+      }
+      default -> {
+        if (defineFuns.containsKey(head)) {
+          return defineFuns.get(head).returnSort();
+        }
+        FunSig sig = functionSigs.get(head);
+        return sig != null ? sig.returnSort() : null;
+      }
+    }
+  }
+
+  /** Sort of a let body, evaluated with the let bindings in scope (used only for sort inference). */
+  private String letBodySort(SExpr letExpr) {
+    Map<String, Object> frame = evaluateLetBindings(letExpr);
+    letScopes.push(frame);
+    try {
+      return sortOf(letExpr.list.get(2));
+    } finally {
+      letScopes.pop();
+    }
+  }
+
+  /**
+   * Builds the propositional structure for a Bool-sorted {@code (= a b ...)} (pairwise/chained
+   * biconditional) or {@code (distinct a b ...)} (pairwise XOR).
+   */
+  private PropositionalLogicExpression booleanEqualityFormula(SExpr formula, String head) {
+    List<PropositionalLogicExpression> args = new ArrayList<>();
+    for (int i = 1; i < formula.list.size(); i++) {
+      args.add(parseBooleanFormula(formula.list.get(i)));
+    }
+    if (args.size() < 2) {
+      throw err("'" + head + "' requires at least two arguments", formula.index);
+    }
+    List<PropositionalLogicExpression> parts = new ArrayList<>();
+    if (head.equals("=")) {
+      // (= a b c) <=> (a<->b) & (b<->c)
+      for (int i = 0; i + 1 < args.size(); i++) {
+        parts.add(new PropositionalLogicBiConditional(args.get(i), args.get(i + 1)));
+      }
+    } else {
+      // (distinct a b ...): pairwise NOT equivalent. For Bool this is only satisfiable for 2 args,
+      // but we encode the general pairwise constraint faithfully.
+      for (int i = 0; i < args.size(); i++) {
+        for (int j = i + 1; j < args.size(); j++) {
+          parts.add(
+              new PropositionalLogicNegation(
+                  new PropositionalLogicBiConditional(args.get(i), args.get(j))));
+        }
+      }
+    }
+    return parts.size() == 1 ? parts.get(0) : PropositionalLogicAnd.and(parts);
   }
 
   /** Returns the propositional variable naming the given (positive) atom, allocating "a<i>" once. */
@@ -711,6 +1210,11 @@ public class SmtLibParser {
         throw err(
             "let-bound symbol '" + t.value() + "' is a formula but is used as a term", e.index);
       }
+      // a 0-ary define-fun used as a term expands to its (arithmetic) body.
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parseLinearTerm(expanded);
+      }
       // a variable
       LinearTerm term = new LinearTerm();
       term.setCoefficient(t.value(), Number.ONE());
@@ -721,7 +1225,23 @@ public class SmtLibParser {
     if (head == null) {
       throw err("malformed arithmetic term", e.index);
     }
+    // a define-fun application used as a term expands to its (arithmetic) body.
+    if (defineFuns.containsKey(head) && lookupLet(head) == null) {
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parseLinearTerm(expanded);
+      }
+    }
     switch (head) {
+      case "let" -> {
+        Map<String, Object> frame = evaluateLetBindings(e);
+        letScopes.push(frame);
+        try {
+          return parseLinearTerm(e.list.get(2));
+        } finally {
+          letScopes.pop();
+        }
+      }
       case "+" -> {
         LinearTerm term = new LinearTerm();
         for (int i = 1; i < e.list.size(); i++) {
@@ -858,23 +1378,66 @@ public class SmtLibParser {
   // ---- equality / uninterpreted-function term helpers ----------------------
 
   private String requireVariable(SExpr e) {
-    if (!e.isAtom()) {
-      throw err("expected a variable/constant symbol", e.index);
+    if (e.isAtom()) {
+      Object bound = lookupLet(e.atom.value());
+      SExpr expanded = expandDefineFun(e);
+      if (bound == null && expanded != null) {
+        return requireVariable(expanded);
+      }
+      return e.atom.value();
     }
-    return e.atom.value();
+    SExpr expanded = expandDefineFun(e);
+    if (expanded != null) {
+      return requireVariable(expanded);
+    }
+    throw err("expected a variable/constant symbol", e.index);
   }
 
   private Function parseFunctionTerm(SExpr e) {
     if (e.isAtom()) {
+      SExpr expanded = lookupLet(e.atom.value()) == null ? expandDefineFun(e) : null;
+      if (expanded != null) {
+        return parseFunctionTerm(expanded);
+      }
       return Function.of(e.atom.value());
     }
     String head = e.head();
     if (head == null) {
       throw err("malformed function application term", e.index);
     }
+    if (defineFuns.containsKey(head) && lookupLet(head) == null) {
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parseFunctionTerm(expanded);
+      }
+    }
+    // A term-level ITE reaching here means it is nested inside an uninterpreted-function application
+    // (e.g. (f (ite c a b))). Lifting it would require introducing fresh terms through the function;
+    // we do not support that and reject rather than uninterpret 'ite' (which would be UNSOUND).
+    // (A top-level (= s (ite c a b)) is lifted earlier, in liftIte, and never reaches here.)
+    switch (head) {
+      case "ite" ->
+          throw err(
+              "unsupported: term-level 'ite' nested inside a function application", e.index);
+      case "and", "or", "not", "=>", "implies", "xor", "=", "distinct", "<=", ">=", "<", ">" ->
+          throw err(
+              "unsupported: boolean operator '" + head + "' used in term position", e.index);
+      default -> {
+        /* an uninterpreted function application */
+      }
+    }
     List<Function> args = new ArrayList<>();
     for (int i = 1; i < e.list.size(); i++) {
-      args.add(parseFunctionTerm(e.list.get(i)));
+      SExpr arg = e.list.get(i);
+      // A Bool-sorted value flowing into a theory-function argument mixes the propositional and EUF
+      // worlds (the same symbol would be both a free boolean and an uninterpreted term); the EUF
+      // theory cannot relate the two, so reject rather than produce an unsound result.
+      if ("Bool".equals(sortOf(arg))) {
+        throw err(
+            "unsupported: Bool-sorted value used as an argument to theory function '" + head + "'",
+            arg.index);
+      }
+      args.add(parseFunctionTerm(arg));
     }
     return Function.of(head, args);
   }
