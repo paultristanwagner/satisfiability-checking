@@ -20,8 +20,12 @@ import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearTerm;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Parser for a subset of SMT-LIB 2.6 scripts.
@@ -31,12 +35,18 @@ import java.util.List;
  * the declared logic and the optional {@code :status}). It does not run the solver itself; see
  * {@code command/impl/SmtLibCommand}.
  *
- * <p>Supported logics: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF. For the equality logics (QF_EQ,
- * QF_UF, QF_EQUF) arbitrary boolean structure over equality atoms is supported (and/or/not/=>/xor/
- * ite, including negated atoms and {@code distinct}); the formula is Tseitin-transformed and a
- * {@link TheoryCNF} is returned via {@link SmtLibScript#getTheoryCNF()}. For the arithmetic logics
- * (QF_LRA, QF_LIA) only a CNF fragment of positive atoms is supported (negation/strict inequalities
- * are rejected) and the boolean skeleton is returned as {@link SmtLibScript#getClauses()}.
+ * <p>Supported logics: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF. For ALL of these logics arbitrary
+ * boolean structure over the theory atoms is supported (and/or/not/=>/xor/ite/true/false, including
+ * negated atoms, {@code distinct} and {@code let} bindings); the conjunction of asserted formulas is
+ * Tseitin-transformed and a {@link TheoryCNF} is returned via {@link SmtLibScript#getTheoryCNF()}.
+ *
+ * <p>Equality logics (QF_EQ, QF_UF, QF_EQUF) build {@code EqualityConstraint}/{@code
+ * EqualityFunctionConstraint} leaves. Arithmetic logics (QF_LRA, QF_LIA) build {@link
+ * LinearConstraint} leaves over {@code <=}, {@code >=}, {@code <}, {@code >}; an {@code (= s t)}
+ * atom is eliminated by splitting into {@code (and (<= s t) (>= s t))} so that every atom's negation
+ * is a single (strict/non-strict) inequality, and {@code (distinct s t)} / {@code (not (= s t))}
+ * become disjunctions of strict atoms. Only linear arithmetic terms are accepted; nonlinear products
+ * are rejected.
  *
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
  */
@@ -156,6 +166,21 @@ public class SmtLibParser {
   private final List<PropositionalLogicExpression> assertedFormulas = new ArrayList<>();
   private final BiMap<Constraint, String> atomNameMap = HashBiMap.create();
 
+  // Scoped 'let' environment. Each frame maps a bound symbol to its parsed value. A value is either
+  // a parsed LinearTerm (term-sorted binding) or a parsed PropositionalLogicExpression (formula).
+  // Frames are pushed for the body of a let and popped on exit; lookup scans from innermost out, so
+  // shadowing and nesting work naturally.
+  private final Deque<Map<String, Object>> letScopes = new ArrayDeque<>();
+
+  private Object lookupLet(String symbol) {
+    for (Map<String, Object> frame : letScopes) {
+      if (frame.containsKey(symbol)) {
+        return frame.get(symbol);
+      }
+    }
+    return null;
+  }
+
   public SmtLibParser(String input) {
     this.input = input;
     this.tokens = tokenize(input);
@@ -212,22 +237,20 @@ public class SmtLibParser {
       handleCommand(command);
     }
 
-    TheoryCNF<Constraint> theoryCNF = null;
-    if (kind == Kind.EQUALITY || kind == Kind.UF) {
-      // Conjoin all asserted formulas. An empty assertion set is trivially satisfiable; we model it
-      // with an empty CNF (no clauses), which the SAT solver treats as SAT.
-      CNF cnf;
-      if (assertedFormulas.isEmpty()) {
-        cnf = new CNF(new ArrayList<>());
-      } else {
-        PropositionalLogicExpression conjunction =
-            assertedFormulas.size() == 1
-                ? assertedFormulas.get(0)
-                : new PropositionalLogicAnd(assertedFormulas);
-        cnf = PropositionalLogicParser.tseitin(conjunction);
-      }
-      theoryCNF = new TheoryCNF<>(cnf, atomNameMap);
+    // All supported logics use the general boolean-structure path: conjoin all asserted formulas,
+    // Tseitin-transform and build a TheoryCNF from the (CNF, atom-name) mapping. An empty assertion
+    // set is trivially satisfiable; we model it with an empty CNF (no clauses), treated as SAT.
+    CNF cnf;
+    if (assertedFormulas.isEmpty()) {
+      cnf = new CNF(new ArrayList<>());
+    } else {
+      PropositionalLogicExpression conjunction =
+          assertedFormulas.size() == 1
+              ? assertedFormulas.get(0)
+              : new PropositionalLogicAnd(assertedFormulas);
+      cnf = PropositionalLogicParser.tseitin(conjunction);
     }
+    TheoryCNF<Constraint> theoryCNF = new TheoryCNF<>(cnf, atomNameMap);
 
     return new SmtLibScript(logicName, status, clauses, warnings, theoryCNF);
   }
@@ -317,20 +340,17 @@ public class SmtLibParser {
       throw err("assert expects exactly one formula", index);
     }
     SExpr formula = args.get(0);
-    if (kind == Kind.EQUALITY || kind == Kind.UF) {
-      assertedFormulas.add(parseBooleanFormula(formula));
-    } else {
-      addFormula(formula);
-    }
+    assertedFormulas.add(parseBooleanFormula(formula));
   }
 
   // ---- general boolean structure (equality logics only) ---------------------
 
   /**
-   * Parses an arbitrary boolean formula over equality atoms into a {@link
-   * PropositionalLogicExpression}. Leaves are equality atoms, each canonicalized to its POSITIVE
-   * form ({@code (= s t)}); {@code (distinct s t)} and {@code (not (= s t))} are represented as the
-   * boolean negation of the positive atom.
+   * Parses an arbitrary boolean formula over theory atoms into a {@link PropositionalLogicExpression}.
+   * Leaves are theory atoms (equality atoms for the equality logics, {@link LinearConstraint}
+   * inequalities for the arithmetic logics). {@code (distinct ...)} and {@code (not ...)} are
+   * represented as boolean structure over the positive atoms, and {@code let} bindings are resolved
+   * against the scoped environment.
    */
   private PropositionalLogicExpression parseBooleanFormula(SExpr formula) {
     if (formula.isAtom()) {
@@ -340,6 +360,15 @@ public class SmtLibParser {
       }
       if (v.equals("false")) {
         return new PropositionalLogicNegation(tautology());
+      }
+      // A let-bound symbol used where a formula is expected resolves to its formula.
+      Object bound = lookupLet(v);
+      if (bound instanceof PropositionalLogicExpression expr) {
+        return expr;
+      }
+      if (bound instanceof LinearTerm) {
+        throw err(
+            "let-bound symbol '" + v + "' is a term but is used as a boolean formula", formula.index);
       }
       throw err(
           "expected a boolean formula; bare symbol '" + v + "' is not a boolean atom", formula.index);
@@ -351,6 +380,9 @@ public class SmtLibParser {
     }
 
     switch (head) {
+      case "let" -> {
+        return parseLetFormula(formula);
+      }
       case "and" -> {
         List<PropositionalLogicExpression> parts = booleanArgs(formula);
         if (parts.isEmpty()) {
@@ -396,9 +428,9 @@ public class SmtLibParser {
         }
         return result;
       }
-      case "=", "distinct" -> {
-        // '=' over boolean sub-formulas is a biconditional; but in this subset '=' is the equality
-        // predicate over (uninterpreted/sort) terms. Treat it as an atom.
+      case "=", "distinct", "<=", ">=", "<", ">" -> {
+        // '=' over boolean sub-formulas would be a biconditional; in this subset '=' is the equality/
+        // arithmetic predicate over terms. Treat it (and the inequality predicates) as an atom.
         return atomFormula(formula, head);
       }
       case "ite" -> {
@@ -430,10 +462,21 @@ public class SmtLibParser {
   }
 
   /**
+   * Builds the propositional representation of a theory atom. Dispatches to the arithmetic-specific
+   * handling for the arithmetic logics and to the equality handling otherwise.
+   */
+  private PropositionalLogicExpression atomFormula(SExpr atom, String head) {
+    if (kind == Kind.ARITHMETIC) {
+      return arithmeticAtomFormula(atom, head);
+    }
+    return equalityAtomFormula(atom, head);
+  }
+
+  /**
    * Builds the propositional representation of an equality atom. {@code (= s t)} -> positive atom
    * variable; {@code (distinct a b ...)} -> conjunction of pairwise {@code not (= ai aj)}.
    */
-  private PropositionalLogicExpression atomFormula(SExpr atom, String head) {
+  private PropositionalLogicExpression equalityAtomFormula(SExpr atom, String head) {
     if (head.equals("distinct")) {
       List<SExpr> argExprs = atom.list.subList(1, atom.list.size());
       if (argExprs.size() < 2) {
@@ -457,6 +500,164 @@ public class SmtLibParser {
     }
     Constraint eq = makeEquality(atom.list.get(1), atom.list.get(2), atom.index);
     return atomVariable(eq);
+  }
+
+  /**
+   * Builds the propositional representation of an arithmetic atom over {@link LinearConstraint}
+   * leaves. {@code <=}, {@code >=}, {@code <}, {@code >} become single inequality atoms; {@code (= s
+   * t)} is eliminated into {@code (and (<= s t) (>= s t))}; {@code (distinct s1 .. sn)} becomes the
+   * conjunction over pairs of {@code (or (< si sj) (> si sj))}. No EQUAL constraint is ever created,
+   * so every atom's negation is a single strict/non-strict inequality (see {@link
+   * LinearConstraint#negate()}).
+   */
+  private PropositionalLogicExpression arithmeticAtomFormula(SExpr atom, String head) {
+    switch (head) {
+      case "<=", ">=", "<", ">" -> {
+        if (atom.list.size() != 3) {
+          throw err("'" + head + "' expects exactly two arguments in this subset", atom.index);
+        }
+        LinearTerm lhs = parseLinearTerm(atom.list.get(1));
+        LinearTerm rhs = parseLinearTerm(atom.list.get(2));
+        LinearConstraint constraint =
+            switch (head) {
+              case "<=" -> LinearConstraint.lessThanOrEqual(lhs, rhs);
+              case ">=" -> LinearConstraint.greaterThanOrEqual(lhs, rhs);
+              case "<" -> LinearConstraint.lessThan(lhs, rhs);
+              default -> LinearConstraint.greaterThan(lhs, rhs);
+            };
+        return atomVariable(constraint);
+      }
+      case "=" -> {
+        if (atom.list.size() != 3) {
+          throw err("'=' expects exactly two arguments in this subset", atom.index);
+        }
+        return arithmeticEquality(atom.list.get(1), atom.list.get(2));
+      }
+      case "distinct" -> {
+        List<SExpr> argExprs = atom.list.subList(1, atom.list.size());
+        if (argExprs.size() < 2) {
+          throw err("'distinct' requires at least two arguments", atom.index);
+        }
+        List<PropositionalLogicExpression> parts = new ArrayList<>();
+        for (int i = 0; i < argExprs.size(); i++) {
+          for (int j = i + 1; j < argExprs.size(); j++) {
+            // si != sj  <=>  (si < sj) or (si > sj)
+            LinearTerm a = parseLinearTerm(argExprs.get(i));
+            LinearTerm b = parseLinearTerm(argExprs.get(j));
+            PropositionalLogicExpression lt =
+                atomVariable(LinearConstraint.lessThan(new LinearTerm(a), new LinearTerm(b)));
+            PropositionalLogicExpression gt =
+                atomVariable(LinearConstraint.greaterThan(new LinearTerm(a), new LinearTerm(b)));
+            parts.add(PropositionalLogicOr.or(lt, gt));
+          }
+        }
+        return parts.size() == 1 ? parts.get(0) : PropositionalLogicAnd.and(parts);
+      }
+      default -> throw err("unsupported arithmetic predicate '" + head + "'", atom.index);
+    }
+  }
+
+  /** Splits {@code (= s t)} into {@code (and (<= s t) (>= s t))} at the propositional level. */
+  private PropositionalLogicExpression arithmeticEquality(SExpr leftExpr, SExpr rightExpr) {
+    LinearTerm lhs = parseLinearTerm(leftExpr);
+    LinearTerm rhs = parseLinearTerm(rightExpr);
+    PropositionalLogicExpression le =
+        atomVariable(LinearConstraint.lessThanOrEqual(new LinearTerm(lhs), new LinearTerm(rhs)));
+    PropositionalLogicExpression ge =
+        atomVariable(LinearConstraint.greaterThanOrEqual(new LinearTerm(lhs), new LinearTerm(rhs)));
+    return PropositionalLogicAnd.and(le, ge);
+  }
+
+  // ---- let bindings ---------------------------------------------------------
+
+  /**
+   * Parses {@code (let ((v1 e1) ... (vn en)) body)} as a boolean formula. The bound expressions are
+   * evaluated in the OUTER scope (parallel binding), then a fresh frame is pushed for the body.
+   */
+  private PropositionalLogicExpression parseLetFormula(SExpr formula) {
+    Map<String, Object> frame = evaluateLetBindings(formula);
+    letScopes.push(frame);
+    try {
+      return parseBooleanFormula(formula.list.get(2));
+    } finally {
+      letScopes.pop();
+    }
+  }
+
+  /**
+   * Evaluates the binding list of a {@code let} in the current (outer) scope and returns the new
+   * frame. Each bound expression is lazily classified: it is stored as a {@link LinearTerm} when it
+   * parses as an arithmetic term, otherwise as a {@link PropositionalLogicExpression}. We try the
+   * term interpretation first only for the arithmetic logics; for equality logics bindings are
+   * always formulas.
+   */
+  private Map<String, Object> evaluateLetBindings(SExpr formula) {
+    if (formula.list.size() != 3) {
+      throw err("'let' expects a binding list and a body", formula.index);
+    }
+    SExpr bindings = formula.list.get(1);
+    if (!bindings.isList()) {
+      throw err("'let' bindings must be a list", bindings.index);
+    }
+    Map<String, Object> frame = new HashMap<>();
+    for (SExpr binding : bindings.list) {
+      if (!binding.isList() || binding.list.size() != 2 || !binding.list.get(0).isAtom()) {
+        throw err("malformed 'let' binding (expected (symbol value))", binding.index);
+      }
+      String name = binding.list.get(0).atom.value();
+      SExpr valueExpr = binding.list.get(1);
+      frame.put(name, evaluateLetValue(valueExpr));
+    }
+    return frame;
+  }
+
+  /**
+   * Evaluates a let-bound value in the current scope. For arithmetic logics we attempt to parse it
+   * as a linear term first (so that {@code (let ((s (+ x y))) ...)} works); if that fails it is a
+   * boolean formula. For equality logics it is always a boolean formula.
+   */
+  private Object evaluateLetValue(SExpr valueExpr) {
+    if (kind == Kind.ARITHMETIC && looksLikeArithmeticTerm(valueExpr)) {
+      return parseLinearTerm(valueExpr);
+    }
+    return parseBooleanFormula(valueExpr);
+  }
+
+  /**
+   * Heuristic: does this expression denote an arithmetic term (rather than a boolean formula)? Used
+   * only to classify {@code let} bindings in the arithmetic logics. A bare numeral/decimal, an
+   * arithmetic operator application ({@code + - * /}), or a symbol already bound to a term, are
+   * terms; everything else (predicate applications, boolean connectives, {@code true}/{@code false})
+   * is a formula.
+   */
+  private boolean looksLikeArithmeticTerm(SExpr e) {
+    if (e.isAtom()) {
+      Tok t = e.atom;
+      if (t.type() == SmtLibLexer.NUMERAL || t.type() == SmtLibLexer.DECIMAL) {
+        return true;
+      }
+      String v = t.value();
+      if (v.equals("true") || v.equals("false")) {
+        return false;
+      }
+      Object bound = lookupLet(v);
+      if (bound instanceof LinearTerm) {
+        return true;
+      }
+      if (bound instanceof PropositionalLogicExpression) {
+        return false;
+      }
+      // an unbound symbol where a let value is being classified: a declared numeric variable.
+      return true;
+    }
+    String head = e.head();
+    if (head == null) {
+      return false;
+    }
+    return switch (head) {
+      case "+", "-", "*", "/" -> true;
+      default -> false;
+    };
   }
 
   /** Creates the POSITIVE equality constraint for the current equality logic. */
@@ -491,133 +692,7 @@ public class SmtLibParser {
     return PropositionalLogicOr.or(top, new PropositionalLogicNegation(top));
   }
 
-  /** Adds the clauses produced by one asserted formula (CNF fragment). */
-  private void addFormula(SExpr formula) {
-    rejectNonCnf(formula);
-
-    String head = formula.isList() ? formula.head() : null;
-    if ("and".equals(head)) {
-      // conjunction of sub-formulas, each must itself be a clause (atom or or-of-atoms)
-      for (int i = 1; i < formula.list.size(); i++) {
-        addClause(formula.list.get(i));
-      }
-    } else {
-      addClause(formula);
-    }
-  }
-
-  /**
-   * Adds a clause from a formula: either an atom (unit clause) or an (or atom...) disjunction.
-   *
-   * <p>An atom may expand to several constraints (e.g. {@code (distinct a b c)} expands pairwise).
-   * As a top-level conjunct, those constraints are conjoined (each becomes its own unit clause).
-   * Inside an {@code or}, an atom must yield a single constraint, otherwise the pairwise expansion
-   * would be mis-interpreted as a disjunction; we reject that case.
-   */
-  private void addClause(SExpr formula) {
-    rejectNonCnf(formula);
-    String head = formula.isList() ? formula.head() : null;
-    if ("or".equals(head)) {
-      if (formula.list.size() < 2) {
-        throw err("'or' requires at least one disjunct", formula.index);
-      }
-      List<Constraint> constraints = new ArrayList<>();
-      for (int i = 1; i < formula.list.size(); i++) {
-        SExpr disjunct = formula.list.get(i);
-        List<Constraint> atomConstraints = parseAtom(disjunct);
-        if (atomConstraints.size() != 1) {
-          throw err(
-              "unsupported boolean structure (needs negation handling, issue #9): "
-                  + "pairwise 'distinct' with more than two arguments inside an 'or'",
-              disjunct.index);
-        }
-        constraints.addAll(atomConstraints);
-      }
-      clauses.add(new TheoryClause<>(constraints));
-    } else {
-      // unit atom; pairwise expansion -> conjunction -> one unit clause each
-      for (Constraint constraint : parseAtom(formula)) {
-        clauses.add(new TheoryClause<>(List.of(constraint)));
-      }
-    }
-  }
-
-  private void rejectNonCnf(SExpr formula) {
-    if (!formula.isList()) {
-      return;
-    }
-    String head = formula.head();
-    if (head == null) {
-      return;
-    }
-    switch (head) {
-      case "not", "=>", "implies", "ite", "xor", "iff" ->
-          throw err(
-              "unsupported boolean structure (needs negation handling, issue #9): '" + head + "'",
-              formula.index);
-      default -> {
-        /* ok */
-      }
-    }
-  }
-
-  // ---- atom parsing (returns 1 constraint, except distinct which expands pairwise) ----
-
-  private List<Constraint> parseAtom(SExpr atom) {
-    rejectNonCnf(atom);
-    if (!atom.isList()) {
-      throw err(
-          "expected an atom (a predicate application), found symbol '" + atom.atom.value() + "'",
-          atom.index);
-    }
-    String head = atom.head();
-    if (head == null) {
-      throw err("expected an atom", atom.index);
-    }
-
-    // Nested and/or inside a clause is not part of the CNF fragment.
-    if (head.equals("and") || head.equals("or")) {
-      throw err(
-          "unsupported boolean structure (needs negation handling, issue #9): nested '"
-              + head
-              + "' inside a clause",
-          atom.index);
-    }
-
-    return switch (kind) {
-      case ARITHMETIC -> List.of(parseArithmeticAtom(atom, head));
-      case EQUALITY -> parseEqualityAtom(atom, head);
-      case UF -> parseUfAtom(atom, head);
-    };
-  }
-
-  // ---- arithmetic (QF_LRA / QF_LIA) ----------------------------------------
-
-  private Constraint parseArithmeticAtom(SExpr atom, String head) {
-    switch (head) {
-      case "<", ">" ->
-          throw err(
-              "unsupported: strict inequality (no strict bound in LinearConstraint): '"
-                  + head
-                  + "'",
-              atom.index);
-      case "=", "<=", ">=" -> {
-        if (atom.list.size() != 3) {
-          throw err(
-              "'" + head + "' expects exactly two arguments in this subset", atom.index);
-        }
-        LinearTerm lhs = parseLinearTerm(atom.list.get(1));
-        LinearTerm rhs = parseLinearTerm(atom.list.get(2));
-        return switch (head) {
-          case "=" -> LinearConstraint.equal(lhs, rhs);
-          case "<=" -> LinearConstraint.lessThanOrEqual(lhs, rhs);
-          default -> LinearConstraint.greaterThanOrEqual(lhs, rhs);
-        };
-      }
-      default ->
-          throw err("unsupported arithmetic predicate '" + head + "'", atom.index);
-    }
-  }
+  // ---- arithmetic linear terms (QF_LRA / QF_LIA) ---------------------------
 
   private LinearTerm parseLinearTerm(SExpr e) {
     if (e.isAtom()) {
@@ -626,6 +701,15 @@ public class SmtLibParser {
         LinearTerm term = new LinearTerm();
         term.setConstant(Number.parse(t.value()));
         return term;
+      }
+      // a let-bound term symbol resolves to its expansion (a defensive copy).
+      Object bound = lookupLet(t.value());
+      if (bound instanceof LinearTerm boundTerm) {
+        return new LinearTerm(boundTerm);
+      }
+      if (bound instanceof PropositionalLogicExpression) {
+        throw err(
+            "let-bound symbol '" + t.value() + "' is a formula but is used as a term", e.index);
       }
       // a variable
       LinearTerm term = new LinearTerm();
@@ -696,10 +780,12 @@ public class SmtLibParser {
       term.setConstant(coefficient);
       return term;
     }
-    // multiply nonConstant by the scalar coefficient
+    // multiply nonConstant by the scalar coefficient. Use setCoefficient (result is fresh, each
+    // variable appears once): setCoefficient drops zero coefficients cleanly, whereas addCoefficient
+    // re-reads the just-removed entry and would NPE for a zero scalar such as (* 0 x).
     LinearTerm result = new LinearTerm();
     final Number coeff = coefficient;
-    nonConstant.getCoefficients().forEach((v, k) -> result.addCoefficient(v, k.multiply(coeff)));
+    nonConstant.getCoefficients().forEach((v, k) -> result.setCoefficient(v, k.multiply(coeff)));
     result.setConstant(nonConstant.getConstant().multiply(coeff));
     return result;
   }
@@ -769,82 +855,13 @@ public class SmtLibParser {
     }
   }
 
-  // ---- equality (QF_EQ) -----------------------------------------------------
-
-  private List<Constraint> parseEqualityAtom(SExpr atom, String head) {
-    switch (head) {
-      case "=" -> {
-        if (atom.list.size() != 3) {
-          throw err("'=' expects exactly two arguments in this subset", atom.index);
-        }
-        String left = requireVariable(atom.list.get(1));
-        String right = requireVariable(atom.list.get(2));
-        return List.of(new EqualityConstraint(left, right, true));
-      }
-      case "distinct" -> {
-        List<String> vars = new ArrayList<>();
-        for (int i = 1; i < atom.list.size(); i++) {
-          vars.add(requireVariable(atom.list.get(i)));
-        }
-        if (vars.size() < 2) {
-          throw err("'distinct' requires at least two arguments", atom.index);
-        }
-        // pairwise distinct expanded into separate constraints (conjunction). When this atom is a
-        // unit clause, multiple constraints in one clause would be a disjunction, which is wrong.
-        // We therefore only allow multi-arg distinct as a top-level/unit atom (handled by caller
-        // putting each in its own clause). For safety expand pairwise here; the caller for clauses
-        // with 'or' would mis-handle >2 args, so reject >2 inside a disjunction.
-        List<Constraint> result = new ArrayList<>();
-        for (int i = 0; i < vars.size(); i++) {
-          for (int j = i + 1; j < vars.size(); j++) {
-            result.add(new EqualityConstraint(vars.get(i), vars.get(j), false));
-          }
-        }
-        return result;
-      }
-      default ->
-          throw err("unsupported equality predicate '" + head + "'", atom.index);
-    }
-  }
+  // ---- equality / uninterpreted-function term helpers ----------------------
 
   private String requireVariable(SExpr e) {
     if (!e.isAtom()) {
       throw err("expected a variable/constant symbol", e.index);
     }
     return e.atom.value();
-  }
-
-  // ---- uninterpreted functions (QF_UF / QF_EQUF) ---------------------------
-
-  private List<Constraint> parseUfAtom(SExpr atom, String head) {
-    switch (head) {
-      case "=" -> {
-        if (atom.list.size() != 3) {
-          throw err("'=' expects exactly two arguments in this subset", atom.index);
-        }
-        Function left = parseFunctionTerm(atom.list.get(1));
-        Function right = parseFunctionTerm(atom.list.get(2));
-        return List.of(new EqualityFunctionConstraint(left, right, true));
-      }
-      case "distinct" -> {
-        List<Function> terms = new ArrayList<>();
-        for (int i = 1; i < atom.list.size(); i++) {
-          terms.add(parseFunctionTerm(atom.list.get(i)));
-        }
-        if (terms.size() < 2) {
-          throw err("'distinct' requires at least two arguments", atom.index);
-        }
-        List<Constraint> result = new ArrayList<>();
-        for (int i = 0; i < terms.size(); i++) {
-          for (int j = i + 1; j < terms.size(); j++) {
-            result.add(new EqualityFunctionConstraint(terms.get(i), terms.get(j), false));
-          }
-        }
-        return result;
-      }
-      default ->
-          throw err("unsupported equality predicate '" + head + "'", atom.index);
-    }
   }
 
   private Function parseFunctionTerm(SExpr e) {

@@ -125,37 +125,30 @@ public class SmtLibParserTest {
   }
 
   @Test
-  public void testStrictInequalityRejected() {
-    SyntaxError error =
-        assertThrows(
-            SyntaxError.class,
-            () ->
-                run("(set-logic QF_LRA)(declare-const x Real)(assert (< x 5))(check-sat)"));
-    assertTrue(error.getMessage().contains("strict inequality"), error.getMessage());
+  public void testStrictInequalityAccepted() {
+    // Strict inequalities are now supported for the arithmetic logics.
+    assertEquals(
+        Verdict.SAT,
+        run("(set-logic QF_LRA)(declare-const x Real)(assert (< x 5))(check-sat)"));
   }
 
   @Test
-  public void testNegationRejected() {
-    SyntaxError error =
-        assertThrows(
-            SyntaxError.class,
-            () ->
-                run(
-                    "(set-logic QF_EQ)(declare-const a U)(declare-const b U)"
-                        + "(assert (not (= a b)))(check-sat)"));
-    assertTrue(error.getMessage().contains("unsupported boolean structure"), error.getMessage());
+  public void testNegationAccepted() {
+    // Boolean negation over atoms is supported in all logics.
+    assertEquals(
+        Verdict.SAT,
+        run(
+            "(set-logic QF_EQ)(declare-const a U)(declare-const b U)"
+                + "(assert (not (= a b)))(check-sat)"));
   }
 
   @Test
-  public void testImpliesRejected() {
-    SyntaxError error =
-        assertThrows(
-            SyntaxError.class,
-            () ->
-                run(
-                    "(set-logic QF_EQ)(declare-const a U)(declare-const b U)(declare-const c U)"
-                        + "(assert (=> (= a b) (= b c)))(check-sat)"));
-    assertTrue(error.getMessage().contains("unsupported boolean structure"), error.getMessage());
+  public void testImpliesAccepted() {
+    assertEquals(
+        Verdict.SAT,
+        run(
+            "(set-logic QF_EQ)(declare-const a U)(declare-const b U)(declare-const c U)"
+                + "(assert (=> (= a b) (= b c)))(check-sat)"));
   }
 
   @Test

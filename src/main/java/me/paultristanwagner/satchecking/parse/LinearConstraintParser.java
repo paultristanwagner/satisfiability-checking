@@ -74,16 +74,22 @@ public class LinearConstraintParser implements Parser<LinearConstraint> {
   }
 
   private static Bound BOUND(Lexer lexer) {
-    lexer.requireEither(EQUALS, LOWER_EQUALS, GREATER_EQUALS);
+    lexer.requireEither(EQUALS, LOWER_EQUALS, GREATER_EQUALS, LESS_THAN, GREATER_THAN);
     if (lexer.canConsume(EQUALS)) {
       lexer.consume(EQUALS);
       return EQUAL;
     } else if (lexer.canConsume(LOWER_EQUALS)) {
       lexer.consume(LOWER_EQUALS);
       return LESS_EQUALS;
-    } else {
+    } else if (lexer.canConsume(GREATER_EQUALS)) {
       lexer.consume(GREATER_EQUALS);
       return Bound.GREATER_EQUALS;
+    } else if (lexer.canConsume(LESS_THAN)) {
+      lexer.consume(LESS_THAN);
+      return Bound.LESS;
+    } else {
+      lexer.consume(GREATER_THAN);
+      return Bound.GREATER;
     }
   }
 }

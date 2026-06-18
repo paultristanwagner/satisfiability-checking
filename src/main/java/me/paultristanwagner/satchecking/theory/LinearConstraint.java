@@ -4,6 +4,7 @@ import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 import static me.paultristanwagner.satchecking.theory.LinearConstraint.Bound.*;
@@ -50,6 +51,14 @@ public class LinearConstraint implements Constraint {
 
   public static LinearConstraint greaterThanOrEqual(LinearTerm lhs, LinearTerm rhs) {
     return new LinearConstraint(lhs, rhs, GREATER_EQUALS);
+  }
+
+  public static LinearConstraint lessThan(LinearTerm lhs, LinearTerm rhs) {
+    return new LinearConstraint(lhs, rhs, LESS);
+  }
+
+  public static LinearConstraint greaterThan(LinearTerm lhs, LinearTerm rhs) {
+    return new LinearConstraint(lhs, rhs, GREATER);
   }
 
   public Set<String> getVariables() {
@@ -124,7 +133,26 @@ public class LinearConstraint implements Constraint {
   public enum Bound {
     GREATER_EQUALS,
     LESS_EQUALS,
-    EQUAL
+    EQUAL,
+    LESS,
+    GREATER
+  }
+
+  public boolean isNegatable() {
+    return bound != EQUAL;
+  }
+
+  public LinearConstraint negate() {
+    Bound newBound =
+        switch (bound) {
+          case LESS_EQUALS -> GREATER;
+          case GREATER_EQUALS -> LESS;
+          case LESS -> GREATER_EQUALS;
+          case GREATER -> LESS_EQUALS;
+          case EQUAL -> throw new UnsupportedOperationException("Cannot negate an equality constraint");
+        };
+
+    return new LinearConstraint(lhs, rhs, newBound);
   }
 
   @Override
@@ -137,8 +165,12 @@ public class LinearConstraint implements Constraint {
       sb.append("=");
     } else if (bound == GREATER_EQUALS) {
       sb.append(">=");
-    } else {
+    } else if (bound == LESS_EQUALS) {
       sb.append("<=");
+    } else if (bound == LESS) {
+      sb.append("<");
+    } else {
+      sb.append(">");
     }
 
     sb.append(rhs);
@@ -178,6 +210,19 @@ public class LinearConstraint implements Constraint {
     }
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    LinearConstraint that = (LinearConstraint) o;
+    return bound == that.bound && lhs.equals(that.lhs) && rhs.equals(that.rhs);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getClass(), lhs, rhs, bound);
+  }
+
   public boolean evaluate(VariableAssignment<Number> assignment) {
     Number lhsValue = lhs.evaluate(assignment);
     Number rhsValue = rhs.evaluate(assignment);
@@ -186,8 +231,12 @@ public class LinearConstraint implements Constraint {
       return lhsValue.equals(rhsValue);
     } else if (bound == GREATER_EQUALS) {
       return lhsValue.greaterThanOrEqual(rhsValue);
-    } else {
+    } else if (bound == LESS_EQUALS) {
       return lhsValue.lessThanOrEqual(rhsValue);
+    } else if (bound == LESS) {
+      return lhsValue.lessThan(rhsValue);
+    } else {
+      return lhsValue.greaterThan(rhsValue);
     }
   }
 }

@@ -47,9 +47,28 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
 
     boolean unknownInvolved = false;
 
-    SimplexOptimizationSolver simplexSolver = new SimplexOptimizationSolver();
-    simplexSolver.load(constraints);
-    TheoryResult<LinearConstraint> result = simplexSolver.solve();
+    // Determine whether the problem carries an objective function. Strict inequalities are only
+    // supported by the feasibility solver, so the objective-free feasibility check must use it.
+    boolean hasObjective = false;
+    for (LinearConstraint constraint : constraints) {
+      if (constraint instanceof LinearConstraint.MaximizingConstraint
+          || constraint instanceof LinearConstraint.MinimizingConstraint) {
+        hasObjective = true;
+        break;
+      }
+    }
+
+    SimplexOptimizationSolver simplexSolver = null;
+    TheoryResult<LinearConstraint> result;
+    if (hasObjective) {
+      simplexSolver = new SimplexOptimizationSolver();
+      simplexSolver.load(constraints);
+      result = simplexSolver.solve();
+    } else {
+      SimplexFeasibilitySolver feasibilitySolver = new SimplexFeasibilitySolver();
+      feasibilitySolver.load(constraints);
+      result = feasibilitySolver.solve();
+    }
 
     if (!result.isSatisfiable()) {
       return result;
@@ -84,9 +103,9 @@ public class LinearIntegerSolver implements TheorySolver<LinearConstraint> {
     solverA.load(constraints);
     solverA.addConstraint(upperBound);
 
-    boolean isOptimizationProblem = simplexSolver.hasObjectiveFunction();
-    boolean isMaximizationProblem = simplexSolver.isMaximization();
-    boolean isMinimizationProblem = simplexSolver.isMinimization();
+    boolean isOptimizationProblem = simplexSolver != null && simplexSolver.hasObjectiveFunction();
+    boolean isMaximizationProblem = simplexSolver != null && simplexSolver.isMaximization();
+    boolean isMinimizationProblem = simplexSolver != null && simplexSolver.isMinimization();
 
     Number localOptimum = null;
     LinearTerm objective = null;
