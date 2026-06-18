@@ -20,29 +20,29 @@ public class ReadCommand extends Command {
 
   @Override
   public boolean execute(String label, String[] args) {
-    if (args.length < 2) {
+    if (args.length < 1) {
       return false;
     }
 
     String fileName = String.join(" ", args);
     File file = new File(fileName);
     if (!file.exists()) {
-      System.out.printf("%sFile '%s' does not exists%s%n", RED, fileName, RESET);
+      System.out.printf("%sFile '%s' does not exist%s%n", RED, fileName, RESET);
       System.out.println();
       return true;
     }
 
-    try {
-      BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
-      StringBuilder builder = new StringBuilder();
+    // Execute each non-blank line as its own command. The previous implementation
+    // concatenated all lines with no separator and ran the result as a single command.
+    try (BufferedReader bufferedReader = new BufferedReader(new FileReader(file))) {
       String line;
       while ((line = bufferedReader.readLine()) != null) {
-        builder.append(line);
+        String command = line.trim();
+        if (command.isEmpty()) {
+          continue;
+        }
+        COMMAND_EXECUTOR.execute(command);
       }
-
-      String input = builder.toString();
-
-      COMMAND_EXECUTOR.execute(input);
     } catch (IOException e) {
       e.printStackTrace();
     }
