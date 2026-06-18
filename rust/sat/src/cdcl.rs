@@ -6,7 +6,7 @@
 //! struct-of-arrays; watch lists are indexed by `Lit::index()`.
 
 use crate::heap::VarHeap;
-use satcheck_core::{Lbool, Lit, Var};
+use satcheck_core::{Lbool, Lit, NoTheory, Theory, Var};
 
 /// Index of a clause in the solver's clause vector.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -16,6 +16,8 @@ pub struct ClauseRef(u32);
 enum Reason {
     Decision,
     Clause(ClauseRef),
+    /// Theory-propagated literal; its reason clause is materialized lazily via `Theory::explain`.
+    Theory,
 }
 
 struct Clause {
@@ -41,7 +43,8 @@ pub enum SolveResult {
     Unsat,
 }
 
-pub struct Solver {
+pub struct Solver<T: Theory = NoTheory> {
+    theory: T,
     num_vars: usize,
     clauses: Vec<Clause>,
     learnts: Vec<ClauseRef>,
@@ -76,15 +79,24 @@ pub struct Solver {
     lbd_counter: u64,
 }
 
-impl Default for Solver {
+impl Default for Solver<NoTheory> {
     fn default() -> Self {
         Solver::new()
     }
 }
 
-impl Solver {
-    pub fn new() -> Solver {
+impl Solver<NoTheory> {
+    /// A pure-SAT solver (no theory attached).
+    pub fn new() -> Solver<NoTheory> {
+        Solver::with_theory(NoTheory)
+    }
+}
+
+impl<T: Theory> Solver<T> {
+    /// A solver driving `theory` (DPLL(T)).
+    pub fn with_theory(theory: T) -> Solver<T> {
         Solver {
+            theory,
             num_vars: 0,
             clauses: Vec::new(),
             learnts: Vec::new(),
@@ -233,6 +245,7 @@ impl Solver {
         self.level[v] = self.decision_level();
         self.reason[v] = reason;
         self.trail.push(l);
+        self.theory.assert(l);
     }
 
     /// Boolean constraint propagation. Returns the conflicting clause, if any.
@@ -368,22 +381,18 @@ impl Solver {
 
     /// 1-UIP conflict analysis. Returns the learnt clause (asserting literal first) and the
     /// level to backjump to.
-    fn analyze(&mut self, confl: ClauseRef) -> (Vec<Lit>, u32) {
+    /// 1-UIP analysis starting from a conflicting clause given as a literal list (a clause's lits,
+    /// or a theory conflict clause). Resolves backward over the trail; reasons are clause lits or,
+    /// for theory-propagated literals, `Theory::explain`.
+    fn analyze(&mut self, mut reason_lits: Vec<Lit>) -> (Vec<Lit>, u32) {
         let mut learnt: Vec<Lit> = vec![Lit::from_code(0)]; // placeholder for the UIP at [0]
         let mut path_count = 0i32;
         let mut p: Option<Lit> = None;
-        let mut confl = confl;
         let mut index = self.trail.len();
 
         loop {
-            // Bump clause activity; iterate its literals.
-            let ci = confl.0 as usize;
-            if self.clauses[ci].learnt {
-                self.bump_clause(ci);
-            }
-            let clause_len = self.clauses[ci].lits.len();
-            for j in 0..clause_len {
-                let q = self.clauses[ci].lits[j];
+            for k in 0..reason_lits.len() {
+                let q = reason_lits[k];
                 if Some(q) == p {
                     continue; // skip the resolved-on literal
                 }
@@ -413,8 +422,14 @@ impl Solver {
                 learnt[0] = !pl; // the asserting literal (1-UIP)
                 break;
             }
-            confl = match self.reason[pl.var().index()] {
-                Reason::Clause(c) => c,
+            reason_lits = match self.reason[pl.var().index()] {
+                Reason::Clause(c) => {
+                    if self.clauses[c.0 as usize].learnt {
+                        self.bump_clause(c.0 as usize);
+                    }
+                    self.clauses[c.0 as usize].lits.clone()
+                }
+                Reason::Theory => self.theory.explain(pl),
                 Reason::Decision => unreachable!("UIP reached a decision with path_count > 0"),
             };
         }
@@ -442,6 +457,7 @@ impl Solver {
         if self.decision_level() <= level {
             return;
         }
+        let levels = (self.decision_level() - level) as usize;
         let lim = self.trail_lim[level as usize];
         for i in (lim..self.trail.len()).rev() {
             let l = self.trail[i];
@@ -453,6 +469,7 @@ impl Solver {
         self.trail.truncate(lim);
         self.trail_lim.truncate(level as usize);
         self.qhead = self.trail.len();
+        self.theory.pop(levels);
     }
 
     fn pick_branch(&mut self) -> Option<Lit> {
@@ -467,6 +484,7 @@ impl Solver {
 
     fn new_decision_level(&mut self) {
         self.trail_lim.push(self.trail.len());
+        self.theory.push();
     }
 
     fn reduce_db(&mut self) {
@@ -516,7 +534,23 @@ impl Solver {
         self.clauses[ci].lits.clear();
     }
 
-    /// Solve the current formula. Returns a model or UNSAT.
+    /// Backjump to `bt` and assert the learnt clause's UIP (the M1 learn step, shared by SAT and
+    /// theory conflicts).
+    fn learn(&mut self, learnt: Vec<Lit>, bt: u32) {
+        self.backtrack(bt);
+        if learnt.len() == 1 {
+            self.enqueue(learnt[0], Reason::Decision);
+        } else {
+            let asserting = learnt[0];
+            let cref = self.attach_clause(learnt, true);
+            self.bump_clause(cref.0 as usize);
+            self.enqueue(asserting, Reason::Clause(cref));
+        }
+    }
+
+    /// Solve the current formula. Returns a model or UNSAT. This is the DPLL(T) loop: BCP and
+    /// theory propagation run to a joint fixpoint, then the theory is checked, then a decision is
+    /// made. With `NoTheory`, the theory steps are no-ops and this reduces to pure CDCL.
     pub fn solve(&mut self) -> SolveResult {
         if !self.ok {
             return SolveResult::Unsat;
@@ -527,53 +561,96 @@ impl Solver {
         let mut learnt_limit = (self.clauses.len() as f64 * 1.3).max(1000.0);
 
         loop {
-            match self.propagate() {
-                Some(confl) => {
-                    self.conflicts += 1;
-                    conflicts_since_restart += 1;
-                    if self.decision_level() == 0 {
-                        self.ok = false;
-                        return SolveResult::Unsat;
+            // --- BCP + theory propagation to a joint fixpoint ---
+            let mut conflict: Option<Vec<Lit>> = None;
+            loop {
+                if let Some(confl) = self.propagate() {
+                    let ci = confl.0 as usize;
+                    if self.clauses[ci].learnt {
+                        self.bump_clause(ci);
                     }
-                    let (learnt, bt_level) = self.analyze(confl);
-                    self.backtrack(bt_level);
-                    if learnt.len() == 1 {
-                        self.enqueue(learnt[0], Reason::Decision);
-                    } else {
-                        let asserting = learnt[0];
-                        let cref = self.attach_clause(learnt, true);
-                        self.bump_clause(cref.0 as usize);
-                        self.enqueue(asserting, Reason::Clause(cref));
-                    }
-                    self.decay_var();
-                    self.decay_clause();
+                    conflict = Some(self.clauses[ci].lits.clone());
+                    break;
                 }
+                let implied = self.theory.propagate();
+                if implied.is_empty() {
+                    break;
+                }
+                let mut progressed = false;
+                for lit in implied {
+                    match self.value(lit) {
+                        Lbool::True => {}
+                        Lbool::Undef => {
+                            self.enqueue(lit, Reason::Theory);
+                            progressed = true;
+                        }
+                        Lbool::False => {
+                            // theory implies `lit`, but it is already false -> conflict
+                            conflict = Some(self.theory.explain(lit));
+                            break;
+                        }
+                    }
+                }
+                if conflict.is_some() || !progressed {
+                    break;
+                }
+            }
+
+            // --- handle a BCP / theory-propagation conflict ---
+            if let Some(cl) = conflict {
+                self.conflicts += 1;
+                conflicts_since_restart += 1;
+                if self.decision_level() == 0 {
+                    self.ok = false;
+                    return SolveResult::Unsat;
+                }
+                let (learnt, bt) = self.analyze(cl);
+                self.learn(learnt, bt);
+                self.decay_var();
+                self.decay_clause();
+                continue;
+            }
+
+            // --- theory consistency check ---
+            let complete = self.trail.len() == self.num_vars;
+            if let Err(cl) = self.theory.check(complete) {
+                self.conflicts += 1;
+                conflicts_since_restart += 1;
+                if self.decision_level() == 0 {
+                    self.ok = false;
+                    return SolveResult::Unsat;
+                }
+                let (learnt, bt) = self.analyze(cl);
+                self.learn(learnt, bt);
+                self.decay_var();
+                self.decay_clause();
+                continue;
+            }
+
+            // --- restart / clause-DB reduction ---
+            if conflicts_since_restart >= max_conflicts {
+                self.backtrack(0);
+                restart_no += 1;
+                conflicts_since_restart = 0;
+                max_conflicts = luby(2.0, restart_no) as u64 * 100;
+            }
+            if self.learnts.len() as f64 >= learnt_limit {
+                self.reduce_db();
+                learnt_limit *= 1.1;
+            }
+
+            // --- decide ---
+            match self.pick_branch() {
                 None => {
-                    // Restart?
-                    if conflicts_since_restart >= max_conflicts {
-                        self.backtrack(0);
-                        restart_no += 1;
-                        conflicts_since_restart = 0;
-                        max_conflicts = luby(2.0, restart_no) as u64 * 100;
-                    }
-                    // Reduce learnt DB?
-                    if self.learnts.len() as f64 >= learnt_limit {
-                        self.reduce_db();
-                        learnt_limit *= 1.1;
-                    }
-                    match self.pick_branch() {
-                        None => {
-                            // all variables assigned -> SAT
-                            let model = (0..self.num_vars)
-                                .map(|v| self.assigns[v] == Lbool::True)
-                                .collect();
-                            return SolveResult::Sat(model);
-                        }
-                        Some(dec) => {
-                            self.new_decision_level();
-                            self.enqueue(dec, Reason::Decision);
-                        }
-                    }
+                    // All variables assigned and the theory is consistent -> SAT.
+                    let model = (0..self.num_vars)
+                        .map(|v| self.assigns[v] == Lbool::True)
+                        .collect();
+                    return SolveResult::Sat(model);
+                }
+                Some(dec) => {
+                    self.new_decision_level();
+                    self.enqueue(dec, Reason::Decision);
                 }
             }
         }
