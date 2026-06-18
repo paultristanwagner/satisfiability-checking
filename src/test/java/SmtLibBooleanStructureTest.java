@@ -1,6 +1,5 @@
 import me.paultristanwagner.satchecking.command.impl.SmtLibCommand;
 import me.paultristanwagner.satchecking.command.impl.SmtLibCommand.Verdict;
-import me.paultristanwagner.satchecking.parse.SyntaxError;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -79,13 +78,14 @@ public class SmtLibBooleanStructureTest {
   }
 
   @Test
-  public void testArithmeticStillRejectsStrictAndNegation() {
-    assertThrows(
-        SyntaxError.class,
-        () -> run("(set-logic QF_LRA)(declare-const x Real)(assert (< x 5))(check-sat)"));
-    assertThrows(
-        SyntaxError.class,
-        () ->
-            run("(set-logic QF_LRA)(declare-const x Real)(assert (not (<= x 5)))(check-sat)"));
+  public void testArithmeticNowAcceptsStrictAndNegation() {
+    // Strict inequalities and negation are now supported for the arithmetic logics (the strict
+    // foundation made the bounds real). See SmtLibArithmeticBooleanTest for behavioural coverage.
+    assertEquals(
+        Verdict.SAT,
+        run("(set-logic QF_LRA)(declare-const x Real)(assert (< x 5))(check-sat)"));
+    assertEquals(
+        Verdict.SAT,
+        run("(set-logic QF_LRA)(declare-const x Real)(assert (not (<= x 5)))(check-sat)"));
   }
 }
