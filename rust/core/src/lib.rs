@@ -4,7 +4,9 @@
 pub mod interner;
 pub mod lit;
 pub mod rational;
+pub mod theory;
 
 pub use interner::{Interner, Symbol};
 pub use lit::{Lbool, Lit, Var};
 pub use rational::{DeltaRational, Rational};
+pub use theory::{NoTheory, Theory};
