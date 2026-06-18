@@ -3,6 +3,9 @@
 //! Milestone 2: equality logic (EUF). [`SmtBuilder`] lets a front-end build terms, mint equality
 //! atoms (each a SAT variable), add clauses over those atoms (the boolean abstraction), and solve.
 
+pub mod script;
+pub mod sexp;
+
 use rustc_hash::FxHashMap;
 use satcheck_core::{Lit, Var};
 use satcheck_sat::{SolveResult, Solver};

@@ -22,7 +22,7 @@
 //! trail in reverse, exactly undoing each recorded write.
 
 use rustc_hash::FxHashMap;
-use satcheck_core::{Lit, Symbol, Theory, Var};
+use satcheck_core::{Lbool, Lit, Symbol, Theory, Var};
 use satcheck_term::{TermArena, TermId};
 
 /// Why two terms were merged — the justification recorded on a proof-forest edge.
@@ -59,6 +59,8 @@ enum TrailOp {
     Proof(usize, Option<TermId>, Option<Reason>),
     /// A disequality was pushed; pop it.
     DiseqPush,
+    /// `assigned[vi]` was changed; restore the saved old value.
+    Assigned(usize, Lbool),
 }
 
 pub struct Euf {
@@ -85,6 +87,16 @@ pub struct Euf {
 
     /// SAT variable -> equality atom `(a, b)`.
     atoms: Vec<Option<(TermId, TermId)>>,
+
+    /// SAT variable -> current theory assignment of its atom (`Undef` if not yet asserted/implied).
+    /// Used by `propagate` to skip atoms whose truth is already fixed.
+    assigned: Vec<Lbool>,
+
+    /// For an atom propagated FALSE (`a != b`), the disequality `(p, q, neg_lit)` that witnessed
+    /// the separation at propagation time, with `a ≡ p` and `b ≡ q`. Pinned here because the
+    /// `explain` call happens later, after further merges; the witness's `a≡p`/`b≡q` proof paths
+    /// stay valid but *which* disequality applies must be fixed at propagation time.
+    neg_witness: Vec<Option<(TermId, TermId, Lit)>>,
 
     /// Pending congruence-closure work: pairs of terms to be merged.
     pending: Vec<(TermId, TermId, Reason)>,
@@ -115,6 +127,8 @@ impl Euf {
             sig: FxHashMap::default(),
             diseq: Vec::new(),
             atoms: Vec::new(),
+            assigned: Vec::new(),
+            neg_witness: Vec::new(),
             pending: Vec::new(),
             trail: Vec::new(),
             levels: Vec::new(),
@@ -141,6 +155,8 @@ impl Euf {
         let vi = var.index();
         if vi >= self.atoms.len() {
             self.atoms.resize(vi + 1, None);
+            self.assigned.resize(vi + 1, Lbool::Undef);
+            self.neg_witness.resize(vi + 1, None);
         }
         self.atoms[vi] = Some((a, b));
     }
@@ -452,6 +468,12 @@ impl Theory for Euf {
             Some(p) => p,
             None => return, // not a theory atom we know about
         };
+        self.trail.push(TrailOp::Assigned(vi, self.assigned[vi]));
+        self.assigned[vi] = if lit.is_negated() {
+            Lbool::False
+        } else {
+            Lbool::True
+        };
         if lit.is_negated() {
             // Disequality a != b.
             self.diseq.push((a, b, lit));
@@ -483,11 +505,72 @@ impl Theory for Euf {
     }
 
     fn propagate(&mut self) -> Vec<Lit> {
-        Vec::new()
+        // Deduce equality atoms whose truth is now forced by the congruence closure:
+        //  * `find(a) == find(b)`  =>  the atom is implied TRUE  (a and b proven equal);
+        //  * a and b sit in classes separated by an asserted disequality  =>  implied FALSE.
+        // Skip atoms already assigned. Explanations are reconstructed lazily in `explain`.
+        let mut implied = Vec::new();
+
+        // Snapshot the current disequal class-pairs once (representatives are stable until the
+        // next merge / backtrack), mapping each to a witnessing disequality index.
+        let mut diseq_pairs: FxHashMap<(u32, u32), usize> = FxHashMap::default();
+        for (i, &(p, q, _)) in self.diseq.iter().enumerate() {
+            let rp = self.find(p);
+            let rq = self.find(q);
+            diseq_pairs.entry(ordered(rp, rq)).or_insert(i);
+        }
+
+        for vi in 0..self.atoms.len() {
+            if self.assigned[vi] != Lbool::Undef {
+                continue;
+            }
+            let (a, b) = match self.atoms[vi] {
+                Some(p) => p,
+                None => continue,
+            };
+            let ra = self.find(a);
+            let rb = self.find(b);
+            let var = Var::from_index(vi);
+            if ra == rb {
+                implied.push(var.pos());
+            } else if let Some(&di) = diseq_pairs.get(&ordered(ra, rb)) {
+                let (p, q, neg_lit) = self.diseq[di];
+                // Orient so a ≡ p and b ≡ q.
+                let (p, q) = if self.find(p) == ra { (p, q) } else { (q, p) };
+                self.neg_witness[vi] = Some((p, q, neg_lit));
+                implied.push(var.neg());
+            }
+        }
+        implied
     }
 
-    fn explain(&mut self, _lit: Lit) -> Vec<Lit> {
-        Vec::new()
+    fn explain(&mut self, lit: Lit) -> Vec<Lit> {
+        // Reason clause for a theory-propagated literal `lit`: `[lit] ++ [!a for a in antecedents]`,
+        // where the antecedents are the currently-true literals that forced `lit`. This serves
+        // both as an asserting reason (lit true, rest false) and, when `lit` is already false, as
+        // an all-false conflict clause.
+        let vi = lit.var().index();
+        let (a, b) = self.atoms[vi].expect("explain on a non-atom literal");
+        let mut clause = vec![lit];
+        if lit.is_negated() {
+            // a != b was implied by the disequality pinned at propagation time, with a≡p, b≡q.
+            let (p, q, neg_lit) = self.neg_witness[vi].expect("missing negative-propagation witness");
+            for e in self.explain_eq(a, p) {
+                clause.push(!e);
+            }
+            for e in self.explain_eq(b, q) {
+                clause.push(!e);
+            }
+            clause.push(!neg_lit);
+        } else {
+            // a = b was implied because the closure proved them equal.
+            for e in self.explain_eq(a, b) {
+                clause.push(!e);
+            }
+        }
+        clause.sort_by_key(|l| l.code());
+        clause.dedup();
+        clause
     }
 
     fn push(&mut self) {
@@ -532,7 +615,21 @@ impl Euf {
             TrailOp::DiseqPush => {
                 self.diseq.pop();
             }
+            TrailOp::Assigned(vi, old) => {
+                self.assigned[vi] = old;
+            }
         }
+    }
+}
+
+/// An unordered pair of term ids as a canonical `(min, max)` key.
+#[inline]
+fn ordered(a: TermId, b: TermId) -> (u32, u32) {
+    let (x, y) = (a.index() as u32, b.index() as u32);
+    if x <= y {
+        (x, y)
+    } else {
+        (y, x)
     }
 }
 
