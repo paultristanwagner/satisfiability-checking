@@ -48,11 +48,12 @@ public abstract class Lexer {
       return null;
     }
 
-    for (TokenType tokenType : tokenTypes) {
-      String regex = tokenType.getRegex();
-      String remaining = input.substring(cursor);
+    // The remainder is the same for every token type; compute it once. Each token type carries a
+    // precompiled Pattern (previously this recompiled the regex for every type on every token).
+    String remaining = input.substring(cursor);
 
-      Matcher matcher = Pattern.compile(regex).matcher(remaining);
+    for (TokenType tokenType : tokenTypes) {
+      Matcher matcher = tokenType.getPattern().matcher(remaining);
 
       if (!matcher.find()) {
         continue;
