@@ -23,7 +23,9 @@ public class BitVector {
     this.length = length;
     this.bits = new boolean[length];
 
-    for (int i = 0; i < Math.min(DEFAULT_BIT_VECTOR_LENGTH, 32); i++) {
+    // Fill all `length` bits (was Math.min(DEFAULT_BIT_VECTOR_LENGTH, 32), which capped at 8 and
+    // silently truncated any value wider than 8 bits). Matches the (long, int) constructor.
+    for (int i = 0; i < length; i++) {
       bits[i] = (value & (1L << i)) != 0;
     }
   }
