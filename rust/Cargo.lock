@@ -73,6 +73,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "satcheck-smt"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash",
+ "satcheck-core",
+ "satcheck-sat",
+ "satcheck-term",
+ "satcheck-theory",
+]
+
+[[package]]
+name = "satcheck-term"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash",
+ "satcheck-core",
+]
+
+[[package]]
+name = "satcheck-theory"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash",
+ "satcheck-core",
+ "satcheck-term",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
