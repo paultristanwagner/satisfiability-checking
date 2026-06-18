@@ -187,6 +187,7 @@ public class SmtLibCommand extends Command {
       throw new SyntaxError("no logic set (expected a (set-logic ...) command)", "", 0);
     }
     return switch (logic) {
+      case "QF_NRA" -> "QF_NRA";
       case "QF_LRA" -> "QF_LRA";
       case "QF_LIA" -> "QF_LIA";
       case "QF_EQ" -> "QF_EQ";
@@ -195,7 +196,7 @@ public class SmtLibCommand extends Command {
           throw new SyntaxError(
               "unsupported logic '"
                   + logic
-                  + "' (supported: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF)",
+                  + "' (supported: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF)",
               logic,
               0);
     };
