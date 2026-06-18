@@ -99,11 +99,44 @@ SAT:
 x=0b01010101 (85); y=0b01000000 (64);
 Time: 3ms
 ```
-```c+++
+```c++
 > smt QF_BV (a * b = c) & (b * a = c) & (x < y) & (y < x)
 UNSAT
 Time: 11ms
 ```
+
+# SMT-LIB input
+Besides the custom `smt <theory> <formula>` syntax above, the solver can read
+[SMT-LIB 2.6](https://smt-lib.org/) scripts (a subset) with the `smtlib` command. This is how the
+solver is validated against the official SMT-LIB benchmark library.
+
+```c++
+> smtlib (set-logic QF_NRA)(declare-const x Real)(declare-const y Real)(assert (= (+ (* x x) (* y y)) 1))(assert (= (+ (* x x) (* y y y)) (/ 1 2)))(check-sat)
+sat
+```
+
+A file path can be given instead of an inline script:
+```
+> smtlib path/to/problem.smt2
+```
+When the script contains `(set-info :status sat|unsat)`, the result is reported as `MATCHES` or
+`MISMATCHES` the declared status.
+
+Supported logics: `QF_UF`, `QF_EQ`, `QF_LRA`, `QF_LIA`, `QF_NRA`, and a sound fragment of `QF_BV`.
+Supported features include full boolean structure (`and`, `or`, `not`, `=>`, `ite`, `xor`), `let`
+bindings, `define-fun` macros, `Bool`-sorted variables, strict and non-strict (in)equalities, and
+`push`/`pop`. Constructs that the underlying theories cannot yet solve soundly (e.g. bit-vector
+`extract`/`concat`/unsigned comparisons, nonlinear division) are rejected with a clear error rather
+than mis-solved.
+
+# DIMACS input
+Standard [DIMACS](https://en.wikipedia.org/wiki/Conjunctive_normal_form#DIMACS_format) CNF files can
+be solved directly with the `dimacs` command:
+```
+> dimacs path/to/problem.cnf
+```
+Comment lines (`c ...`) are skipped, the `p cnf <variables> <clauses>` header is parsed, and the
+formula is solved with the DPLL+CDCL solver.
 
 # Propositional logic
 A SAT solver is implemented that can
