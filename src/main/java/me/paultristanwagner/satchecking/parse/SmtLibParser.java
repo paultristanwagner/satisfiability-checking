@@ -1,5 +1,16 @@
 package me.paultristanwagner.satchecking.parse;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicAnd;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicBiConditional;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicExpression;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicImplication;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicNegation;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicOr;
+import me.paultristanwagner.satchecking.parse.PropositionalLogicParser.PropositionalLogicVariable;
+import me.paultristanwagner.satchecking.sat.CNF;
+import me.paultristanwagner.satchecking.smt.TheoryCNF;
 import me.paultristanwagner.satchecking.smt.TheoryClause;
 import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.EqualityConstraint;
@@ -20,8 +31,12 @@ import java.util.List;
  * the declared logic and the optional {@code :status}). It does not run the solver itself; see
  * {@code command/impl/SmtLibCommand}.
  *
- * <p>Supported logics: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF. Supported boolean structure is a CNF
- * fragment only (conjunctions of clauses, where a clause is a disjunction of positive atoms).
+ * <p>Supported logics: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF. For the equality logics (QF_EQ,
+ * QF_UF, QF_EQUF) arbitrary boolean structure over equality atoms is supported (and/or/not/=>/xor/
+ * ite, including negated atoms and {@code distinct}); the formula is Tseitin-transformed and a
+ * {@link TheoryCNF} is returned via {@link SmtLibScript#getTheoryCNF()}. For the arithmetic logics
+ * (QF_LRA, QF_LIA) only a CNF fragment of positive atoms is supported (negation/strict inequalities
+ * are rejected) and the boolean skeleton is returned as {@link SmtLibScript#getClauses()}.
  *
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
  */
@@ -34,16 +49,19 @@ public class SmtLibParser {
     private final String status; // "sat" | "unsat" | "unknown" | null
     private final List<TheoryClause<Constraint>> clauses;
     private final List<String> warnings;
+    private final TheoryCNF<Constraint> theoryCNF; // non-null for general boolean structure path
 
     public SmtLibScript(
         String logic,
         String status,
         List<TheoryClause<Constraint>> clauses,
-        List<String> warnings) {
+        List<String> warnings,
+        TheoryCNF<Constraint> theoryCNF) {
       this.logic = logic;
       this.status = status;
       this.clauses = clauses;
       this.warnings = warnings;
+      this.theoryCNF = theoryCNF;
     }
 
     public String getLogic() {
@@ -60,6 +78,15 @@ public class SmtLibParser {
 
     public List<String> getWarnings() {
       return warnings;
+    }
+
+    /**
+     * The prebuilt {@link TheoryCNF} for the general-boolean-structure path (equality logics), or
+     * {@code null} when the script was parsed via the CNF-fragment path (arithmetic logics), in
+     * which case {@link #getClauses()} carries the boolean skeleton.
+     */
+    public TheoryCNF<Constraint> getTheoryCNF() {
+      return theoryCNF;
     }
   }
 
@@ -124,6 +151,11 @@ public class SmtLibParser {
   private final List<TheoryClause<Constraint>> clauses = new ArrayList<>();
   private final List<String> warnings = new ArrayList<>();
 
+  // General boolean-structure path (equality logics only): one propositional formula per assert,
+  // over equality atoms canonicalized to their POSITIVE form. A fresh "a<i>" name per distinct atom.
+  private final List<PropositionalLogicExpression> assertedFormulas = new ArrayList<>();
+  private final BiMap<Constraint, String> atomNameMap = HashBiMap.create();
+
   public SmtLibParser(String input) {
     this.input = input;
     this.tokens = tokenize(input);
@@ -179,7 +211,25 @@ public class SmtLibParser {
       SExpr command = readSExpr();
       handleCommand(command);
     }
-    return new SmtLibScript(logicName, status, clauses, warnings);
+
+    TheoryCNF<Constraint> theoryCNF = null;
+    if (kind == Kind.EQUALITY || kind == Kind.UF) {
+      // Conjoin all asserted formulas. An empty assertion set is trivially satisfiable; we model it
+      // with an empty CNF (no clauses), which the SAT solver treats as SAT.
+      CNF cnf;
+      if (assertedFormulas.isEmpty()) {
+        cnf = new CNF(new ArrayList<>());
+      } else {
+        PropositionalLogicExpression conjunction =
+            assertedFormulas.size() == 1
+                ? assertedFormulas.get(0)
+                : new PropositionalLogicAnd(assertedFormulas);
+        cnf = PropositionalLogicParser.tseitin(conjunction);
+      }
+      theoryCNF = new TheoryCNF<>(cnf, atomNameMap);
+    }
+
+    return new SmtLibScript(logicName, status, clauses, warnings, theoryCNF);
   }
 
   private void handleCommand(SExpr command) {
@@ -267,7 +317,178 @@ public class SmtLibParser {
       throw err("assert expects exactly one formula", index);
     }
     SExpr formula = args.get(0);
-    addFormula(formula);
+    if (kind == Kind.EQUALITY || kind == Kind.UF) {
+      assertedFormulas.add(parseBooleanFormula(formula));
+    } else {
+      addFormula(formula);
+    }
+  }
+
+  // ---- general boolean structure (equality logics only) ---------------------
+
+  /**
+   * Parses an arbitrary boolean formula over equality atoms into a {@link
+   * PropositionalLogicExpression}. Leaves are equality atoms, each canonicalized to its POSITIVE
+   * form ({@code (= s t)}); {@code (distinct s t)} and {@code (not (= s t))} are represented as the
+   * boolean negation of the positive atom.
+   */
+  private PropositionalLogicExpression parseBooleanFormula(SExpr formula) {
+    if (formula.isAtom()) {
+      String v = formula.atom.value();
+      if (v.equals("true")) {
+        return tautology();
+      }
+      if (v.equals("false")) {
+        return new PropositionalLogicNegation(tautology());
+      }
+      throw err(
+          "expected a boolean formula; bare symbol '" + v + "' is not a boolean atom", formula.index);
+    }
+
+    String head = formula.head();
+    if (head == null) {
+      throw err("expected a boolean formula", formula.index);
+    }
+
+    switch (head) {
+      case "and" -> {
+        List<PropositionalLogicExpression> parts = booleanArgs(formula);
+        if (parts.isEmpty()) {
+          return tautology();
+        }
+        return PropositionalLogicAnd.and(parts);
+      }
+      case "or" -> {
+        List<PropositionalLogicExpression> parts = booleanArgs(formula);
+        if (parts.isEmpty()) {
+          return new PropositionalLogicNegation(tautology()); // empty disjunction = false
+        }
+        return PropositionalLogicOr.or(parts);
+      }
+      case "not" -> {
+        if (formula.list.size() != 2) {
+          throw err("'not' expects exactly one argument", formula.index);
+        }
+        return new PropositionalLogicNegation(parseBooleanFormula(formula.list.get(1)));
+      }
+      case "=>", "implies" -> {
+        List<PropositionalLogicExpression> parts = booleanArgs(formula);
+        if (parts.isEmpty()) {
+          throw err("'" + head + "' requires at least one argument", formula.index);
+        }
+        // Right-associative chained implication: a => b => c == a => (b => c).
+        PropositionalLogicExpression result = parts.get(parts.size() - 1);
+        for (int i = parts.size() - 2; i >= 0; i--) {
+          result = new PropositionalLogicImplication(parts.get(i), result);
+        }
+        return result;
+      }
+      case "xor" -> {
+        List<PropositionalLogicExpression> parts = booleanArgs(formula);
+        if (parts.isEmpty()) {
+          throw err("'xor' requires at least one argument", formula.index);
+        }
+        // xor chain as left-associative negated biconditionals.
+        PropositionalLogicExpression result = parts.get(0);
+        for (int i = 1; i < parts.size(); i++) {
+          result = new PropositionalLogicNegation(
+              new PropositionalLogicBiConditional(result, parts.get(i)));
+        }
+        return result;
+      }
+      case "=", "distinct" -> {
+        // '=' over boolean sub-formulas is a biconditional; but in this subset '=' is the equality
+        // predicate over (uninterpreted/sort) terms. Treat it as an atom.
+        return atomFormula(formula, head);
+      }
+      case "ite" -> {
+        // (ite a b c) == (or (and a b) (and (not a) c))
+        if (formula.list.size() != 4) {
+          throw err("'ite' expects exactly three arguments", formula.index);
+        }
+        PropositionalLogicExpression a = parseBooleanFormula(formula.list.get(1));
+        PropositionalLogicExpression b = parseBooleanFormula(formula.list.get(2));
+        PropositionalLogicExpression c = parseBooleanFormula(formula.list.get(3));
+        // 'a' may be reused; rebuild a fresh negation node for the else branch.
+        PropositionalLogicExpression notA = new PropositionalLogicNegation(parseBooleanFormula(formula.list.get(1)));
+        return PropositionalLogicOr.or(
+            PropositionalLogicAnd.and(a, b), PropositionalLogicAnd.and(notA, c));
+      }
+      default -> {
+        // Any other head is treated as a (positive) equality-style atom.
+        return atomFormula(formula, head);
+      }
+    }
+  }
+
+  private List<PropositionalLogicExpression> booleanArgs(SExpr formula) {
+    List<PropositionalLogicExpression> parts = new ArrayList<>();
+    for (int i = 1; i < formula.list.size(); i++) {
+      parts.add(parseBooleanFormula(formula.list.get(i)));
+    }
+    return parts;
+  }
+
+  /**
+   * Builds the propositional representation of an equality atom. {@code (= s t)} -> positive atom
+   * variable; {@code (distinct a b ...)} -> conjunction of pairwise {@code not (= ai aj)}.
+   */
+  private PropositionalLogicExpression atomFormula(SExpr atom, String head) {
+    if (head.equals("distinct")) {
+      List<SExpr> argExprs = atom.list.subList(1, atom.list.size());
+      if (argExprs.size() < 2) {
+        throw err("'distinct' requires at least two arguments", atom.index);
+      }
+      List<PropositionalLogicExpression> negEqs = new ArrayList<>();
+      for (int i = 0; i < argExprs.size(); i++) {
+        for (int j = i + 1; j < argExprs.size(); j++) {
+          Constraint eq = makeEquality(argExprs.get(i), argExprs.get(j), atom.index);
+          negEqs.add(new PropositionalLogicNegation(atomVariable(eq)));
+        }
+      }
+      return negEqs.size() == 1 ? negEqs.get(0) : PropositionalLogicAnd.and(negEqs);
+    }
+
+    if (!head.equals("=")) {
+      throw err("unsupported equality predicate '" + head + "'", atom.index);
+    }
+    if (atom.list.size() != 3) {
+      throw err("'=' expects exactly two arguments in this subset", atom.index);
+    }
+    Constraint eq = makeEquality(atom.list.get(1), atom.list.get(2), atom.index);
+    return atomVariable(eq);
+  }
+
+  /** Creates the POSITIVE equality constraint for the current equality logic. */
+  private Constraint makeEquality(SExpr leftExpr, SExpr rightExpr, int index) {
+    if (kind == Kind.EQUALITY) {
+      String left = requireVariable(leftExpr);
+      String right = requireVariable(rightExpr);
+      return new EqualityConstraint(left, right, true);
+    } else { // UF
+      Function left = parseFunctionTerm(leftExpr);
+      Function right = parseFunctionTerm(rightExpr);
+      return new EqualityFunctionConstraint(left, right, true);
+    }
+  }
+
+  /** Returns the propositional variable naming the given (positive) atom, allocating "a<i>" once. */
+  private PropositionalLogicVariable atomVariable(Constraint atom) {
+    String name = atomNameMap.get(atom);
+    if (name == null) {
+      name = "a" + atomNameMap.size();
+      atomNameMap.put(atom, name);
+    }
+    return new PropositionalLogicVariable(name);
+  }
+
+  /**
+   * A propositional tautology used to encode {@code true}. Uses a dedicated reserved atom name that
+   * never collides with equality atoms ("a*") or Tseitin helpers ("h*"): {@code (top | ~top)}.
+   */
+  private PropositionalLogicExpression tautology() {
+    PropositionalLogicVariable top = new PropositionalLogicVariable("__top");
+    return PropositionalLogicOr.or(top, new PropositionalLogicNegation(top));
   }
 
   /** Adds the clauses produced by one asserted formula (CNF fragment). */

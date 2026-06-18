@@ -31,29 +31,30 @@ public class LessLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
     Number bestOptimum = null;
     VariableAssignment bestSolution = null;
 
-    int lastLevel = 0;
     PartialAssignment assignment;
     while ((assignment = satSolver.nextPartialAssignment()) != null) {
-      int newLevel = assignment.getDecisionLevel();
-      if (newLevel < lastLevel) {
-        theorySolver.clear();
+      // Reload the theory state from the full current partial assignment on every step. This is
+      // simpler than incremental push/pop and, crucially, correctly handles (a) Tseitin helper
+      // literals and other non-atom literals (skipped) and (b) FALSE-assigned atoms, which for the
+      // equality logic are asserted as their exact negation (issue #9). Atoms are canonicalized to
+      // their POSITIVE form in the atom map, so a false atom contributes constraint.negate().
+      theorySolver.clear();
+      for (var entry : cnf.getConstraintLiteralMap().entrySet()) {
+        C constraint = entry.getKey();
+        String name = entry.getValue();
 
-        // Re-adding all up-until the new level
-        // todo: Even better: just pop the constraint from undone levels
-        for (Literal trueLiteral : assignment.getTrueLiterals()) {
-          C constraint = cnf.getConstraintLiteralMap().inverse().get(trueLiteral.getName());
-
-          theorySolver.addConstraint(constraint);
+        if (!assignment.assigns(new Literal(name))) {
+          continue;
         }
-      } else {
-        List<Literal> trueLiteralsOnCurrentLevel = assignment.getTrueLiteralsOnCurrentLevel();
-        for (Literal trueLiteral : trueLiteralsOnCurrentLevel) {
-          C constraint = cnf.getConstraintLiteralMap().inverse().get(trueLiteral.getName());
 
+        if (assignment.getValue(name)) {
           theorySolver.addConstraint(constraint);
+        } else if (constraint.isNegatable()) {
+          @SuppressWarnings("unchecked")
+          C negated = (C) constraint.negate();
+          theorySolver.addConstraint(negated);
         }
       }
-      lastLevel = newLevel;
 
       TheoryResult<C> theoryResult = theorySolver.solve();
       if (theoryResult.isUnknown()) { // If the theory solver is unknown, we can't do anything
@@ -94,8 +95,6 @@ public class LessLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
         if (!resolvable) {
           break;
         }
-        theorySolver.clear();
-        lastLevel = 0;
       } else if (theoryResult.isSatisfiable()) {
         if (assignment.isComplete()) {
           return SMTResult.satisfiable(theoryResult.getSolution());
@@ -103,10 +102,29 @@ public class LessLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
       } else {
         Set<C> explanation = theoryResult.getExplanation();
 
+        // The explanation may contain negated atoms (negate()'d constraints not present as map
+        // keys). Recover the positive atom literal and use the correct polarity (see #9).
         List<Literal> literals = new ArrayList<>();
         for (C equalityConstraint : explanation) {
           String literalName = cnf.getConstraintLiteralMap().get(equalityConstraint);
-          literals.add(new Literal(literalName).not());
+          if (literalName != null) {
+            literals.add(new Literal(literalName).not());
+          } else if (equalityConstraint.isNegatable()) {
+            @SuppressWarnings("unchecked")
+            C positive = (C) equalityConstraint.negate();
+            String positiveName = cnf.getConstraintLiteralMap().get(positive);
+            if (positiveName != null) {
+              literals.add(new Literal(positiveName));
+            } else {
+              System.err.println(
+                  "LessLazySMTSolver: explanation constraint not in atom map, skipping: "
+                      + equalityConstraint);
+            }
+          } else {
+            System.err.println(
+                "LessLazySMTSolver: explanation constraint not in atom map, skipping: "
+                    + equalityConstraint);
+          }
         }
 
         Clause clause = new Clause(literals);
