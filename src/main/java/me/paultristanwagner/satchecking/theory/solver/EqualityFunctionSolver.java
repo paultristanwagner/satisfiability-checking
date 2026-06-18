@@ -104,8 +104,8 @@ public class EqualityFunctionSolver implements TheorySolver<EqualityFunctionCons
             Function aParam = a.parameters().get(k);
             Function bParam = b.parameters().get(k);
 
-            Function aParamRoot = this.pointers.get(aParam);
-            Function bParamRoot = this.pointers.get(bParam);
+            Function aParamRoot = find(aParam);
+            Function bParamRoot = find(bParam);
 
             if (!aParamRoot.equals(bParamRoot)) {
               continue otherFunctionLoop;
