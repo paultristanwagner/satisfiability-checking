@@ -73,6 +73,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "satcheck-smt"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash",
+ "satcheck-core",
+ "satcheck-sat",
+ "satcheck-term",
+ "satcheck-theory",
+]
+
+[[package]]
 name = "satcheck-term"
 version = "0.1.0"
 dependencies = [

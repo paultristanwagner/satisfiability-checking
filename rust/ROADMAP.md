@@ -46,13 +46,27 @@ SMT-LIB 2.6 front-end, continuously validated against Z3 and the Java solver.
 
 ## Milestones (each shippable, differential-gated vs Z3 + Java)
 
-- **M2 — DPLL(T) + EUF + equality-fragment front-end** *(the keystone; first end-to-end SMT)*.
-  `Theory` trait + DPLL(T) integration; EUF over the hash-consed DAG (congruence closure via
-  union-find + signature/use-list table, proof-forest explanations, `push`/`pop`); SMT-LIB parser
-  for QF_UF/QF_EQ (set-logic, declares, `define-fun`, `assert` with full boolean structure →
-  Tseitin, check-sat, push/pop, `:status`). **Gate:** 0 mismatches vs Z3 + Java on QF_UF/QF_EQ;
-  **eq_diamond solved fast** (showing DPLL(T) ≫ the Java FullLazy enumeration). *Spec:*
-  `theory/solver/EqualityFunctionSolver.java`, `smt/solver/*`, `parse/SmtLibParser.java`.
+- **M2 — DPLL(T) + EUF + equality-fragment front-end** ✅ **DELIVERED** *(the keystone; first
+  end-to-end SMT)*. `Theory` trait + DPLL(T) integration (`Solver<Euf>`, joint BCP+theory
+  propagation fixpoint, theory conflict/propagation lemmas via 1-UIP); EUF over the hash-consed DAG
+  (congruence closure via union-find + signature/use-list table, proof-forest explanations,
+  incremental `propagate`/`explain` with disequality witnesses pinned at propagation time,
+  `push`/`pop`); SMT-LIB front-end for QF_UF/QF_EQ (`sexp` reader, command processor, Tseitin
+  encoder over and/or/not/=>/xor/ite + n-ary =/distinct, term-level ITE lifting, two-valued Bool
+  encoding for Bool-typed function args, push/pop, `:status`); `satcheck-smt` CLI.
+  - **Results.** *Correctness:* 0 verdict mismatches vs SMT-LIB `:status` (= Z3's verdicts) across
+    383 benchmark runs (260-file sweep: 79 unsat + 101 sat decided, 0 mismatch; + 123-file sweep;
+    + committed corpus), all UNSAT-only spurious-SAT gates clean. 0 disagreements vs the Java
+    solver on the 59 files it can parse. The b04 spurious-SAT (Bool function args) was found and
+    fixed via the two-valued Bool encoding.
+  - *eq_diamond (vs Java FullLazy):* **Java times out (30 s) from n=12**; Rust solves n=12 in 9 ms,
+    n=15 in 69 ms, n=18 in 0.77 s, n=20 in 5.2 s — clearing the entire region where the Java
+    FullLazy enumeration explodes, with verdicts agreeing where both decide.
+  - *Known gap (→ M6 perf):* eq_diamond is still exponential vs Z3 (flat to n=99) — the lone
+    `x0≠xₙ` disequality only prunes the final diamond, so closing this needs derived-equality
+    atoms / Ackermannization. ~30 % of the largest industrial QF_UF instances time out at 8 s
+    (hard search, not a soundness or propagation issue — confirmed by A/B). *Spec:*
+    `theory/solver/EqualityFunctionSolver.java`, `smt/solver/*`, `parse/SmtLibParser.java`.
 
 - **M3 — LRA + LIA.** General Simplex (Dutertre–de Moura) over `DeltaRational` (bound propagation,
   infeasibility-row explanations, incremental push/pop); LIA via branch-and-bound on the LRA
