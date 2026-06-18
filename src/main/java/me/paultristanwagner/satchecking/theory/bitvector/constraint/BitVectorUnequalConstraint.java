@@ -1,5 +1,6 @@
 package me.paultristanwagner.satchecking.theory.bitvector.constraint;
 
+import me.paultristanwagner.satchecking.theory.Constraint;
 import me.paultristanwagner.satchecking.theory.bitvector.term.BitVectorTerm;
 
 public class BitVectorUnequalConstraint extends BitVectorBinaryConstraint {
@@ -10,6 +11,11 @@ public class BitVectorUnequalConstraint extends BitVectorBinaryConstraint {
 
   public static BitVectorUnequalConstraint unequal(BitVectorTerm term1, BitVectorTerm term2) {
     return new BitVectorUnequalConstraint(term1, term2);
+  }
+
+  @Override
+  public Constraint negate() {
+    return BitVectorEqualConstraint.equal(term1, term2);
   }
 
   @Override

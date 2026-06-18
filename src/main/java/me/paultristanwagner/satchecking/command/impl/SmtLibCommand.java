@@ -192,11 +192,12 @@ public class SmtLibCommand extends Command {
       case "QF_LIA" -> "QF_LIA";
       case "QF_EQ" -> "QF_EQ";
       case "QF_UF", "QF_EQUF" -> "QF_EQUF";
+      case "QF_BV" -> "QF_BV";
       default ->
           throw new SyntaxError(
               "unsupported logic '"
                   + logic
-                  + "' (supported: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF)",
+                  + "' (supported: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF, QF_BV)",
               logic,
               0);
     };
