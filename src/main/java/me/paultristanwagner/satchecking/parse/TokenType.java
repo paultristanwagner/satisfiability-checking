@@ -1,5 +1,7 @@
 package me.paultristanwagner.satchecking.parse;
 
+import java.util.regex.Pattern;
+
 public class TokenType {
 
   static final TokenType IDENTIFIER = TokenType.of("identifier", "^([a-zA-Z][a-zA-Z0-9_]*|_[a-zA-Z0-9_]+)");
@@ -42,10 +44,13 @@ public class TokenType {
 
   private final String name;
   private final String regex;
+  // Compiled once at construction; the lexer used to recompile the regex on every token.
+  private final Pattern pattern;
 
   private TokenType(String name, String regex) {
     this.name = name;
     this.regex = regex;
+    this.pattern = Pattern.compile(regex);
   }
 
   public static TokenType of(String name, String regex) {
@@ -58,5 +63,9 @@ public class TokenType {
 
   public String getRegex() {
     return regex;
+  }
+
+  public Pattern getPattern() {
+    return pattern;
   }
 }
