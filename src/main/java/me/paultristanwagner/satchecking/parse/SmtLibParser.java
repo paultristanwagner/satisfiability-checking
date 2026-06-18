@@ -19,6 +19,9 @@ import me.paultristanwagner.satchecking.theory.EqualityFunctionConstraint.Functi
 import me.paultristanwagner.satchecking.theory.LinearConstraint;
 import me.paultristanwagner.satchecking.theory.LinearTerm;
 import me.paultristanwagner.satchecking.theory.arithmetic.Number;
+import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomial;
+import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint;
+import me.paultristanwagner.satchecking.theory.nonlinear.MultivariatePolynomialConstraint.Comparison;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -35,18 +38,27 @@ import java.util.Map;
  * the declared logic and the optional {@code :status}). It does not run the solver itself; see
  * {@code command/impl/SmtLibCommand}.
  *
- * <p>Supported logics: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF. For ALL of these logics arbitrary
- * boolean structure over the theory atoms is supported (and/or/not/=>/xor/ite/true/false, including
- * negated atoms, {@code distinct} and {@code let} bindings); the conjunction of asserted formulas is
- * Tseitin-transformed and a {@link TheoryCNF} is returned via {@link SmtLibScript#getTheoryCNF()}.
+ * <p>Supported logics: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF. For ALL of these logics
+ * arbitrary boolean structure over the theory atoms is supported (and/or/not/=>/xor/ite/true/false,
+ * including negated atoms, {@code distinct} and {@code let} bindings); the conjunction of asserted
+ * formulas is Tseitin-transformed and a {@link TheoryCNF} is returned via {@link
+ * SmtLibScript#getTheoryCNF()}.
  *
  * <p>Equality logics (QF_EQ, QF_UF, QF_EQUF) build {@code EqualityConstraint}/{@code
- * EqualityFunctionConstraint} leaves. Arithmetic logics (QF_LRA, QF_LIA) build {@link
+ * EqualityFunctionConstraint} leaves. Linear arithmetic logics (QF_LRA, QF_LIA) build {@link
  * LinearConstraint} leaves over {@code <=}, {@code >=}, {@code <}, {@code >}; an {@code (= s t)}
  * atom is eliminated by splitting into {@code (and (<= s t) (>= s t))} so that every atom's negation
  * is a single (strict/non-strict) inequality, and {@code (distinct s t)} / {@code (not (= s t))}
- * become disjunctions of strict atoms. Only linear arithmetic terms are accepted; nonlinear products
- * are rejected.
+ * become disjunctions of strict atoms. Only linear arithmetic terms are accepted there; nonlinear
+ * products are rejected.
+ *
+ * <p>Nonlinear real arithmetic (QF_NRA) builds {@code MultivariatePolynomialConstraint} leaves over
+ * {@code <=}, {@code >=}, {@code <}, {@code >}, {@code =}, {@code distinct}, parsing {@code +},
+ * {@code -}, {@code *} (including nonlinear products), {@code ^} (integer powers) and rational-
+ * constant {@code /} into {@code MultivariatePolynomial}s. No {@code =}-splitting is done: EQUALS and
+ * NOT_EQUALS are native polynomial comparisons whose negation is exact, and the resulting constraints
+ * are solved by the (experimental) CAD-based {@code NonLinearRealArithmeticSolver}. Division by a
+ * non-constant polynomial is rejected as unsupported.
  *
  * @author Paul Tristan Wagner <paultristanwagner@gmail.com>
  */
@@ -162,6 +174,7 @@ public class SmtLibParser {
   // Logic kind. Determined by set-logic.
   private enum Kind {
     ARITHMETIC, // QF_LRA, QF_LIA
+    NONLINEAR, // QF_NRA
     EQUALITY, // QF_EQ
     UF // QF_UF, QF_EQUF
   }
@@ -409,13 +422,14 @@ public class SmtLibParser {
     logicName = args.get(0).atom.value();
     switch (logicName) {
       case "QF_LRA", "QF_LIA" -> kind = Kind.ARITHMETIC;
+      case "QF_NRA" -> kind = Kind.NONLINEAR;
       case "QF_EQ" -> kind = Kind.EQUALITY;
       case "QF_UF", "QF_EQUF" -> kind = Kind.UF;
       default ->
           throw err(
               "unsupported logic '"
                   + logicName
-                  + "' (supported: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF)",
+                  + "' (supported: QF_NRA, QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF)",
               index);
     }
   }
@@ -761,6 +775,9 @@ public class SmtLibParser {
     if (kind == Kind.ARITHMETIC) {
       return arithmeticAtomFormula(atom, head);
     }
+    if (kind == Kind.NONLINEAR) {
+      return nonlinearAtomFormula(atom, head);
+    }
     return equalityAtomFormula(atom, head);
   }
 
@@ -911,6 +928,170 @@ public class SmtLibParser {
     return PropositionalLogicAnd.and(le, ge);
   }
 
+  // ---- nonlinear arithmetic atoms (QF_NRA) ---------------------------------
+
+  /**
+   * Builds the propositional representation of a nonlinear-arithmetic atom over {@link
+   * MultivariatePolynomialConstraint} leaves. Every predicate {@code (op p q)} is normalized to a
+   * single constraint over the polynomial {@code p - q} compared against {@code 0}. Unlike the
+   * QF_LRA path there is NO {@code =}-splitting: EQUALS and NOT_EQUALS are native polynomial
+   * comparisons, and each atom's negation is the same polynomial with the flipped comparison (see
+   * {@link MultivariatePolynomialConstraint#negate()}), so the lazy SMT loop can negate atoms
+   * exactly. {@code (distinct ...)} over n operands becomes the conjunction over pairs of NOT_EQUALS
+   * atoms.
+   */
+  private PropositionalLogicExpression nonlinearAtomFormula(SExpr atom, String head) {
+    switch (head) {
+      case "<=", ">=", "<", ">", "=" -> {
+        if (atom.list.size() != 3) {
+          throw err("'" + head + "' expects exactly two arguments in this subset", atom.index);
+        }
+        MultivariatePolynomial lhs = parsePolynomial(atom.list.get(1));
+        MultivariatePolynomial rhs = parsePolynomial(atom.list.get(2));
+        MultivariatePolynomial difference = lhs.subtract(rhs);
+        Comparison comparison =
+            switch (head) {
+              case "<=" -> Comparison.LESS_THAN_OR_EQUALS;
+              case ">=" -> Comparison.GREATER_THAN_OR_EQUALS;
+              case "<" -> Comparison.LESS_THAN;
+              case ">" -> Comparison.GREATER_THAN;
+              default -> Comparison.EQUALS;
+            };
+        return atomVariable(
+            MultivariatePolynomialConstraint.multivariatePolynomialConstraint(difference, comparison));
+      }
+      case "distinct" -> {
+        List<SExpr> argExprs = atom.list.subList(1, atom.list.size());
+        if (argExprs.size() < 2) {
+          throw err("'distinct' requires at least two arguments", atom.index);
+        }
+        List<PropositionalLogicExpression> parts = new ArrayList<>();
+        for (int i = 0; i < argExprs.size(); i++) {
+          for (int j = i + 1; j < argExprs.size(); j++) {
+            MultivariatePolynomial a = parsePolynomial(argExprs.get(i));
+            MultivariatePolynomial b = parsePolynomial(argExprs.get(j));
+            parts.add(
+                atomVariable(
+                    MultivariatePolynomialConstraint.multivariatePolynomialConstraint(
+                        a.subtract(b), Comparison.NOT_EQUALS)));
+          }
+        }
+        return parts.size() == 1 ? parts.get(0) : PropositionalLogicAnd.and(parts);
+      }
+      default -> throw err("unsupported nonlinear arithmetic predicate '" + head + "'", atom.index);
+    }
+  }
+
+  /**
+   * Parses an arithmetic term in prefix form into a {@link MultivariatePolynomial}. Supports {@code
+   * (+ ...)}, {@code (- ...)} (unary negate and n-ary subtraction), {@code (* ...)} with NONLINEAR
+   * products (variable * variable), {@code (^ t n)} integer powers, numerals, decimals, declared
+   * variables, and {@code (/ p q)} where both operands are numeric constants (a rational
+   * coefficient). Division by a non-constant polynomial is rejected as unsupported. {@code let} and
+   * {@code define-fun} are resolved through the shared machinery.
+   */
+  private MultivariatePolynomial parsePolynomial(SExpr e) {
+    if (e.isAtom()) {
+      Tok t = e.atom;
+      if (t.type() == SmtLibLexer.NUMERAL || t.type() == SmtLibLexer.DECIMAL) {
+        return MultivariatePolynomial.constant(Number.parse(t.value()));
+      }
+      String v = t.value();
+      Object bound = lookupLet(v);
+      if (bound instanceof MultivariatePolynomial boundPoly) {
+        return boundPoly;
+      }
+      if (bound instanceof PropositionalLogicExpression) {
+        throw err("let-bound symbol '" + v + "' is a formula but is used as a term", e.index);
+      }
+      // a 0-ary define-fun used as a term expands to its (arithmetic) body.
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parsePolynomial(expanded);
+      }
+      // a variable
+      return MultivariatePolynomial.variable(v);
+    }
+
+    String head = e.head();
+    if (head == null) {
+      throw err("malformed arithmetic term", e.index);
+    }
+    if (defineFuns.containsKey(head) && lookupLet(head) == null) {
+      SExpr expanded = expandDefineFun(e);
+      if (expanded != null) {
+        return parsePolynomial(expanded);
+      }
+    }
+    switch (head) {
+      case "let" -> {
+        Map<String, Object> frame = evaluateLetBindings(e);
+        letScopes.push(frame);
+        try {
+          return parsePolynomial(e.list.get(2));
+        } finally {
+          letScopes.pop();
+        }
+      }
+      case "+" -> {
+        MultivariatePolynomial term = MultivariatePolynomial.constant(Number.ZERO());
+        for (int i = 1; i < e.list.size(); i++) {
+          term = term.add(parsePolynomial(e.list.get(i)));
+        }
+        return term;
+      }
+      case "-" -> {
+        if (e.list.size() < 2) {
+          throw err("'-' requires at least one argument", e.index);
+        }
+        if (e.list.size() == 2) {
+          return parsePolynomial(e.list.get(1)).negate();
+        }
+        MultivariatePolynomial term = parsePolynomial(e.list.get(1));
+        for (int i = 2; i < e.list.size(); i++) {
+          term = term.subtract(parsePolynomial(e.list.get(i)));
+        }
+        return term;
+      }
+      case "*" -> {
+        if (e.list.size() < 3) {
+          throw err("'*' requires at least two arguments", e.index);
+        }
+        MultivariatePolynomial term = parsePolynomial(e.list.get(1));
+        for (int i = 2; i < e.list.size(); i++) {
+          term = term.multiply(parsePolynomial(e.list.get(i)));
+        }
+        return term;
+      }
+      case "^" -> {
+        if (e.list.size() != 3) {
+          throw err("'^' expects exactly two arguments (base and a non-negative integer exponent)", e.index);
+        }
+        MultivariatePolynomial base = parsePolynomial(e.list.get(1));
+        SExpr exponentExpr = e.list.get(2);
+        if (!exponentExpr.isAtom() || exponentExpr.atom.type() != SmtLibLexer.NUMERAL) {
+          throw err("unsupported: '^' with a non-constant integer exponent", e.index);
+        }
+        int exponent = Integer.parseInt(exponentExpr.atom.value());
+        return base.pow(exponent);
+      }
+      case "/" -> {
+        // Only a rational CONSTANT (/ p q) is supported (division by a non-constant polynomial is
+        // not expressible as a polynomial); reject the latter as unsupported.
+        if (e.list.size() != 3) {
+          throw err("'/' expects exactly two arguments", e.index);
+        }
+        Number numerator = tryConstant(e.list.get(1));
+        Number denominator = tryConstant(e.list.get(2));
+        if (numerator == null || denominator == null) {
+          throw err("unsupported: division by a non-constant polynomial", e.index);
+        }
+        return MultivariatePolynomial.constant(numerator.divide(denominator));
+      }
+      default -> throw err("unsupported arithmetic operator '" + head + "'", e.index);
+    }
+  }
+
   // ---- let bindings ---------------------------------------------------------
 
   /**
@@ -960,6 +1141,9 @@ public class SmtLibParser {
    * boolean formula. For equality logics it is always a boolean formula.
    */
   private Object evaluateLetValue(SExpr valueExpr) {
+    if (kind == Kind.NONLINEAR && looksLikeArithmeticTerm(valueExpr)) {
+      return parsePolynomial(valueExpr);
+    }
     if (kind == Kind.ARITHMETIC && looksLikeArithmeticTerm(valueExpr)) {
       return parseLinearTerm(valueExpr);
     }
@@ -984,7 +1168,7 @@ public class SmtLibParser {
         return false;
       }
       Object bound = lookupLet(v);
-      if (bound instanceof LinearTerm) {
+      if (bound instanceof LinearTerm || bound instanceof MultivariatePolynomial) {
         return true;
       }
       if (bound instanceof PropositionalLogicExpression) {
@@ -1007,7 +1191,7 @@ public class SmtLibParser {
       return !"Bool".equals(defineFuns.get(head).returnSort());
     }
     return switch (head) {
-      case "+", "-", "*", "/" -> true;
+      case "+", "-", "*", "/", "^" -> true;
       default -> false;
     };
   }
@@ -1079,7 +1263,9 @@ public class SmtLibParser {
     if (e.isAtom()) {
       Tok t = e.atom;
       if (t.type() == SmtLibLexer.NUMERAL) {
-        return kind == Kind.ARITHMETIC && "QF_LRA".equals(logicName) ? "Real" : "Int";
+        boolean realLogic =
+            kind == Kind.NONLINEAR || (kind == Kind.ARITHMETIC && "QF_LRA".equals(logicName));
+        return realLogic ? "Real" : "Int";
       }
       if (t.type() == SmtLibLexer.DECIMAL) {
         return "Real";
@@ -1092,7 +1278,7 @@ public class SmtLibParser {
       if (bound instanceof PropositionalLogicExpression) {
         return "Bool";
       }
-      if (bound instanceof LinearTerm) {
+      if (bound instanceof LinearTerm || bound instanceof MultivariatePolynomial) {
         return "Real";
       }
       if (defineFuns.containsKey(v)) {
@@ -1109,7 +1295,7 @@ public class SmtLibParser {
           "<=", ">=", "<", ">", "true", "false" -> {
         return "Bool";
       }
-      case "+", "-", "*", "/" -> {
+      case "+", "-", "*", "/", "^" -> {
         return "Real";
       }
       case "ite" -> {
