@@ -40,8 +40,10 @@ public class SmtLibCommand extends Command {
               Parses a subset of SMT-LIB 2.6 and runs it through the SMT pipeline.
 
               Supported logics: QF_LRA, QF_LIA, QF_EQ, QF_UF, QF_EQUF.
-              Supported boolean structure: CNF fragment only
-                (conjunctions of clauses; a clause is a disjunction of positive atoms).
+              Boolean structure:
+                - equality logics (QF_EQ, QF_UF, QF_EQUF): arbitrary structure
+                  (and/or/not/=>/xor/ite over equality atoms, incl. negation/distinct).
+                - arithmetic logics (QF_LRA, QF_LIA): CNF fragment of positive atoms only.
 
               Examples:
                 smtlib problem.smt2
@@ -118,8 +120,11 @@ public class SmtLibCommand extends Command {
     String theoryName = mapLogic(parsed.getLogic());
     Theory theory = Theory.get(theoryName);
 
-    List<TheoryClause<Constraint>> clauses = parsed.getClauses();
-    TheoryCNF theoryCNF = new TheoryCNF(clauses);
+    TheoryCNF theoryCNF = parsed.getTheoryCNF();
+    if (theoryCNF == null) {
+      List<TheoryClause<Constraint>> clauses = parsed.getClauses();
+      theoryCNF = new TheoryCNF(clauses);
+    }
 
     SMTSolver smtSolver = theory.getSMTSolver();
     smtSolver.setSATSolver(new DPLLCDCLSolver());

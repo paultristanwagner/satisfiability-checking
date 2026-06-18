@@ -56,6 +56,27 @@ public class TheoryCNF<T extends Constraint> {
     this.booleanStructure = new CNF(booleanClauses);
   }
 
+  /**
+   * Builds a {@code TheoryCNF} directly from a prebuilt boolean structure and an
+   * atom-to-name mapping. Used by the SMT-LIB front-end for the equality logics, where the boolean
+   * skeleton is produced by Tseitin transformation of an arbitrary boolean formula (including
+   * negated atoms) rather than a CNF fragment. The {@code clauses} lists are left empty; the lazy
+   * SMT loop only consumes {@link #getBooleanStructure()} and {@link #getConstraintLiteralMap()}.
+   */
+  public TheoryCNF(CNF booleanStructure, BiMap<T, String> constraintNames) {
+    this.initialClauses = new ArrayList<>();
+    this.clauses = new ArrayList<>();
+    this.constraints = new ArrayList<>(constraintNames.keySet());
+
+    this.constraintNameMap = constraintNames;
+    this.constraintLiteralMap = HashBiMap.create();
+    for (var entry : constraintNames.entrySet()) {
+      this.constraintLiteralMap.put(entry.getKey(), new Literal(entry.getValue()));
+    }
+
+    this.booleanStructure = booleanStructure;
+  }
+
   public static <T extends Constraint> TheoryCNF<T> parse(String string) {
     throw new UnsupportedOperationException();
   }

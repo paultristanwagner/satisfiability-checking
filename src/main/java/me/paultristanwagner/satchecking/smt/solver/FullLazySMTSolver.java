@@ -33,19 +33,29 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
 
     Assignment assignment;
     while ((assignment = satSolver.nextModel()) != null) {
-      List<Literal> trueLiterals = assignment.getTrueLiterals();
-
       theorySolver.clear();
 
+      // Build the selected constraints by inspecting the assignment of EVERY atom literal. A
+      // TRUE-assigned atom is asserted as-is; a FALSE-assigned atom is asserted as its negation
+      // (issue #9) when the constraint is negatable (exact for equality logics), otherwise skipped
+      // to preserve the sound positive-only behavior for theories without exact atom negation.
       Set<C> selectedConstraints = new HashSet<>();
-      for (Literal trueLiteral : trueLiterals) {
-        if(!cnf.getConstraintLiteralMap().inverse().containsKey(trueLiteral.getName())) {
+      for (var entry : cnf.getConstraintLiteralMap().entrySet()) {
+        C constraint = entry.getKey();
+        String name = entry.getValue();
+
+        if (!assignment.assigns(new Literal(name))) {
           continue;
         }
 
-        C constraint = cnf.getConstraintLiteralMap().inverse().get(trueLiteral.getName());
-
-        selectedConstraints.add(constraint);
+        boolean value = assignment.getValue(name);
+        if (value) {
+          selectedConstraints.add(constraint);
+        } else if (constraint.isNegatable()) {
+          @SuppressWarnings("unchecked")
+          C negated = (C) constraint.negate();
+          selectedConstraints.add(negated);
+        }
       }
 
       theorySolver.load(selectedConstraints);
@@ -98,13 +108,36 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
         return SMTResult.satisfiable(theoryResult.getSolution());
       }
 
-      // Exclude explanation
+      // Exclude explanation. The explanation may reference negated atoms (constraints produced by
+      // negate() that are NOT keys of the constraint map). For each explanation constraint we must
+      // recover the literal of the POSITIVE atom in the map and use the correct polarity:
+      //  - constraint present in map  -> it was assigned TRUE -> block with its negative literal.
+      //  - constraint is a negation of a mapped atom -> the atom was assigned FALSE -> block with
+      //    its positive literal.
+      // Mapping to neither must not happen for the equality logics; we log and skip to avoid
+      // producing a Literal(null) that would corrupt the blocking clause and break termination.
       Set<C> explanation = theoryResult.getExplanation();
 
       List<Literal> literals = new ArrayList<>();
       for (C constraint : explanation) {
         String literalName = cnf.getConstraintLiteralMap().get(constraint);
-        literals.add(new Literal(literalName).not());
+        if (literalName != null) {
+          literals.add(new Literal(literalName).not());
+        } else if (constraint.isNegatable()) {
+          @SuppressWarnings("unchecked")
+          C positive = (C) constraint.negate();
+          String positiveName = cnf.getConstraintLiteralMap().get(positive);
+          if (positiveName != null) {
+            literals.add(new Literal(positiveName));
+          } else {
+            System.err.println(
+                "FullLazySMTSolver: explanation constraint not in atom map, skipping: "
+                    + constraint);
+          }
+        } else {
+          System.err.println(
+              "FullLazySMTSolver: explanation constraint not in atom map, skipping: " + constraint);
+        }
       }
 
       Clause clause = new Clause(literals);

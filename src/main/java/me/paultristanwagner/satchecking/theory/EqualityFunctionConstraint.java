@@ -27,6 +27,16 @@ public class EqualityFunctionConstraint implements Constraint {
   }
 
   @Override
+  public boolean isNegatable() {
+    return true;
+  }
+
+  @Override
+  public Constraint negate() {
+    return new EqualityFunctionConstraint(left, right, !equal);
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
