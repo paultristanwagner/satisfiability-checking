@@ -20,6 +20,7 @@ public class CommandRegistry {
         new SimplexCommand(),
         new TseitinCommand(),
         new ReadCommand(),
+        new DimacsCommand(),
         new ClearCommand(),
         new ExitCommand(),
         new ReloadCommand()
