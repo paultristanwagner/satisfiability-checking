@@ -554,7 +554,8 @@ impl Theory for Euf {
         let mut clause = vec![lit];
         if lit.is_negated() {
             // a != b was implied by the disequality pinned at propagation time, with a≡p, b≡q.
-            let (p, q, neg_lit) = self.neg_witness[vi].expect("missing negative-propagation witness");
+            let (p, q, neg_lit) =
+                self.neg_witness[vi].expect("missing negative-propagation witness");
             for e in self.explain_eq(a, p) {
                 clause.push(!e);
             }
@@ -932,13 +933,9 @@ mod tests {
         for _trial in 0..400 {
             let mut h = Harness::new();
             // constants
-            let consts: Vec<TermId> = (0..NCONSTS)
-                .map(|i| h.c(&format!("c{i}")))
-                .collect();
+            let consts: Vec<TermId> = (0..NCONSTS).map(|i| h.c(&format!("c{i}"))).collect();
             // f(c_i)
-            let fconsts: Vec<TermId> = (0..NCONSTS)
-                .map(|i| h.f("f", vec![consts[i]]))
-                .collect();
+            let fconsts: Vec<TermId> = (0..NCONSTS).map(|i| h.f("f", vec![consts[i]])).collect();
 
             // Build a flat list of terms matching the reference numbering.
             let term_of = |idx: usize| -> TermId {

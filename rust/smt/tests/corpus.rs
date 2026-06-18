@@ -47,5 +47,8 @@ fn corpus_matches_status() {
         );
         checked += 1;
     }
-    assert!(checked >= 8, "expected to check the committed corpus, got {checked}");
+    assert!(
+        checked >= 8,
+        "expected to check the committed corpus, got {checked}"
+    );
 }

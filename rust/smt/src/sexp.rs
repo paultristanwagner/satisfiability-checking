@@ -93,7 +93,10 @@ fn tokenize(input: &str) -> Result<Vec<Token>, String> {
                 let start = i;
                 while i < bytes.len() {
                     let d = bytes[i];
-                    if matches!(d, b' ' | b'\t' | b'\r' | b'\n' | b'(' | b')' | b';' | b'|' | b'"') {
+                    if matches!(
+                        d,
+                        b' ' | b'\t' | b'\r' | b'\n' | b'(' | b')' | b';' | b'|' | b'"'
+                    ) {
                         break;
                     }
                     i += 1;

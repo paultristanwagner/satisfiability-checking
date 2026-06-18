@@ -209,7 +209,9 @@ fn is_connective(head: &str) -> bool {
 fn count_arg(args: &[Sexp]) -> Result<usize, String> {
     match args.first() {
         None => Ok(1),
-        Some(Sexp::Atom(s)) => s.parse::<usize>().map_err(|_| "bad push/pop count".to_string()),
+        Some(Sexp::Atom(s)) => s
+            .parse::<usize>()
+            .map_err(|_| "bad push/pop count".to_string()),
         _ => Err("bad push/pop count".to_string()),
     }
 }
@@ -290,12 +292,18 @@ impl<'a> Encoder<'a> {
                 sym => self.builder.euf().mk_const(sym),
             },
             Sexp::List(l) => {
-                let head = l.first().and_then(Sexp::as_atom).ok_or("empty application")?;
+                let head = l
+                    .first()
+                    .and_then(Sexp::as_atom)
+                    .ok_or("empty application")?;
                 if is_connective(head) {
                     // A compound formula used as a term: a fresh node bound to its truth value.
                     let val = self.bool(t)?;
                     self.ite_counter += 1;
-                    let n = self.builder.euf().mk_const(&format!("!b{}", self.ite_counter));
+                    let n = self
+                        .builder
+                        .euf()
+                        .mk_const(&format!("!b{}", self.ite_counter));
                     let et = self.builder.eq_atom(n, self.bool_true);
                     self.builder.add_clause(vec![!val, et]);
                     self.builder.add_clause(vec![val, !et]);
@@ -326,7 +334,10 @@ impl<'a> Encoder<'a> {
                     .ok_or_else(|| format!("undeclared symbol '{sym}'")),
             },
             Sexp::List(l) => {
-                let head = l.first().and_then(Sexp::as_atom).ok_or("empty application")?;
+                let head = l
+                    .first()
+                    .and_then(Sexp::as_atom)
+                    .ok_or("empty application")?;
                 match head {
                     "and" | "or" | "not" | "=>" | "xor" | "=" | "distinct" => {
                         Ok("Bool".to_string())
@@ -351,14 +362,20 @@ impl<'a> Encoder<'a> {
         match t {
             Sexp::Atom(name) => Ok(self.builder.euf().mk_const(name)),
             Sexp::List(l) => {
-                let head = l.first().and_then(Sexp::as_atom).ok_or("empty application")?;
+                let head = l
+                    .first()
+                    .and_then(Sexp::as_atom)
+                    .ok_or("empty application")?;
                 if head == "ite" {
                     // term-level ITE: fresh constant lifted with c -> t=a, !c -> t=b
                     let cond = self.bool(&l[1])?;
                     let then_t = self.term(&l[2])?;
                     let else_t = self.term(&l[3])?;
                     self.ite_counter += 1;
-                    let fresh = self.builder.euf().mk_const(&format!("!ite{}", self.ite_counter));
+                    let fresh = self
+                        .builder
+                        .euf()
+                        .mk_const(&format!("!ite{}", self.ite_counter));
                     let eq_then = self.builder.eq_atom(fresh, then_t);
                     let eq_else = self.builder.eq_atom(fresh, else_t);
                     self.builder.add_clause(vec![!cond, eq_then]);
@@ -388,7 +405,10 @@ impl<'a> Encoder<'a> {
                 }
             },
             Sexp::List(l) => {
-                let head = l.first().and_then(Sexp::as_atom).ok_or("empty application")?;
+                let head = l
+                    .first()
+                    .and_then(Sexp::as_atom)
+                    .ok_or("empty application")?;
                 let args = &l[1..];
                 match head {
                     "not" => Ok(!self.bool(&args[0])?),
