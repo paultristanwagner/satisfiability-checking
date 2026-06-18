@@ -3,6 +3,7 @@ package me.paultristanwagner.satchecking.smt.solver;
 import me.paultristanwagner.satchecking.sat.Assignment;
 import me.paultristanwagner.satchecking.sat.Clause;
 import me.paultristanwagner.satchecking.sat.Literal;
+import me.paultristanwagner.satchecking.sat.solver.DPLLCDCLSolver;
 import me.paultristanwagner.satchecking.smt.SMTResult;
 import me.paultristanwagner.satchecking.smt.VariableAssignment;
 import me.paultristanwagner.satchecking.theory.Constraint;
@@ -21,9 +22,25 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
   public SMTResult<C> solve() {
     satSolver.load(cnf.getBooleanStructure());
 
+    // Theory conflict lemmas are learned WITH watched-literal setup so that they participate in the
+    // SAT solver's conflict-driven propagation (issue #43). Previously the lemma was appended via
+    // CNF.learnClause, which adds it to the clause list but does NOT initialize watched literals, so
+    // it was inert for BCP and the enumeration relied solely on nextModel()'s per-model blocking
+    // (worst-case 2^n iterations). Routing the lemma through DPLLCDCLSolver.learnTheoryLemma makes
+    // it prune the remaining search, while the complete model itself is still blocked by
+    // nextModel() (via assignment.not()), so termination is unchanged.
+    //
+    // We keep the robust nextModel()-based enumeration rather than the excludeClause() path used by
+    // LessLazySMTSolver: a theory lemma derived from a COMPLETE model can have all of its literals
+    // falsified across several decision levels with none at the current level, which is not a
+    // well-formed input for the 1-UIP conflict analysis that excludeClause() runs. nextModel()'s
+    // own blocking clause is always asserting and therefore safe.
+    DPLLCDCLSolver cdclSolver =
+        satSolver instanceof DPLLCDCLSolver ? (DPLLCDCLSolver) satSolver : null;
+
     // Tracking for the optimization case: we cannot return on the first theory-satisfiable
     // Boolean model, because a different Boolean model may yield a better optimum. We therefore
-    // enumerate all theory-consistent Boolean models and keep the best optimum seen.
+    // enumerate all theory-consistent Boolean models and keep the best optimum seen (issue #20).
     boolean objectivePresent = false;
     boolean maximizing = false;
     boolean foundOptimizationSolution = false;
@@ -145,7 +162,15 @@ public class FullLazySMTSolver<C extends Constraint> extends SMTSolver<C> {
       // current model is still excluded by nextModel()'s built-in blocking, so termination holds.
       if (!literals.isEmpty()) {
         Clause clause = new Clause(literals);
-        cnf.getBooleanStructure().learnClause(clause);
+        if (cdclSolver != null) {
+          // Learn the lemma WITH watched literals so it participates in BCP and prunes the search.
+          cdclSolver.learnTheoryLemma(clause);
+        } else {
+          // Fallback for non-CDCL SAT backends: keep the original inert-learning behavior. The
+          // clause is still recorded for any solver that re-derives watches on load, and the model
+          // is excluded by nextModel()'s blocking.
+          cnf.getBooleanStructure().learnClause(clause);
+        }
       }
     }
 

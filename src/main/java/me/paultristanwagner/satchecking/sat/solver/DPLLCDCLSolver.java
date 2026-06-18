@@ -259,6 +259,39 @@ public class DPLLCDCLSolver implements SATSolver {
     return resolveConflict();
   }
 
+  /**
+   * Learns a theory conflict lemma so that it participates in watched-literal BCP from now on
+   * (issue #43), WITHOUT driving an immediate conflict-analysis/backjump from the present state.
+   *
+   * <p>This is the counterpart of {@link #excludeClause(Clause)} for the {@code nextModel()}-based
+   * full-lazy enumeration loop: there the previous complete model is always blocked by the solver
+   * itself (via {@code assignment.not()}), which is guaranteed to be an asserting conflict clause
+   * and therefore safe to feed into {@link #resolveConflict()}. A theory lemma derived from a
+   * complete model, by contrast, may have all of its literals falsified across several decision
+   * levels with none at the current level, which is NOT a well-formed input for the 1-UIP analysis
+   * in {@code resolveConflict}. So we do not run conflict analysis on it; we only register it.
+   *
+   * <p>To preserve the 2-watched-literal invariant we (re)select the two watched literals using the
+   * standard rule against the CURRENT assignment and, if the clause is already unit or conflicting,
+   * enqueue/flag it so the very next {@code bcp()} (inside the next {@code nextModel()} →
+   * {@code check()}) acts on it. {@code nextModel()} clears the unit queue before blocking the old
+   * model, so a unit enqueued here for the soon-to-be-undone complete model is harmless; the lemma's
+   * watches persist and fire again once its literals are reassigned during the next search.
+   */
+  public void learnTheoryLemma(Clause clause) {
+    learnClause(clause);
+
+    WatchedLiteralPair wlp = watchedLiteralsMap.get(clause);
+    if (wlp.isConflicting(assignment)) {
+      conflictingClause = clause;
+    } else {
+      Literal unitLiteral = wlp.getUnitLiteral(assignment);
+      if (unitLiteral != null) {
+        unitClauses.add(Pair.of(clause, unitLiteral));
+      }
+    }
+  }
+
   private void learnClause(Clause clause) {
     cnf.learnClause(clause);
 
