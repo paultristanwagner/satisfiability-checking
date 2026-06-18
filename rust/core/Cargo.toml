@@ -1,0 +1,11 @@
+[package]
+name = "satcheck-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+num-bigint.workspace = true
+num-rational.workspace = true
+num-traits.workspace = true
+rustc-hash.workspace = true
