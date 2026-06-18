@@ -16,6 +16,7 @@ public class CommandRegistry {
         new HelpCommand(),
         new SATCommand(),
         new SMTCommand(),
+        new SmtLibCommand(),
         new SimplexCommand(),
         new TseitinCommand(),
         new ReadCommand(),
