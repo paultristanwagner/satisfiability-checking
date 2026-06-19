@@ -50,6 +50,7 @@ pub struct Script {
     asserts: Vec<Sexp>,
     frames: Vec<Frame>,
     expected: Option<Answer>,
+    logic: Option<String>,
     pub results: Vec<CheckResult>,
 }
 
@@ -69,6 +70,7 @@ impl Script {
                 decls: Vec::new(),
             }],
             expected: None,
+            logic: None,
             results: Vec::new(),
         }
     }
@@ -81,6 +83,19 @@ impl Script {
             script.command(cmd)?;
         }
         Ok(script)
+    }
+
+    /// Run a single command, returning the new [`CheckResult`] if it was a `(check-sat)`. Used by
+    /// the interactive REPL to surface verdicts as soon as each command is entered.
+    pub fn exec(&mut self, cmd: &Sexp) -> Result<Option<CheckResult>, String> {
+        let before = self.results.len();
+        self.command(cmd)?;
+        Ok((self.results.len() > before).then(|| self.results.last().unwrap().clone()))
+    }
+
+    /// The logic set via `(set-logic …)`, if any (for the REPL prompt).
+    pub fn logic(&self) -> Option<&str> {
+        self.logic.as_deref()
     }
 
     fn command(&mut self, cmd: &Sexp) -> Result<(), String> {
@@ -109,8 +124,13 @@ impl Script {
                 self.set_info(&list[1..]);
                 Ok(())
             }
-            "set-logic" | "set-option" | "get-model" | "get-info" | "get-value" | "echo"
-            | "reset" | "exit" => Ok(()),
+            "set-logic" => {
+                self.logic = list.get(1).and_then(Sexp::as_atom).map(str::to_string);
+                Ok(())
+            }
+            "set-option" | "get-model" | "get-info" | "get-value" | "echo" | "reset" | "exit" => {
+                Ok(())
+            }
             other => Err(format!("unsupported command '{other}'")),
         }
     }
@@ -658,6 +678,29 @@ mod tests {
             (assert (distinct p q))
             (check-sat)";
         assert_eq!(answers(s), vec![Answer::Unsat]);
+    }
+
+    #[test]
+    fn incremental_exec_surfaces_results() {
+        // Mirrors how the REPL drives the solver: feed commands one at a time and observe the
+        // verdict returned by the (check-sat) command itself.
+        let mut s = Script::new();
+        for src in [
+            "(set-logic QF_UF)",
+            "(declare-sort U 0)",
+            "(declare-fun a () U)",
+            "(declare-fun b () U)",
+            "(assert (= a b))",
+        ] {
+            let cmd = &crate::sexp::parse_script(src).unwrap()[0];
+            assert!(s.exec(cmd).unwrap().is_none());
+        }
+        assert_eq!(s.logic(), Some("QF_UF"));
+        let check = &crate::sexp::parse_script("(check-sat)").unwrap()[0];
+        assert_eq!(s.exec(check).unwrap().unwrap().answer, Answer::Sat);
+        let neg = &crate::sexp::parse_script("(assert (not (= a b)))").unwrap()[0];
+        assert!(s.exec(neg).unwrap().is_none());
+        assert_eq!(s.exec(check).unwrap().unwrap().answer, Answer::Unsat);
     }
 
     #[test]
