@@ -10,3 +10,4 @@ satcheck-term.workspace = true
 satcheck-sat.workspace = true
 satcheck-theory.workspace = true
 rustc-hash.workspace = true
+rustyline.workspace = true
